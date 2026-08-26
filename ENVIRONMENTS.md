@@ -27,6 +27,11 @@ Milestone 0 is incomplete until separate remote `development`, `staging`, and `p
 - Base Wrangler configuration / Worker service name: `ridevector-api`.
 - Per-environment Worker names: `ridevector-api-development`, `ridevector-api-staging`, `ridevector-api-production`.
 - Every remote deployment must specify an environment explicitly (`development`, `staging`, or `production`). No remote deploy command may omit the environment or default to production.
+- Workers deployed (Milestone 0):
+  - development: `https://ridevector-api-development.jmondragontech.workers.dev`
+  - staging: `https://ridevector-api-staging.jmondragontech.workers.dev`
+  - production: `https://ridevector-api-production.jmondragontech.workers.dev`
+- Smoke health path: `GET /api/health`
 
 ### Supabase
 
