@@ -24,7 +24,7 @@ export function errorResponse(
       ...(details ? { details } : {}),
     },
   };
-  return jsonResponse(body, status);
+  return jsonResponse(body, status, { headers: pocCorsHeaders() });
 }
 
 /** POC routing endpoints are available only when ENVIRONMENT=local. */

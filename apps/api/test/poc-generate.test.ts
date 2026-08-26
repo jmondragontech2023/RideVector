@@ -245,6 +245,7 @@ describe('POC handler environment gate', () => {
     expect(response.status).toBe(400);
     const body = (await response.json()) as { error: { code: string } };
     expect(body.error.code).toBe('VALIDATION_FAILED');
+    expect(response.headers.get('access-control-allow-origin')).toBe('*');
   });
 });
 

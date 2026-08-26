@@ -22,11 +22,13 @@ export class PocApiError extends Error {
 
 export async function generatePocRoutes(
   body: PocGenerateRequestBody,
+  signal?: AbortSignal,
 ): Promise<PocGenerateResponse> {
   const response = await fetch(`${apiBaseUrl()}/api/poc/routes/generate`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', accept: 'application/json' },
     body: JSON.stringify(body),
+    signal,
   });
 
   if (response.status === 404) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { generatePocRoutes, PocApiError } from './poc/api';
 import { POC_SCENARIO_FIXTURES } from './poc/fixtures';
 import { RouteMap } from './poc/RouteMap';
@@ -34,12 +34,21 @@ export function App() {
   const [wouldRide, setWouldRide] = useState<WouldRide>('maybe');
   const [feedbackReason, setFeedbackReason] = useState('');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const generationTokenRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setSavedRoutes(loadPocStore().routes);
   }, []);
 
+  function invalidateInFlightGeneration() {
+    generationTokenRef.current += 1;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+  }
+
   function clearGenerationResults() {
+    invalidateInFlightGeneration();
     setResult(null);
     setSelectedId(null);
     setStatus('idle');
@@ -70,13 +79,24 @@ export function App() {
     setErrorMessage(null);
     setSaveMessage(null);
 
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    const token = ++generationTokenRef.current;
+
     try {
-      const response = await generatePocRoutes({
-        start: effectiveStart,
-        targetDistanceMeters: milesToMeters(miles),
-        costing,
-        seed: nextSeed,
-      });
+      const response = await generatePocRoutes(
+        {
+          start: effectiveStart,
+          targetDistanceMeters: milesToMeters(miles),
+          costing,
+          seed: nextSeed,
+        },
+        abortController.signal,
+      );
+      if (token !== generationTokenRef.current) {
+        return;
+      }
       setStart(effectiveStart);
       setSeed(response.seed);
       setResult(response);
@@ -86,12 +106,19 @@ export function App() {
         setErrorMessage(response.warnings[0] ?? 'No valid routes were returned.');
       }
     } catch (error) {
+      if (abortController.signal.aborted || token !== generationTokenRef.current) {
+        return;
+      }
       setResult(null);
       setSelectedId(null);
       setStatus('error');
       setErrorMessage(
         error instanceof PocApiError ? error.message : 'Unexpected generation failure.',
       );
+    } finally {
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
     }
   }
 
@@ -100,6 +127,7 @@ export function App() {
     if (!fixture) {
       return;
     }
+    invalidateInFlightGeneration();
     setStart(fixture.start);
     setTargetMiles(String(fixture.targetDistanceMiles));
     setCosting(fixture.costing);

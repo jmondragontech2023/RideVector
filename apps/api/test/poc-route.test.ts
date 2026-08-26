@@ -48,6 +48,23 @@ describe('validateRouteSpikeRequest', () => {
 });
 
 describe('handlePocRoute', () => {
+  it('returns validation errors with POC CORS headers', async () => {
+    const response = await handlePocRoute(
+      new Request('http://localhost/api/poc/routes/route', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ start: { lat: 999, lon: 0 } }),
+      }),
+      {
+        ENVIRONMENT: 'local',
+        SUPABASE_URL: 'http://127.0.0.1:54321',
+        VALHALLA_BASE_URL: 'https://valhalla.example.test',
+      } as unknown as Env,
+    );
+    expect(response.status).toBe(400);
+    expect(response.headers.get('access-control-allow-origin')).toBe('*');
+  });
+
   it('returns 404 outside local', async () => {
     const response = await handlePocRoute(
       new Request('http://localhost/api/poc/routes/route', {
