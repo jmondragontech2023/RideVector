@@ -1,0 +1,4 @@
+{
+  "kind": "negative",
+  "expectedRuleIds": ["CLIENT_CONTAINS_PRIVILEGED_SECRET"]
+}

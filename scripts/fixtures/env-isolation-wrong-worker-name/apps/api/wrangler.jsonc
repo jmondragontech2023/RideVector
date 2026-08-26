@@ -8,25 +8,38 @@
     "enabled": true
   },
   "vars": {
-    "ENVIRONMENT": "local"
+    "ENVIRONMENT": "local",
+    "SUPABASE_URL": "http://127.0.0.1:54321"
   },
   "env": {
     "development": {
       "name": "ridevector-api-production",
       "vars": {
-        "ENVIRONMENT": "development"
+        "ENVIRONMENT": "development",
+        "SUPABASE_URL": "https://hsokwavqmqlkbtnftoqw.supabase.co"
+      },
+      "observability": {
+        "enabled": true
       }
     },
     "staging": {
       "name": "ridevector-api-staging",
       "vars": {
-        "ENVIRONMENT": "staging"
+        "ENVIRONMENT": "staging",
+        "SUPABASE_URL": "https://REPLACE_ME_STAGING_REF.supabase.co"
+      },
+      "observability": {
+        "enabled": true
       }
     },
     "production": {
       "name": "ridevector-api-production",
       "vars": {
-        "ENVIRONMENT": "production"
+        "ENVIRONMENT": "production",
+        "SUPABASE_URL": "https://REPLACE_ME_PRODUCTION_REF.supabase.co"
+      },
+      "observability": {
+        "enabled": true
       }
     }
   }

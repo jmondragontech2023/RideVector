@@ -1,0 +1,4 @@
+{
+  "kind": "negative",
+  "expectedRuleIds": ["NON_PROD_WORKER_POINTS_TO_PRODUCTION"]
+}

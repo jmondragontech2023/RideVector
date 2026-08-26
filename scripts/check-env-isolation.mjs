@@ -2,23 +2,37 @@
 /**
  * Structured environment-isolation assertions for Milestone 0.
  *
+ * Emits machine-readable rule IDs on stderr:
+ *   RULE_ID=<ID> <human message>
+ *
  * - Parses wrangler.jsonc per named env (does NOT allowlist the whole file).
  * - Asserts development/staging cannot resolve production Worker names, hosts,
  *   Supabase refs/URLs, or ENVIRONMENT=production.
  * - Scans non-production example/config files for production contamination.
- * - Supports --fixture <dir> for negative tests.
+ * - Supports --fixture <dir> for negative/positive fixture roots.
  */
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
+/** Stable machine-readable isolation rule IDs. */
+export const RULE = Object.freeze({
+  NON_PROD_WORKER_POINTS_TO_PRODUCTION: 'NON_PROD_WORKER_POINTS_TO_PRODUCTION',
+  NON_PROD_SUPABASE_POINTS_TO_PRODUCTION: 'NON_PROD_SUPABASE_POINTS_TO_PRODUCTION',
+  NON_PROD_SUPABASE_POINTS_TO_DEFERRED: 'NON_PROD_SUPABASE_POINTS_TO_DEFERRED',
+  CLIENT_CONTAINS_PRIVILEGED_SECRET: 'CLIENT_CONTAINS_PRIVILEGED_SECRET',
+  REMOTE_DEPLOY_MISSING_EXPLICIT_ENV: 'REMOTE_DEPLOY_MISSING_EXPLICIT_ENV',
+  LOCAL_DEV_USES_REMOTE_ENV: 'LOCAL_DEV_USES_REMOTE_ENV',
+  WRANGLER_CONFIG_INVALID: 'WRANGLER_CONFIG_INVALID',
+  FIXTURE_EXECUTION_ERROR: 'FIXTURE_EXECUTION_ERROR',
+});
+
 const repoRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
 const { values: args } = parseArgs({
   options: {
     fixture: { type: 'string' },
-    'expect-fail': { type: 'boolean', default: false },
   },
   strict: true,
 });
@@ -47,6 +61,7 @@ const DEFERRED_REMOTE_SUPABASE_MARKERS = [
 /** Known-safe docs/scripts that may name production identifiers. */
 const DOC_ALLOWLIST = new Set([
   'scripts/check-env-isolation.mjs',
+  'scripts/run-env-isolation-fixtures.mjs',
   'scripts/check-client-bundle-secrets.mjs',
   'scripts/check-wrangler-types.mjs',
   '.github/workflows/deploy-production.yml',
@@ -68,10 +83,11 @@ const SKIP_DIRS = new Set([
   '.temp',
 ]);
 
+/** @type {{ ruleId: string, message: string }[]} */
 const violations = [];
 
-function fail(message) {
-  violations.push(message);
+function fail(ruleId, message) {
+  violations.push({ ruleId, message });
 }
 
 function stripJsonc(text) {
@@ -133,28 +149,41 @@ function assertNonProductionEnv(envName, envConfig, topLevel) {
 
   if (name === PRODUCTION_WORKER || String(name).includes('production')) {
     fail(
+      RULE.NON_PROD_WORKER_POINTS_TO_PRODUCTION,
       `wrangler env.${envName}: Worker name "${name}" must not resolve production for non-production env`,
     );
   }
   if (vars.ENVIRONMENT === 'production') {
-    fail(`wrangler env.${envName}: ENVIRONMENT must not be "production"`);
+    fail(
+      RULE.NON_PROD_WORKER_POINTS_TO_PRODUCTION,
+      `wrangler env.${envName}: ENVIRONMENT must not be "production"`,
+    );
   }
   const blob = JSON.stringify({ name, vars, routes, workersDev, supabaseRef });
-  for (const marker of [
-    PRODUCTION_WORKER,
-    PRODUCTION_SUPABASE,
-    ...PRODUCTION_HOST_MARKERS,
-    'supabase.co/ridevector-production',
-  ]) {
+  for (const marker of [PRODUCTION_WORKER, ...PRODUCTION_HOST_MARKERS]) {
     if (blob.includes(marker)) {
-      fail(`wrangler env.${envName}: resolves production marker "${marker}"`);
+      fail(
+        RULE.NON_PROD_WORKER_POINTS_TO_PRODUCTION,
+        `wrangler env.${envName}: resolves production Worker marker "${marker}"`,
+      );
+    }
+  }
+  for (const marker of [PRODUCTION_SUPABASE, 'supabase.co/ridevector-production']) {
+    if (blob.includes(marker)) {
+      fail(
+        RULE.NON_PROD_SUPABASE_POINTS_TO_PRODUCTION,
+        `wrangler env.${envName}: resolves production Supabase marker "${marker}"`,
+      );
     }
   }
   // Host / route checks: any route pattern or custom domain containing production Worker
   for (const route of routes) {
     const pattern = typeof route === 'string' ? route : (route.pattern ?? route.hostname ?? '');
     if (String(pattern).includes('production') || String(pattern).includes(PRODUCTION_WORKER)) {
-      fail(`wrangler env.${envName}: route "${pattern}" looks like production`);
+      fail(
+        RULE.NON_PROD_WORKER_POINTS_TO_PRODUCTION,
+        `wrangler env.${envName}: route "${pattern}" looks like production`,
+      );
     }
   }
 }
@@ -162,49 +191,116 @@ function assertNonProductionEnv(envName, envConfig, topLevel) {
 function checkWranglerConfig() {
   const path = join(root, 'apps/api/wrangler.jsonc');
   if (!existsSync(path)) {
-    fail('apps/api/wrangler.jsonc missing');
+    fail(RULE.WRANGLER_CONFIG_INVALID, 'apps/api/wrangler.jsonc missing');
     return;
   }
-  const config = loadWrangler(path);
+  let config;
+  try {
+    config = loadWrangler(path);
+  } catch (err) {
+    fail(
+      RULE.FIXTURE_EXECUTION_ERROR,
+      `apps/api/wrangler.jsonc could not be parsed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return;
+  }
   if (config.name !== 'ridevector-api') {
-    fail(`wrangler base name must be ridevector-api, got "${config.name}"`);
+    fail(
+      RULE.WRANGLER_CONFIG_INVALID,
+      `wrangler base name must be ridevector-api, got "${config.name}"`,
+    );
   }
   if (config.vars?.ENVIRONMENT === 'production') {
-    fail('wrangler top-level vars.ENVIRONMENT must not be production (local default)');
+    fail(
+      RULE.NON_PROD_WORKER_POINTS_TO_PRODUCTION,
+      'wrangler top-level vars.ENVIRONMENT must not be production (local default)',
+    );
   }
   const envs = config.env ?? {};
   for (const required of ['development', 'staging', 'production']) {
-    if (!envs[required]) fail(`wrangler missing env.${required}`);
+    if (!envs[required]) {
+      fail(RULE.WRANGLER_CONFIG_INVALID, `wrangler missing env.${required}`);
+    }
   }
   if (envs.development) {
     if (envs.development.name !== 'ridevector-api-development') {
-      fail(
-        `wrangler env.development.name must be ridevector-api-development, got "${envs.development.name}"`,
-      );
+      // Wrong name may also be production — classify production names separately.
+      if (
+        envs.development.name === PRODUCTION_WORKER ||
+        String(envs.development.name).includes('production')
+      ) {
+        fail(
+          RULE.NON_PROD_WORKER_POINTS_TO_PRODUCTION,
+          `wrangler env.development.name must be ridevector-api-development, got "${envs.development.name}"`,
+        );
+      } else {
+        fail(
+          RULE.WRANGLER_CONFIG_INVALID,
+          `wrangler env.development.name must be ridevector-api-development, got "${envs.development.name}"`,
+        );
+      }
     }
     const developmentUrl = envs.development.vars?.SUPABASE_URL;
     if (developmentUrl !== LIVE_DEVELOPMENT_SUPABASE_URL) {
-      fail(
-        `wrangler env.development.vars.SUPABASE_URL must be live development ${LIVE_DEVELOPMENT_SUPABASE_URL}, got "${developmentUrl}"`,
-      );
+      // Wrong URL may be production/deferred Supabase — classify those first.
+      const urlText = String(developmentUrl ?? '');
+      if (
+        urlText.includes(PRODUCTION_SUPABASE) ||
+        urlText.includes('supabase.co/ridevector-production')
+      ) {
+        fail(
+          RULE.NON_PROD_SUPABASE_POINTS_TO_PRODUCTION,
+          `wrangler env.development.vars.SUPABASE_URL must be live development ${LIVE_DEVELOPMENT_SUPABASE_URL}, got "${developmentUrl}"`,
+        );
+      } else if (
+        urlText.includes(STAGING_SUPABASE) ||
+        /REPLACE_ME_(STAGING|PRODUCTION)_REF/i.test(urlText)
+      ) {
+        fail(
+          RULE.NON_PROD_SUPABASE_POINTS_TO_DEFERRED,
+          `wrangler env.development.vars.SUPABASE_URL must be live development ${LIVE_DEVELOPMENT_SUPABASE_URL}, got "${developmentUrl}"`,
+        );
+      } else {
+        fail(
+          RULE.WRANGLER_CONFIG_INVALID,
+          `wrangler env.development.vars.SUPABASE_URL must be live development ${LIVE_DEVELOPMENT_SUPABASE_URL}, got "${developmentUrl}"`,
+        );
+      }
     }
     assertNonProductionEnv('development', envs.development, config);
     assertNoDeferredSupabase('development', envs.development, config);
   }
   if (envs.staging) {
     if (envs.staging.name !== 'ridevector-api-staging') {
-      fail(`wrangler env.staging.name must be ridevector-api-staging, got "${envs.staging.name}"`);
+      if (
+        envs.staging.name === PRODUCTION_WORKER ||
+        String(envs.staging.name).includes('production')
+      ) {
+        fail(
+          RULE.NON_PROD_WORKER_POINTS_TO_PRODUCTION,
+          `wrangler env.staging.name must be ridevector-api-staging, got "${envs.staging.name}"`,
+        );
+      } else {
+        fail(
+          RULE.WRANGLER_CONFIG_INVALID,
+          `wrangler env.staging.name must be ridevector-api-staging, got "${envs.staging.name}"`,
+        );
+      }
     }
     assertNonProductionEnv('staging', envs.staging, config);
   }
   if (envs.production) {
     if (envs.production.name !== PRODUCTION_WORKER) {
       fail(
+        RULE.WRANGLER_CONFIG_INVALID,
         `wrangler env.production.name must be ${PRODUCTION_WORKER}, got "${envs.production.name}"`,
       );
     }
     if (envs.production.vars?.ENVIRONMENT !== 'production') {
-      fail('wrangler env.production.vars.ENVIRONMENT must be "production"');
+      fail(
+        RULE.WRANGLER_CONFIG_INVALID,
+        'wrangler env.production.vars.ENVIRONMENT must be "production"',
+      );
     }
   }
   // Local/base config must not point at deferred remote Supabase projects.
@@ -219,11 +315,15 @@ function assertNoDeferredSupabase(envName, envConfig, topLevel) {
     SUPABASE_PROJECT_URL: vars.SUPABASE_PROJECT_URL,
   });
   for (const marker of DEFERRED_REMOTE_SUPABASE_MARKERS) {
-    if (supabaseBlob.includes(marker)) {
-      fail(
-        `wrangler env.${envName}: must not resolve deferred/live staging|production Supabase marker "${marker}"`,
-      );
-    }
+    if (!supabaseBlob.includes(marker)) continue;
+    const ruleId =
+      marker === PRODUCTION_SUPABASE || marker.includes('ridevector-production')
+        ? RULE.NON_PROD_SUPABASE_POINTS_TO_PRODUCTION
+        : RULE.NON_PROD_SUPABASE_POINTS_TO_DEFERRED;
+    fail(
+      ruleId,
+      `wrangler env.${envName}: must not resolve deferred/live staging|production Supabase marker "${marker}"`,
+    );
   }
   // Reject accidental use of staging/production placeholder hosts in development/local.
   if (envName === 'development' || envName.startsWith('local')) {
@@ -231,6 +331,7 @@ function assertNoDeferredSupabase(envName, envConfig, topLevel) {
       if (!url) continue;
       if (/REPLACE_ME_(STAGING|PRODUCTION)_REF/i.test(String(url))) {
         fail(
+          RULE.NON_PROD_SUPABASE_POINTS_TO_DEFERRED,
           `wrangler env.${envName}: must not use staging/production REPLACE_ME placeholders (got "${url}")`,
         );
       }
@@ -281,12 +382,6 @@ function shouldScanFile(rel) {
 }
 
 function scanFilesForMarkers() {
-  const markers = [
-    PRODUCTION_WORKER,
-    PRODUCTION_SUPABASE,
-    'SUPABASE_SERVICE_ROLE',
-    'SERVICE_ROLE_KEY',
-  ];
   for (const file of walk(root)) {
     const rel = relative(root, file);
     if (!shouldScanFile(rel)) continue;
@@ -296,10 +391,23 @@ function scanFilesForMarkers() {
     } catch {
       continue;
     }
-    for (const marker of markers) {
-      if (text.includes(marker)) {
-        fail(`${rel} contains forbidden production/secret marker: ${marker}`);
-      }
+    if (text.includes(PRODUCTION_WORKER) || PRODUCTION_HOST_MARKERS.some((m) => text.includes(m))) {
+      fail(
+        RULE.NON_PROD_WORKER_POINTS_TO_PRODUCTION,
+        `${rel} contains forbidden production Worker marker`,
+      );
+    }
+    if (text.includes(PRODUCTION_SUPABASE) || text.includes('supabase.co/ridevector-production')) {
+      fail(
+        RULE.NON_PROD_SUPABASE_POINTS_TO_PRODUCTION,
+        `${rel} contains forbidden production Supabase marker`,
+      );
+    }
+    if (text.includes('SUPABASE_SERVICE_ROLE') || text.includes('SERVICE_ROLE_KEY')) {
+      fail(
+        RULE.CLIENT_CONTAINS_PRIVILEGED_SECRET,
+        `${rel} contains forbidden privileged secret marker`,
+      );
     }
   }
 }
@@ -307,19 +415,37 @@ function scanFilesForMarkers() {
 function checkPackageDeployScripts() {
   const pkgPath = join(root, 'apps/api/package.json');
   if (!existsSync(pkgPath)) return;
-  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+  let pkg;
+  try {
+    pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+  } catch (err) {
+    fail(
+      RULE.FIXTURE_EXECUTION_ERROR,
+      `apps/api/package.json could not be parsed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return;
+  }
   const scripts = pkg.scripts ?? {};
   if (scripts.dev && /--env\s+development/.test(scripts.dev)) {
-    fail('apps/api package.json "dev" must use base local Wrangler config (no --env development)');
+    fail(
+      RULE.LOCAL_DEV_USES_REMOTE_ENV,
+      'apps/api package.json "dev" must use base local Wrangler config (no --env development)',
+    );
   }
   if (scripts.deploy && !/--env/.test(scripts.deploy)) {
-    fail('apps/api must not expose an unnamed remote deploy script');
+    fail(
+      RULE.REMOTE_DEPLOY_MISSING_EXPLICIT_ENV,
+      'apps/api must not expose an unnamed remote deploy script',
+    );
   }
   for (const key of Object.keys(scripts)) {
     if (key === 'deploy' || key.startsWith('deploy:')) {
       const cmd = scripts[key];
       if (!/--env\s+(development|staging|production)/.test(cmd)) {
-        fail(`apps/api script "${key}" must pass explicit --env development|staging|production`);
+        fail(
+          RULE.REMOTE_DEPLOY_MISSING_EXPLICIT_ENV,
+          `apps/api script "${key}" must pass explicit --env development|staging|production`,
+        );
       }
     }
   }
@@ -328,7 +454,10 @@ function checkPackageDeployScripts() {
     !scripts['deploy:staging'] ||
     !scripts['deploy:production']
   ) {
-    fail('apps/api must define deploy:development, deploy:staging, and deploy:production');
+    fail(
+      RULE.WRANGLER_CONFIG_INVALID,
+      'apps/api must define deploy:development, deploy:staging, and deploy:production',
+    );
   }
 }
 
@@ -345,39 +474,59 @@ function checkExampleEnvIsolation() {
     const path = join(root, rel);
     if (!existsSync(path)) continue;
     const text = readFileSync(path, 'utf8');
-    if (text.includes(PRODUCTION_WORKER) || text.includes(PRODUCTION_SUPABASE)) {
-      fail(`${rel} (${kind}) must not reference production resources`);
+    if (text.includes(PRODUCTION_WORKER) || PRODUCTION_HOST_MARKERS.some((m) => text.includes(m))) {
+      fail(
+        RULE.NON_PROD_WORKER_POINTS_TO_PRODUCTION,
+        `${rel} (${kind}) must not reference production Worker resources`,
+      );
+    }
+    if (text.includes(PRODUCTION_SUPABASE)) {
+      fail(
+        RULE.NON_PROD_SUPABASE_POINTS_TO_PRODUCTION,
+        `${rel} (${kind}) must not reference production Supabase resources`,
+      );
     }
     if (
       (kind === 'development' || kind === 'local') &&
       (text.includes(STAGING_SUPABASE) || /REPLACE_ME_(STAGING|PRODUCTION)_REF/i.test(text))
     ) {
-      fail(`${rel} (${kind}) must not reference deferred staging/production Supabase resources`);
+      fail(
+        RULE.NON_PROD_SUPABASE_POINTS_TO_DEFERRED,
+        `${rel} (${kind}) must not reference deferred staging/production Supabase resources`,
+      );
     }
     if (/SERVICE_ROLE|service_role|DATABASE_URL\s*=\s*postgres/i.test(text)) {
       fail(
+        RULE.CLIENT_CONTAINS_PRIVILEGED_SECRET,
         `${rel} must not contain service-role or database credential placeholders with real shapes`,
       );
     }
   }
 }
 
-checkWranglerConfig();
-checkPackageDeployScripts();
-checkExampleEnvIsolation();
-scanFilesForMarkers();
-
-const expectFail = Boolean(args['expect-fail']);
-if (violations.length > 0) {
-  console.error(
-    'Environment isolation check failed:\n' + violations.map((v) => ` - ${v}`).join('\n'),
-  );
-  process.exit(expectFail ? 0 : 1);
+function formatViolations(list) {
+  return list.map((v) => `RULE_ID=${v.ruleId} ${v.message}`).join('\n');
 }
 
-if (expectFail) {
-  console.error('Environment isolation check unexpectedly passed (expected failures).');
-  process.exit(1);
+function run() {
+  try {
+    checkWranglerConfig();
+    checkPackageDeployScripts();
+    checkExampleEnvIsolation();
+    scanFilesForMarkers();
+  } catch (err) {
+    fail(
+      RULE.FIXTURE_EXECUTION_ERROR,
+      `isolation checker crashed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  if (violations.length > 0) {
+    console.error('Environment isolation check failed:\n' + formatViolations(violations));
+    process.exit(1);
+  }
+
+  console.log('Environment isolation check passed.');
 }
 
-console.log('Environment isolation check passed.');
+run();

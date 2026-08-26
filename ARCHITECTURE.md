@@ -82,9 +82,11 @@ Generation may be synchronous initially only if measured latency fits the API bu
 
 Canonical environments are `local`, `development`, `staging`, and `production`. See `ENVIRONMENTS.md` for the binding platform-name mapping (GitHub Actions Environments, Cloudflare/Wrangler env names, Supabase projects, and example env files).
 
-Development, staging, and production must use distinct Cloudflare environments and distinct Supabase projects. They must have separate secrets, URLs, signing context, provider credentials/quotas where feasible, and protected deployment paths. Local development uses emulators/local services.
+**Target production topology:** Development, staging, and production must use distinct Cloudflare environments and distinct Supabase projects. They must have separate secrets, URLs, signing context, provider credentials/quotas where feasible, and protected deployment paths. Local development uses emulators/local services.
 
-Create remote resources in order: local → development → staging → production. Milestone 0 is incomplete until separate development, staging, and production resources exist and isolation is demonstrated. Production must always be selected explicitly; no default command may target production.
+**Milestone 0 (ADR-016):** Verified local Supabase plus one live remote Supabase project (`ridevector-development`). Staging and production Supabase **names**, config placeholders, GitHub Environment guards, and secret conventions are required; live `ridevector-staging` and `ridevector-production` projects are **not** required yet. Cloudflare Workers for development, staging, and production may already exist and isolation must be demonstrated for what is live. Those Workers must not receive or reference nonexistent Supabase staging/production credentials.
+
+**Deferred:** Create live Supabase staging and production projects during later deployment / private-beta readiness, still in order local → development → staging → production. Production Cloudflare deploys must always be selected explicitly; no default command may target production.
 
 Secrets are platform-native only (GitHub, Cloudflare, Supabase).
 
