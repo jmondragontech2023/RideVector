@@ -3,12 +3,17 @@ name: CI
 on:
   workflow_dispatch:
   pull_request:
+    # Explicit types so opened/synchronize/reopened reliably enqueue the required `check` job.
+    types: [opened, synchronize, reopened]
   push:
     branches: [main]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   check:
