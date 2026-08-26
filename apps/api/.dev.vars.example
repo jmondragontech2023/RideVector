@@ -1,0 +1,3 @@
+# Cloudflare Worker local secrets (gitignored real file: .dev.vars)
+# Copy to .dev.vars and fill locally. Never put production values here.
+ENVIRONMENT=local

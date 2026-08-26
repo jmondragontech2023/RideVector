@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+coverage
+.wrangler
+.mf
+pnpm-lock.yaml
+*.md
+.cursor

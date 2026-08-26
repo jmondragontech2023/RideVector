@@ -1,0 +1,4 @@
+[tools]
+node = "24.19.0"
+pnpm = "11.24.0"
+supabase = "2.34.3"

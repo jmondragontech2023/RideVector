@@ -1,0 +1,24 @@
+{
+  "name": "@ridevector/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --env development",
+    "deploy:development": "wrangler deploy --env development",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "build": "wrangler deploy --dry-run --outdir=dist --env development"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20250823.0",
+    "@eslint/js": "9.34.0",
+    "eslint": "9.34.0",
+    "typescript": "5.9.2",
+    "typescript-eslint": "8.41.0",
+    "vitest": "3.2.4",
+    "wrangler": "4.32.0"
+  }
+}

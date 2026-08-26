@@ -47,7 +47,7 @@ Accepted decisions are binding until superseded by a dated entry. Proposed decis
 ### ADR-007 — JavaScript toolchain and workspace
 
 - Status: Accepted — 2026-08-26
-- Decision: Use a pnpm workspace with root scripts only (no Turbo/Nx). Pin Node.js to **24.19.0** (LTS) via **mise**. Use stable **pnpm 11** and pin the exact pnpm version in workspace configuration when scaffolding after registry verification. Pin all project dependencies and CLIs exactly (no floating ranges for direct deps).
+- Decision: Use a pnpm workspace with root scripts only (no Turbo/Nx). Pin Node.js to **24.19.0** (LTS) via **mise**. Use **pnpm 11.24.0** (pinned in `mise.toml` and `packageManager`). Pin all project dependencies and CLIs exactly (no floating ranges for direct deps).
 - Consequence: Root `package.json` scripts orchestrate format, lint, typecheck, test, and build across `apps/web` and `apps/api`.
 
 ### ADR-008 — CI and deployment control plane
@@ -121,7 +121,7 @@ TomTom is a candidate only. Selection depends on bicycle-route applicability, pr
 
 ## Open decisions by milestone
 
-Milestone 0 (remaining execution choices): exact pnpm 11 patch version after registry verification; Supabase region (chosen when creating `ridevector-development` and reused); health endpoint path details within the smoke contract; rollback/forward-fix runbooks filled with commands actually verified. Cloudflare Worker names, Supabase project names, and GitHub Environment protection rules are accepted in ADR-015 / `ENVIRONMENTS.md`.
+Milestone 0 (remaining execution choices): Supabase region (chosen when creating `ridevector-development` and reused); health endpoint is `/api/health` in the smoke contract; rollback/forward-fix runbooks filled with commands actually verified. pnpm **11.24.0** is pinned. Cloudflare Worker names, Supabase project names, and GitHub Environment protection rules are accepted in ADR-015 / `ENVIRONMENTS.md`.
 
 Milestone 1: exact domain/API types, validation library, full error taxonomy, units/timezone semantics, configuration/versioning, product OpenAPI resource schemas, whether `GET /api/routes/:id` identifies a route request or a generated alternative, introduction of `packages/domain` (or equivalent), and authentication product UX (while any user-owned API must validate sessions before implementation).
 

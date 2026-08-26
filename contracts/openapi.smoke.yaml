@@ -1,0 +1,35 @@
+openapi: 3.1.0
+info:
+  title: RideVector API (Milestone 0 smoke)
+  version: 0.0.0
+  description: >
+    Health/smoke contract only. Product resource schemas belong to Milestone 1.
+servers:
+  - url: /
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      summary: Smoke health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - service
+      properties:
+        status:
+          type: string
+          const: ok
+        service:
+          type: string
+          const: ridevector-api

@@ -1,0 +1,16 @@
+:root {
+  color: #14201a;
+  background: #f3f6f2;
+  font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+}
+
+main {
+  max-width: 40rem;
+  margin: 4rem auto;
+  padding: 0 1.25rem;
+}
+
+h1 {
+  font-size: 2.5rem;
+  letter-spacing: -0.03em;
+}

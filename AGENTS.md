@@ -43,6 +43,4 @@ Prefer the permanent source-of-truth documents named in `README.md` over `RIDEVE
 
 ## Current repository phase
 
-Milestone 0 decisions are accepted (`DECISIONS.md` ADR-006–ADR-015, `ENVIRONMENTS.md`). Do not install dependencies, scaffold applications, create cloud resources, commit, or push until the final ordered Milestone 0 execution plan receives explicit approval.
-
-After that approval, keep `TASKS.md` limited to Milestone 0 until its acceptance criteria are met, including separate development, staging, and production resources. First commit is documentation-only; then protect `main` and use pull requests.
+Milestone 0 decisions are accepted (`DECISIONS.md` ADR-006–ADR-015, `ENVIRONMENTS.md`). Milestone 0 implementation is authorized per the approved execution plan. Keep `TASKS.md` limited to Milestone 0 until acceptance criteria are met. Prefer pull requests to protected `main`. First commit was documentation-only.
