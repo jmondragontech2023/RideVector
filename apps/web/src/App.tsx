@@ -17,6 +17,19 @@ import type {
   PocGenerateResponse,
 } from './poc/types';
 import { formatDuration, formatMiles, METERS_PER_MILE, milesToMeters } from './poc/units';
+import {
+  buildLocationSuccessMessage,
+  buildPoorAccuracyWarning,
+  geolocationErrorMessage,
+  insecureContextGeolocationFailure,
+  isGeolocationSupported,
+  isPoorAccuracy,
+  isSecureGeolocationContext,
+  requestCurrentPosition,
+  unsupportedGeolocationFailure,
+} from './poc/geolocation';
+import { GenerationSession, shouldApplyGenerationResponse } from './poc/generation-session';
+import { createMapRecenterRequest, type MapRecenterRequest } from './poc/map-recenter';
 import { smokeContractTitle } from './smokeContract';
 
 type Status = 'idle' | 'loading' | 'error' | 'success';
@@ -34,17 +47,18 @@ export function App() {
   const [wouldRide, setWouldRide] = useState<WouldRide>('maybe');
   const [feedbackReason, setFeedbackReason] = useState('');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const generationTokenRef = useRef(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationMessage, setLocationMessage] = useState<string | null>(null);
+  const [locationWarning, setLocationWarning] = useState<string | null>(null);
+  const [recenterRequest, setRecenterRequest] = useState<MapRecenterRequest | null>(null);
+  const generationSessionRef = useRef(new GenerationSession());
 
   useEffect(() => {
     setSavedRoutes(loadPocStore().routes);
   }, []);
 
   function invalidateInFlightGeneration() {
-    generationTokenRef.current += 1;
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = null;
+    generationSessionRef.current.invalidate();
   }
 
   function clearGenerationResults() {
@@ -79,10 +93,7 @@ export function App() {
     setErrorMessage(null);
     setSaveMessage(null);
 
-    abortControllerRef.current?.abort();
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-    const token = ++generationTokenRef.current;
+    const { token, abortController, signal } = generationSessionRef.current.begin();
 
     try {
       const response = await generatePocRoutes(
@@ -92,9 +103,9 @@ export function App() {
           costing,
           seed: nextSeed,
         },
-        abortController.signal,
+        signal,
       );
-      if (token !== generationTokenRef.current) {
+      if (!shouldApplyGenerationResponse(generationSessionRef.current, token, signal)) {
         return;
       }
       setStart(effectiveStart);
@@ -106,7 +117,7 @@ export function App() {
         setErrorMessage(response.warnings[0] ?? 'No valid routes were returned.');
       }
     } catch (error) {
-      if (abortController.signal.aborted || token !== generationTokenRef.current) {
+      if (!shouldApplyGenerationResponse(generationSessionRef.current, token, signal)) {
         return;
       }
       setResult(null);
@@ -116,9 +127,7 @@ export function App() {
         error instanceof PocApiError ? error.message : 'Unexpected generation failure.',
       );
     } finally {
-      if (abortControllerRef.current === abortController) {
-        abortControllerRef.current = null;
-      }
+      generationSessionRef.current.release(abortController);
     }
   }
 
@@ -164,6 +173,7 @@ export function App() {
   }
 
   function handleOpenSaved(route: SavedPocRoute) {
+    invalidateInFlightGeneration();
     setStart(route.start);
     setTargetMiles(String(route.targetDistanceMeters / METERS_PER_MILE));
     setCosting(route.costing);
@@ -196,6 +206,56 @@ export function App() {
     setSaveMessage('Deleted local saved route.');
   }
 
+  async function handleUseMyLocation() {
+    if (!isGeolocationSupported(navigator)) {
+      setLocationMessage(unsupportedGeolocationFailure().message);
+      setLocationWarning(null);
+      return;
+    }
+
+    if (!isSecureGeolocationContext(window)) {
+      setLocationMessage(insecureContextGeolocationFailure().message);
+      setLocationWarning(null);
+      return;
+    }
+
+    setLocating(true);
+    setLocationMessage(null);
+    setLocationWarning(null);
+
+    try {
+      const result = await requestCurrentPosition(navigator.geolocation);
+      clearGenerationResults();
+      setStart(result.coordinate);
+      setRecenterRequest(createMapRecenterRequest(result.coordinate, 14));
+      setLocationMessage(buildLocationSuccessMessage(result.accuracyMeters));
+      setLocationWarning(
+        isPoorAccuracy(result.accuracyMeters)
+          ? buildPoorAccuracyWarning(result.accuracyMeters)
+          : null,
+      );
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        typeof (error as GeolocationPositionError).code === 'number'
+      ) {
+        setLocationMessage(
+          geolocationErrorMessage(
+            error as GeolocationPositionError,
+            isSecureGeolocationContext(window),
+          ).message,
+        );
+      } else {
+        setLocationMessage('Unable to read your location. Click the map to set a start manually.');
+      }
+      setLocationWarning(null);
+    } finally {
+      setLocating(false);
+    }
+  }
+
   return (
     <div className="poc-shell">
       <header className="poc-header">
@@ -218,11 +278,38 @@ export function App() {
             start={start}
             alternatives={alternatives}
             selectedId={selected?.id ?? null}
+            recenterRequest={recenterRequest}
             onSelectStart={(coordinate) => {
               setStart(coordinate);
               clearGenerationResults();
+              setLocationMessage(null);
+              setLocationWarning(null);
             }}
           />
+          <div className="start-controls">
+            <button
+              type="button"
+              className="secondary"
+              disabled={locating || status === 'loading'}
+              onClick={() => void handleUseMyLocation()}
+            >
+              {locating ? 'Locating…' : 'Use my location'}
+            </button>
+            <p className="subtle location-disclosure">
+              Your start location is sent to the configured routing service when you generate
+              routes.
+            </p>
+          </div>
+          {locationMessage ? (
+            <p className="status" role="status">
+              {locationMessage}
+            </p>
+          ) : null}
+          {locationWarning ? (
+            <p className="status warning" role="status">
+              {locationWarning}
+            </p>
+          ) : null}
           <p className="map-hint">
             {start
               ? `Start: ${start.latitude.toFixed(5)}, ${start.longitude.toFixed(5)}`

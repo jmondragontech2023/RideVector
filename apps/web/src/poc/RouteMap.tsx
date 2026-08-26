@@ -14,6 +14,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { directionBadgeHtml, sampleDirectionMarkers } from './route-direction';
 import type { DirectionMarker } from './route-direction';
+import type { MapRecenterRequest } from './map-recenter';
 import type { PocAlternative, PocCoordinate } from './types';
 
 const DEFAULT_CENTER: LatLngExpression = [37.7749, -122.4194];
@@ -85,6 +86,23 @@ function FitRoutes({ start, alternatives, selectedId }: FitRoutesProps) {
   return null;
 }
 
+type RecenterMapProps = {
+  request: MapRecenterRequest | null;
+};
+
+function RecenterMap({ request }: RecenterMapProps) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!request) {
+      return;
+    }
+    map.setView([request.latitude, request.longitude], request.zoom);
+  }, [map, request]);
+
+  return null;
+}
+
 function toPositions(coordinates: Array<[number, number]>): LatLngExpression[] {
   return coordinates.map(([lon, lat]) => [lat, lon] as LatLngExpression);
 }
@@ -93,10 +111,17 @@ export type RouteMapProps = {
   start: PocCoordinate | null;
   alternatives: PocAlternative[];
   selectedId: string | null;
+  recenterRequest: MapRecenterRequest | null;
   onSelectStart: (coordinate: PocCoordinate) => void;
 };
 
-export function RouteMap({ start, alternatives, selectedId, onSelectStart }: RouteMapProps) {
+export function RouteMap({
+  start,
+  alternatives,
+  selectedId,
+  recenterRequest,
+  onSelectStart,
+}: RouteMapProps) {
   const center: LatLngExpression = start ? [start.latitude, start.longitude] : DEFAULT_CENTER;
   const selectedAlternative =
     alternatives.find((alternative) => alternative.id === selectedId) ?? null;
@@ -121,6 +146,7 @@ export function RouteMap({ start, alternatives, selectedId, onSelectStart }: Rou
         />
         <StartSelector onSelect={onSelectStart} />
         <FitRoutes start={start} alternatives={alternatives} selectedId={selectedId} />
+        <RecenterMap request={recenterRequest} />
         {unselectedAlternatives.map((alt) => (
           <Polyline
             key={alt.id}

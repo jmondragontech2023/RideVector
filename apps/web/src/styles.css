@@ -177,6 +177,20 @@ h1 {
   color: #3d5a4a;
 }
 
+.start-controls {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.location-disclosure {
+  margin: 0;
+}
+
+.status.warning {
+  color: #8a5a00;
+}
+
 .control-panel {
   display: grid;
   gap: 0.9rem;
