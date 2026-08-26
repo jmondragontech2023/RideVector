@@ -1,0 +1,10 @@
+{
+  "name": "@ridevector/api",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --env development",
+    "deploy:development": "wrangler deploy --env development",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production"
+  }
+}

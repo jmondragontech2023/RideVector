@@ -34,11 +34,18 @@ supabase/.temp/
 # OS / editor
 .DS_Store
 Thumbs.db
-.idea/
+# Ignore IDE dirs at repo root only (do not use bare `.idea/` — it breaks
+# pnpm installs of packages that ship `.idea` metadata under node_modules).
+/.idea/
 .vscode/*
 !.vscode/extensions.json
 *.swp
 *.swo
+
+# Local tooling downloads (not committed)
+/tools/
+.tmp-home/
+.pnpm-store/
 
 # Test / tooling caches
 .eslintcache

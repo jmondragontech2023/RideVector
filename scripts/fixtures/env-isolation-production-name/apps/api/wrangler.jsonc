@@ -5,42 +5,42 @@
   "compatibility_date": "2026-08-26",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
-    "enabled": true,
+    "enabled": true
   },
   "vars": {
     "ENVIRONMENT": "local",
-    "SUPABASE_URL": "http://127.0.0.1:54321",
+    "SUPABASE_PROJECT_REF": "local-placeholder-ref",
+    "SUPABASE_URL": "http://127.0.0.1:54321"
   },
   "env": {
     "development": {
       "name": "ridevector-api-development",
       "vars": {
         "ENVIRONMENT": "development",
-        "SUPABASE_URL": "https://REPLACE_ME_DEVELOPMENT_REF.supabase.co",
+        "SUPABASE_PROJECT_REF": "ridevector-production",
+        "SUPABASE_URL": "https://ridevector-production.supabase.co"
       },
       "observability": {
-        "enabled": true,
-      },
+        "enabled": true
+      }
     },
     "staging": {
       "name": "ridevector-api-staging",
       "vars": {
-        "ENVIRONMENT": "staging",
-        "SUPABASE_URL": "https://REPLACE_ME_STAGING_REF.supabase.co",
+        "ENVIRONMENT": "staging"
       },
       "observability": {
-        "enabled": true,
-      },
+        "enabled": true
+      }
     },
     "production": {
       "name": "ridevector-api-production",
       "vars": {
-        "ENVIRONMENT": "production",
-        "SUPABASE_URL": "https://REPLACE_ME_PRODUCTION_REF.supabase.co",
+        "ENVIRONMENT": "production"
       },
       "observability": {
-        "enabled": true,
-      },
-    },
-  },
+        "enabled": true
+      }
+    }
+  }
 }

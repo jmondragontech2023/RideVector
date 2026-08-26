@@ -13,8 +13,11 @@
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
     "build": "pnpm -r run build",
-    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && pnpm run check:env-isolation",
-    "check:env-isolation": "node ./scripts/check-env-isolation.mjs"
+    "check:env-isolation": "node ./scripts/check-env-isolation.mjs",
+    "check:env-isolation:fixtures": "node ./scripts/run-env-isolation-fixtures.mjs",
+    "check:client-bundle-secrets": "node ./scripts/check-client-bundle-secrets.mjs",
+    "check:wrangler-types": "node ./scripts/check-wrangler-types.mjs",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && pnpm run check:env-isolation && pnpm run check:env-isolation:fixtures && pnpm run check:client-bundle-secrets && pnpm run check:wrangler-types"
   },
   "devDependencies": {
     "prettier": "3.6.2",

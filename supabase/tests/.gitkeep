@@ -1,0 +1,4 @@
+# pgTAP / supabase test db conventions live here in later milestones.
+# Milestone 0: no product tables → no RLS tests yet.
+# Do not run `supabase test db` in CI until at least one test exists
+# (CLI 2.115+ fails when zero tests are found).

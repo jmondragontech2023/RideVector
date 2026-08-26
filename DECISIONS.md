@@ -121,7 +121,7 @@ TomTom is a candidate only. Selection depends on bicycle-route applicability, pr
 
 ## Open decisions by milestone
 
-Milestone 0 (remaining execution choices): Supabase region (chosen when creating `ridevector-development` and reused); health endpoint is `/api/health` in the smoke contract; rollback/forward-fix runbooks filled with commands actually verified. pnpm **11.24.0** is pinned. Cloudflare Worker names, Supabase project names, and GitHub Environment protection rules are accepted in ADR-015 / `ENVIRONMENTS.md`.
+Milestone 0 (remaining execution choices): Supabase region (proposed `us-west-1`, create only after explicit approval); health endpoint is `/api/health` in the smoke contract; rollback/forward-fix runbooks documented in `ENVIRONMENTS.md`. Toolchain pins: pnpm **11.24.0**, Supabase CLI **2.115.0**, Wrangler **4.126.0**. Cloudflare Worker names, Supabase project names, and GitHub Environment protection rules are accepted in ADR-015 / `ENVIRONMENTS.md`.
 
 Milestone 1: exact domain/API types, validation library, full error taxonomy, units/timezone semantics, configuration/versioning, product OpenAPI resource schemas, whether `GET /api/routes/:id` identifies a route request or a generated alternative, introduction of `packages/domain` (or equivalent), and authentication product UX (while any user-owned API must validate sessions before implementation).
 
