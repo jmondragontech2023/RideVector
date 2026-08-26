@@ -3,6 +3,7 @@ import {
   bearingDegrees,
   chevronRotationDegrees,
   cumulativeRouteLengthMeters,
+  directionBadgeHtml,
   sampleDirectionMarkers,
   segmentLengthMeters,
 } from './route-direction';
@@ -48,32 +49,57 @@ describe('route-direction geometry', () => {
     expect(sampleDirectionMarkers(route)).toEqual([]);
   });
 
-  it('places markers at equal cumulative-distance intervals on a straight route', () => {
+  it('returns no markers when all coordinates collapse to zero-length segments', () => {
+    expect(
+      sampleDirectionMarkers([
+        [0, 0],
+        [0, 0],
+        [0, 0],
+      ]),
+    ).toEqual([]);
+  });
+
+  it('numbers markers from 1 in travel order with increasing cumulative distance', () => {
+    const route: Array<[number, number]> = Array.from({ length: 21 }, (_, index) => [
+      0,
+      index * 0.01,
+    ]);
+    const markers = sampleDirectionMarkers(route, { minRouteLengthMeters: 100 });
+
+    expect(markers.length).toBeGreaterThanOrEqual(6);
+    expect(markers.length).toBeLessThanOrEqual(8);
+    expect(markers[0]?.sequence).toBe(1);
+    expect(markers[markers.length - 1]?.sequence).toBe(markers.length);
+
+    for (let index = 0; index < markers.length; index += 1) {
+      expect(markers[index]?.sequence).toBe(index + 1);
+      if (index > 0) {
+        expect(markers[index]!.distanceMeters).toBeGreaterThan(markers[index - 1]!.distanceMeters);
+      }
+    }
+  });
+
+  it('places marker 1 shortly after departure with roughly equal spacing', () => {
     const route: Array<[number, number]> = Array.from({ length: 21 }, (_, index) => [
       0,
       index * 0.01,
     ]);
     const total = cumulativeRouteLengthMeters(route);
     const markers = sampleDirectionMarkers(route, { minRouteLengthMeters: 100 });
-    expect(markers.length).toBeGreaterThanOrEqual(5);
-
-    const markerDistances = markers.map((marker) => {
-      const latFraction = marker.lat / 0.2;
-      return latFraction * total;
+    const gaps = markers.slice(1).map((marker, index) => {
+      return marker.distanceMeters - markers[index]!.distanceMeters;
     });
 
-    for (let index = 1; index < markerDistances.length; index += 1) {
-      const gap = markerDistances[index]! - markerDistances[index - 1]!;
-      const firstGap = markerDistances[1]! - markerDistances[0]!;
-      expect(gap).toBeGreaterThan(firstGap * 0.75);
-      expect(gap).toBeLessThan(firstGap * 1.25);
+    expect(markers[0]!.distanceMeters).toBeGreaterThan(total * 0.04);
+    expect(markers[0]!.distanceMeters).toBeLessThan(total * 0.25);
+    for (const gap of gaps) {
+      expect(gap).toBeGreaterThan(gaps[0]! * 0.75);
+      expect(gap).toBeLessThan(gaps[0]! * 1.25);
     }
-
-    expect(markerDistances[0]!).toBeGreaterThan(total * 0.04);
-    expect(total - markerDistances[markerDistances.length - 1]!).toBeGreaterThan(total * 0.04);
+    expect(total - markers[markers.length - 1]!.distanceMeters).toBeGreaterThan(total * 0.04);
   });
 
-  it('caps marker count at the configured maximum', () => {
+  it('caps marker count between 6 and 8', () => {
     const route: Array<[number, number]> = [
       [-122.5, 37.7],
       [-122.3, 37.7],
@@ -82,10 +108,11 @@ describe('route-direction geometry', () => {
       [-122.5, 37.7],
     ];
     const markers = sampleDirectionMarkers(route);
+    expect(markers.length).toBeGreaterThanOrEqual(6);
     expect(markers.length).toBeLessThanOrEqual(8);
   });
 
-  it('supports loop geometry that returns to the start coordinate', () => {
+  it('preserves travel sequence on loop geometry', () => {
     const route: Array<[number, number]> = [
       [-117.28, 33.12],
       [-117.27, 33.13],
@@ -93,12 +120,36 @@ describe('route-direction geometry', () => {
       [-117.28, 33.12],
     ];
     const markers = sampleDirectionMarkers(route);
-    expect(markers.length).toBeGreaterThanOrEqual(5);
-    expect(markers[0]).toMatchObject({
-      lon: expect.any(Number),
-      lat: expect.any(Number),
-      bearing: expect.any(Number),
-    });
+
+    expect(markers.length).toBeGreaterThanOrEqual(6);
+    for (let index = 1; index < markers.length; index += 1) {
+      expect(markers[index]!.distanceMeters).toBeGreaterThan(markers[index - 1]!.distanceMeters);
+      expect(markers[index]!.sequence).toBe(markers[index - 1]!.sequence + 1);
+    }
+  });
+
+  it('preserves travel sequence where the route crosses itself', () => {
+    const route: Array<[number, number]> = [
+      [0, 0],
+      [0, 0.08],
+      [0.08, 0.08],
+      [0.08, 0],
+      [0, 0],
+    ];
+    const markers = sampleDirectionMarkers(route, { minRouteLengthMeters: 100 });
+    const midpoint = route[Math.floor(route.length / 2)]!;
+
+    for (const marker of markers) {
+      const revisitsCrossing =
+        Math.abs(marker.lon - midpoint[0]) < 0.02 && Math.abs(marker.lat - midpoint[1]) < 0.02;
+      if (revisitsCrossing) {
+        expect(marker.sequence).toBeGreaterThan(1);
+      }
+    }
+
+    for (let index = 1; index < markers.length; index += 1) {
+      expect(markers[index]!.distanceMeters).toBeGreaterThan(markers[index - 1]!.distanceMeters);
+    }
   });
 
   it('computes cardinal bearings', () => {
@@ -114,5 +165,10 @@ describe('route-direction geometry', () => {
     expect(chevronRotationDegrees(0)).toBeCloseTo(-90, 0);
     expect(chevronRotationDegrees(180)).toBeCloseTo(90, 0);
     expect(chevronRotationDegrees(270)).toBeCloseTo(180, 0);
+  });
+
+  it('embeds the sequence number in numbered badge html', () => {
+    expect(directionBadgeHtml(3, 90)).toContain('route-direction-badge__number">3</span>');
+    expect(directionBadgeHtml(3, 90)).toContain('rotate(0deg)');
   });
 });

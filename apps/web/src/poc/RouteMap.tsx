@@ -12,11 +12,14 @@ import L, { type LatLngExpression } from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import { chevronRotationDegrees, sampleDirectionMarkers } from './route-direction';
+import { directionBadgeHtml, sampleDirectionMarkers } from './route-direction';
+import type { DirectionMarker } from './route-direction';
 import type { PocAlternative, PocCoordinate } from './types';
 
 const DEFAULT_CENTER: LatLngExpression = [37.7749, -122.4194];
 const DEFAULT_ZOOM = 12;
+const SELECTED_ROUTE_COLOR = '#0b6e4f';
+const UNSELECTED_ROUTE_COLOR = '#7a8f84';
 
 // Vite bundles Leaflet images; keep default marker icons working.
 L.Icon.Default.mergeOptions({
@@ -25,13 +28,12 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-function directionMarkerIcon(bearing: number): L.DivIcon {
-  const rotation = chevronRotationDegrees(bearing);
+function numberedDirectionMarkerIcon(marker: DirectionMarker): L.DivIcon {
   return L.divIcon({
-    className: 'route-direction-marker',
-    html: `<span class="route-direction-marker__chevron" style="transform: rotate(${rotation}deg)" aria-hidden="true">▶</span>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
+    className: 'route-direction-badge-marker',
+    html: directionBadgeHtml(marker.sequence, marker.bearing),
+    iconSize: [34, 42],
+    iconAnchor: [17, 17],
   });
 }
 
@@ -83,6 +85,10 @@ function FitRoutes({ start, alternatives, selectedId }: FitRoutesProps) {
   return null;
 }
 
+function toPositions(coordinates: Array<[number, number]>): LatLngExpression[] {
+  return coordinates.map(([lon, lat]) => [lat, lon] as LatLngExpression);
+}
+
 export type RouteMapProps = {
   start: PocCoordinate | null;
   alternatives: PocAlternative[];
@@ -94,11 +100,17 @@ export function RouteMap({ start, alternatives, selectedId, onSelectStart }: Rou
   const center: LatLngExpression = start ? [start.latitude, start.longitude] : DEFAULT_CENTER;
   const selectedAlternative =
     alternatives.find((alternative) => alternative.id === selectedId) ?? null;
+  const unselectedAlternatives = alternatives.filter(
+    (alternative) => alternative.id !== selectedId,
+  );
   const directionMarkers = useMemo(
     () =>
       selectedAlternative ? sampleDirectionMarkers(selectedAlternative.geometry.coordinates) : [],
     [selectedAlternative],
   );
+  const selectedPositions = selectedAlternative
+    ? toPositions(selectedAlternative.geometry.coordinates)
+    : [];
 
   return (
     <div className="route-map-wrap">
@@ -109,47 +121,68 @@ export function RouteMap({ start, alternatives, selectedId, onSelectStart }: Rou
         />
         <StartSelector onSelect={onSelectStart} />
         <FitRoutes start={start} alternatives={alternatives} selectedId={selectedId} />
-        {alternatives.map((alt) => {
-          const positions = alt.geometry.coordinates.map(
-            ([lon, lat]) => [lat, lon] as LatLngExpression,
-          );
-          const selected = alt.id === selectedId;
-          return (
+        {unselectedAlternatives.map((alt) => (
+          <Polyline
+            key={alt.id}
+            positions={toPositions(alt.geometry.coordinates)}
+            pathOptions={{
+              color: UNSELECTED_ROUTE_COLOR,
+              weight: 3,
+              opacity: 0.45,
+            }}
+          />
+        ))}
+        {selectedAlternative ? (
+          <>
             <Polyline
-              key={alt.id}
-              positions={positions}
+              key={`${selectedAlternative.id}-solid`}
+              positions={selectedPositions}
               pathOptions={{
-                color: selected ? '#0b6e4f' : '#7a8f84',
-                weight: selected ? 5 : 3,
-                opacity: selected ? 0.95 : 0.45,
+                color: SELECTED_ROUTE_COLOR,
+                weight: 5,
+                opacity: 0.95,
+                className: 'route-selected-solid',
               }}
             />
-          );
-        })}
-        {directionMarkers.map((marker, index) => (
+            <Polyline
+              key={`${selectedAlternative.id}-flow`}
+              positions={selectedPositions}
+              pathOptions={{
+                color: '#ffffff',
+                weight: 3,
+                opacity: 0.75,
+                dashArray: '10 14',
+                className: 'route-flow-overlay',
+              }}
+            />
+          </>
+        ) : null}
+        {directionMarkers.map((marker) => (
           <Marker
-            key={`${selectedAlternative?.id ?? 'selected'}-direction-${index}`}
+            key={`${selectedAlternative?.id ?? 'selected'}-direction-${marker.sequence}`}
             position={[marker.lat, marker.lon]}
-            icon={directionMarkerIcon(marker.bearing)}
+            icon={numberedDirectionMarkerIcon(marker)}
             interactive={false}
             keyboard={false}
             bubblingMouseEvents={false}
+            zIndexOffset={1200 + marker.sequence}
           />
         ))}
         {start ? (
-          <Marker position={[start.latitude, start.longitude]} title="Start">
+          <Marker
+            position={[start.latitude, start.longitude]}
+            title="Start — follow 1"
+            zIndexOffset={1500}
+          >
             <Tooltip permanent direction="top" offset={[0, -30]} className="route-start-tooltip">
-              Start
+              Start — follow 1
             </Tooltip>
           </Marker>
         ) : null}
       </MapContainer>
-      <div className="route-map-legend" aria-label="Map legend">
-        <span className="route-map-legend__arrow" aria-hidden="true">
-          ▶
-        </span>
-        <span>Arrows show travel direction on the selected route.</span>
-      </div>
+      <p className="route-map-legend" aria-label="Map legend">
+        Follow numbered arrows from Start.
+      </p>
     </div>
   );
 }

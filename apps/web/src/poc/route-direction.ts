@@ -6,10 +6,14 @@ export type DirectionMarker = {
   lat: number;
   /** Compass bearing in degrees (0 = north, 90 = east). */
   bearing: number;
+  /** Travel-order sequence starting at 1. */
+  sequence: number;
+  /** Cumulative distance from route departure in meters. */
+  distanceMeters: number;
 };
 
 export const ROUTE_DIRECTION_DEFAULTS = {
-  minMarkers: 5,
+  minMarkers: 6,
   maxMarkers: 8,
   /** Exclude the first/last fraction of route length from arrow placement. */
   endpointExclusionFraction: 0.08,
@@ -106,7 +110,7 @@ function interpolatePoint(from: LonLat, to: LonLat, fraction: number): LonLat {
 function pointAtDistance(
   segments: RouteSegment[],
   distanceMeters: number,
-): { point: LonLat; bearing: number } | null {
+): { point: LonLat; bearing: number; distanceMeters: number } | null {
   if (segments.length === 0) {
     return null;
   }
@@ -118,18 +122,27 @@ function pointAtDistance(
       continue;
     }
     if (clamped <= segment.startDistance) {
-      return { point: segment.start, bearing: bearingDegrees(segment.start, segment.end) };
+      return {
+        point: segment.start,
+        bearing: bearingDegrees(segment.start, segment.end),
+        distanceMeters: clamped,
+      };
     }
     const span = segment.endDistance - segment.startDistance;
     const fraction = span === 0 ? 0 : (clamped - segment.startDistance) / span;
     return {
       point: interpolatePoint(segment.start, segment.end, fraction),
       bearing: bearingDegrees(segment.start, segment.end),
+      distanceMeters: clamped,
     };
   }
 
   const last = segments[segments.length - 1]!;
-  return { point: last.end, bearing: bearingDegrees(last.start, last.end) };
+  return {
+    point: last.end,
+    bearing: bearingDegrees(last.start, last.end),
+    distanceMeters: clamped,
+  };
 }
 
 function markerCountForLength(
@@ -153,7 +166,7 @@ export type SampleDirectionMarkersOptions = {
 };
 
 /**
- * Places direction markers at equal cumulative-distance intervals along a route.
+ * Places numbered direction markers at equal cumulative-distance intervals along a route.
  * Coordinates must be in travel order.
  */
 export function sampleDirectionMarkers(
@@ -192,13 +205,15 @@ export function sampleDirectionMarkers(
   const placementEnd = totalLength - exclusion;
   const placementSpan = placementEnd - placementStart;
 
-  if (placementSpan <= 0 || markerCount === 0) {
+  if (placementSpan <= 0) {
     return [];
   }
 
+  const step = placementSpan / (markerCount + 1);
   const markers: DirectionMarker[] = [];
-  for (let index = 1; index <= markerCount; index += 1) {
-    const distance = placementStart + (placementSpan * index) / (markerCount + 1);
+
+  for (let sequence = 1; sequence <= markerCount; sequence += 1) {
+    const distance = placementStart + step * sequence;
     const located = pointAtDistance(segments, distance);
     if (!located) {
       continue;
@@ -207,6 +222,8 @@ export function sampleDirectionMarkers(
       lon: located.point[0],
       lat: located.point[1],
       bearing: located.bearing,
+      sequence,
+      distanceMeters: located.distanceMeters,
     });
   }
 
@@ -216,4 +233,10 @@ export function sampleDirectionMarkers(
 /** Rotation for a chevron that points east at 0° (Unicode ▶). */
 export function chevronRotationDegrees(bearing: number): number {
   return bearing - 90;
+}
+
+/** Builds HTML for a numbered direction badge (inner arrow element is rotated). */
+export function directionBadgeHtml(sequence: number, bearing: number): string {
+  const rotation = chevronRotationDegrees(bearing);
+  return `<div class="route-direction-badge" aria-hidden="true"><span class="route-direction-badge__disc"><span class="route-direction-badge__arrow" style="transform: rotate(${rotation}deg)">▶</span></span><span class="route-direction-badge__number">${sequence}</span></div>`;
 }
