@@ -1,4 +1,8 @@
-# Cloudflare Worker local secrets (gitignored real file: .dev.vars)
+# Cloudflare Worker local secrets/config (gitignored real file: .dev.vars)
 # Copy to .dev.vars for local `wrangler dev` (base config; no --env).
 # Never put production values, service-role keys, or DB passwords here.
 ENVIRONMENT=local
+
+# Required for local POC route generation. Point at a Valhalla-compatible HTTP base
+# URL with no secrets in the path/query. Example: http://127.0.0.1:8002
+VALHALLA_BASE_URL=http://127.0.0.1:8002
