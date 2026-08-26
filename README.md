@@ -6,7 +6,7 @@ The initial product flow is **Plan → Generate → Compare → Save → Export*
 
 ## Repository status
 
-Milestone 0 completion work continues on branch `milestone-0/completion` (PR to protected `main`). Permanent documentation and decisions live in the files below. Application behavior is limited to empty/smoke packages and a health contract.
+Milestone 0 is merged. The active branch is `poc/route-generation`, a local-only experiment intended to get real bicycle-loop generation in front of the owner quickly. The experiment is specified in [`poc/README.md`](poc/README.md) and ADR-017. It preserves the production roadmap while temporarily bypassing persistence, authentication, deployment, iOS, and advanced ranking.
 
 GitHub remote: `https://github.com/jmondragontech2023/RideVector.git`
 
@@ -20,7 +20,7 @@ supabase/
 contracts/    # OpenAPI 3.1 health/smoke only in M0
 ```
 
-No `packages/domain` until Milestone 1.
+The POC reuses `apps/web` and `apps/api`; it does not create a second application under `poc/`. No `packages/domain` is created until Milestone 1.
 
 ## Prerequisites
 
@@ -91,6 +91,7 @@ Use these permanent documents as shared memory. Prefer them over `RIDEVECTOR_HAN
 - [TEST_PLAN.md](TEST_PLAN.md): verification strategy
 - [DECISIONS.md](DECISIONS.md): accepted, proposed, and deferred decisions
 - [AGENTS.md](AGENTS.md): repository-wide contributor instructions
+- [poc/README.md](poc/README.md): time-boxed route-generation POC scope, sequence, and guardrails
 - [supabase/README.md](supabase/README.md): declarative schema / local Supabase workflow
 
 `RIDEVECTOR_HANDOFF.md` is historical planning input only.
@@ -106,7 +107,7 @@ Never place secrets in committed files. Use platform-native secrets only. See [E
 
 ## Working agreement
 
-Work one approved milestone at a time. Keep `TASKS.md` limited to Milestone 0 until acceptance criteria are met.
+Work one bounded POC slice at a time in the order recorded in `TASKS.md`. POC shortcuts do not silently supersede the production decisions or Milestones 1–11.
 
 ## Common failures
 

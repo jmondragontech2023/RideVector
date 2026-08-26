@@ -10,7 +10,7 @@ Prefer the permanent source-of-truth documents named in `README.md` over `RIDEVE
 2. Read `PROJECT_PLAN.md` and confirm the active milestone in `TASKS.md`.
 3. Inspect existing code, configuration, tests, migrations, and current changes.
 4. Identify conflicts between code and documentation explicitly; do not silently pick one.
-5. For non-trivial implementation, propose a milestone-scoped plan and wait for requested approval.
+5. For non-trivial implementation, propose a milestone-scoped plan and wait for requested approval. **Exception:** the route-generation POC on `poc/route-generation` is already approved end-to-end by ADR-017 and `poc/README.md`. Implement its ordered tasks without intermediate approval stops, then stop once all POC acceptance checks and the final review handoff are prepared.
 
 ## Change discipline
 
@@ -22,7 +22,7 @@ Prefer the permanent source-of-truth documents named in `README.md` over `RIDEVE
 - Centralize configurable speed, scoring, tolerance, and deadline-buffer values.
 - Add or update tests and documentation whenever behavior or architecture changes.
 - Never rewrite an applied database migration; add a new migration. Milestone 0 uses declarative schemas with generated reviewed migrations.
-- Do not create `packages/domain` until Milestone 1.
+- Do not create `packages/domain` during the route-generation POC. Milestone 1 remains the point where the production shared domain package is introduced.
 
 ## Security and privacy
 
@@ -43,4 +43,6 @@ Prefer the permanent source-of-truth documents named in `README.md` over `RIDEVE
 
 ## Current repository phase
 
-Milestone 0 decisions are accepted (`DECISIONS.md` ADR-006–ADR-016, `ENVIRONMENTS.md`). Milestone 0 implementation is authorized per the approved execution plan and ADR-016 Supabase scope. Keep `TASKS.md` limited to Milestone 0 until acceptance criteria are met. Prefer pull requests to protected `main`. First commit was documentation-only.
+Milestone 0 is merged. The active phase is the time-boxed local route-generation POC defined in `poc/README.md`, `PROJECT_PLAN.md`, `TASKS.md`, and ADR-017. The POC reuses `apps/web` and `apps/api`; it does not create a parallel application under `poc/`. Existing production decisions remain accepted unless ADR-017 explicitly grants a local-POC exception. Prefer pull requests to protected `main`.
+
+Execute POC-1 through POC-3 continuously. Do not pause for routine design choices, dependency selection, or approval between slices: use the fixed choices and defaults in `poc/README.md`. Pause only for missing credentials/access that cannot be replaced safely, a conflict with a security boundary, or a destructive/external action outside the approved local POC. Keep implementation commits reviewable, but request user review only after the complete POC is implemented and verified.

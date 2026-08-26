@@ -1,6 +1,65 @@
-# Current tasks — Milestone 0 only
+# Current tasks — Route-generation POC
 
-## Status
+## Active status
+
+**POC planning and implementation** on branch `poc/route-generation`. Milestone 0 is merged. ADR-017 and `poc/README.md` govern the temporary POC exceptions; all prior production decisions and the Milestones 1–11 roadmap remain preserved.
+
+Execution is approved through POC-3. Cursor should complete the ordered checklist continuously and request owner review only after the complete definition of done in `poc/README.md` is satisfied. Actual personal field-test judgments remain owner work and must not be fabricated.
+
+## POC-0 — Pivot and baseline
+
+- [x] Start from merged Milestone 0 `main`.
+- [x] Create branch `poc/route-generation`.
+- [x] Preserve the production roadmap and record the POC as a time-boxed detour.
+- [x] Run the merged Milestone 0 `pnpm run check` baseline. _(Pass 2026-08-26 using the pinned mise toolchain; Wrangler emitted a sandbox log-file warning but its dry-run build completed and the root command exited successfully.)_
+- [ ] Verify the local web and Worker start commands.
+
+## POC-1 — One real loop
+
+- [ ] Add an interactive web map with attribution and a start-point selector.
+- [ ] Add target-distance input with one documented display-unit conversion to canonical meters.
+- [ ] Define the smallest provisional generate request/result types; keep map and Valhalla payloads outside them.
+- [ ] Add a thin routing-provider interface and one configurable Valhalla-compatible adapter in `apps/api`.
+- [ ] Generate one seeded anchor-based bicycle loop with explicit timeout and request limits.
+- [ ] Draw returned geometry and show actual distance and provider-estimated duration.
+- [ ] Cover input validation, provider mapping, and failure states with focused tests.
+
+Acceptance: selecting a start and entering a distance displays one real locally generated bicycle loop.
+
+## POC-2 — Alternatives
+
+- [ ] Generate 6–10 candidates using separated bearing families.
+- [ ] Enforce a centralized provisional ±20% target-distance tolerance.
+- [ ] Reject malformed, failed, and out-of-tolerance candidates with aggregate reason counts.
+- [ ] Apply a lightweight, documented directional/geometry diversity check.
+- [ ] Return up to three alternatives without invented personality labels.
+- [ ] Add route comparison cards, selection, highlighting, loading, empty, and partial-result states.
+
+Acceptance: ordinary fixtures normally return at least two visibly distinct routes, or explain why they do not.
+
+## POC-3 — Personal test loop
+
+- [ ] Add broad Road/Gravel costing modes with an explicit surface-accuracy disclaimer.
+- [ ] Add deterministic regenerate behavior using a visible/copyable seed.
+- [ ] Save selected candidates in browser `localStorage`; do not introduce database persistence.
+- [ ] Capture local generation duration, attempted/accepted counts, selection, regeneration reason, and “would ride” feedback.
+- [ ] Add at least five non-sensitive geographic fixtures and record evaluation findings.
+- [ ] Decide to continue, revise the generator, or stop before resuming the production milestones.
+
+## POC guardrails
+
+- No Supabase product schema, authentication, RLS, remote deployment, iOS, GPX, traffic, weather, or production analytics.
+- No `packages/domain` during the POC.
+- No “Best Overall,” “Quietest,” or “Adventure” labels without the corresponding measured ranking inputs.
+- Maximum 10 routing-provider calls per generation attempt.
+- Do not send precise personal locations to logs, fixtures, or committed files.
+- Do not deploy POC feature behavior through staging or production workflows.
+
+---
+
+# Historical Milestone 0 completion record
+
+## Historical status
 
 **Milestone 0 completion in progress** on branch `milestone-0/completion` (PR #4). Decisions: `DECISIONS.md` (ADR-006–ADR-016) and `ENVIRONMENTS.md`. Do **not** mark Milestone 0 complete until revised acceptance criteria in `PROJECT_PLAN.md` / ADR-016 are evidenced. Do **not** begin Milestone 1. Do **not** merge PR #4 until review stop.
 
