@@ -10,7 +10,7 @@
 - [x] Create branch `poc/route-generation`.
 - [x] Preserve the production roadmap and record the POC as a time-boxed detour.
 - [x] Run the merged Milestone 0 `pnpm run check` baseline. _(Pass 2026-08-26 using the pinned mise toolchain; Wrangler emitted a sandbox log-file warning but its dry-run build completed and the root command exited successfully.)_
-- [x] Verify the local web and Worker start commands. _(Documented two-process POC startup in `README.md`; requires local `VALHALLA_BASE_URL`.)_
+- [x] Verify the local web and Worker start commands. _(Documented `pnpm dev` startup in `README.md`; defaults to public hosted `VALHALLA_BASE_URL` — no local Docker Valhalla required.)_
 
 ## POC-1 — One real loop
 
@@ -58,12 +58,13 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 | Check | Command / action | Outcome |
 | --- | --- | --- |
 | Branch | `poc/route-generation` synced with origin | Pass |
-| Unit / mocked tests | `pnpm -r run test` (api 20, web 10) | Pass |
+| Unit / mocked tests | `pnpm -r run test` (api 31, web 10) | Pass |
 | Full gate | `pnpm run check` | Pass |
 | Local Worker health | `curl http://127.0.0.1:8787/api/health` | Pass |
 | Local POC validation path | invalid POST → `VALIDATION_FAILED` | Pass |
-| Local POC generate w/o Valhalla | POST returns 200 with `upstream_failure` counts | Pass (expected without router) |
-| Live Valhalla smoke | `http://127.0.0.1:8002` | **Unverified** — no local Valhalla-compatible endpoint available |
+| Public Valhalla route spike | `POST /api/poc/routes/route` via Worker → hosted Valhalla | Pass (200, geometry + distance + duration) |
+| Public Valhalla loop generate | `POST /api/poc/routes/generate` (SoCal fixture, 8 km) | Pass (200, 2 alternatives accepted) |
+| Direct Valhalla curl | `https://valhalla1.openstreetmap.de/route` | Pass |
 | Owner field tests | `poc/EVALUATION.md` | Pending owner |
 | Merge / deploy | — | Not done (owner review) |
 

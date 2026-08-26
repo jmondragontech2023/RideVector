@@ -2,5 +2,8 @@
 # Copy to .dev.vars only if you need to override base wrangler.jsonc local vars.
 # Never put production values, service-role keys, or DB passwords here.
 #
-# Optional POC override. Base local config already defaults to http://127.0.0.1:8002
+# Optional POC routing override. Base local config defaults to the public Valhalla demo:
+# VALHALLA_BASE_URL=https://valhalla1.openstreetmap.de
+#
+# Point at self-hosted Valhalla when available, e.g.:
 # VALHALLA_BASE_URL=http://127.0.0.1:8002

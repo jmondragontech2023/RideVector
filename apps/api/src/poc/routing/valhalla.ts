@@ -1,107 +1,47 @@
-import { POC_CONFIG, type PocCostingMode } from '../config';
-import type { RouteLoopRequest, RouteLoopResult, RoutingProvider } from './provider';
-import { decodePolyline } from './polyline';
-
-type ValhallaLocation = { lat: number; lon: number; type?: string };
-
-type ValhallaRouteBody = {
-  locations: ValhallaLocation[];
-  costing: 'bicycle';
-  costing_options: {
-    bicycle: Record<string, string | number>;
-  };
-  units: 'kilometers';
-  shape_format?: 'polyline6';
-};
-
-type ValhallaTripSummary = {
-  length?: number;
-  time?: number;
-};
-
-type ValhallaLeg = {
-  shape?: string;
-  summary?: ValhallaTripSummary;
-};
-
-type ValhallaResponse = {
-  trip?: {
-    legs?: ValhallaLeg[];
-    summary?: ValhallaTripSummary;
-    units?: string;
-  };
-  error?: string;
-  error_code?: number;
-};
-
-function costingOptionsFor(mode: PocCostingMode): Record<string, string | number> {
-  return mode === 'road'
-    ? { ...POC_CONFIG.roadCostingOptions }
-    : { ...POC_CONFIG.gravelCostingOptions };
-}
-
-function joinLegShapes(legs: ValhallaLeg[]): Array<[number, number]> | null {
-  const coordinates: Array<[number, number]> = [];
-  for (const leg of legs) {
-    if (typeof leg.shape !== 'string' || leg.shape.length === 0) {
-      return null;
-    }
-    const decoded = decodePolyline(leg.shape, 6);
-    if (decoded.length === 0) {
-      return null;
-    }
-    if (coordinates.length > 0) {
-      // Avoid duplicating shared vertices between legs.
-      coordinates.push(...decoded.slice(1));
-    } else {
-      coordinates.push(...decoded);
-    }
-  }
-  return coordinates.length >= 2 ? coordinates : null;
-}
+import { POC_CONFIG } from '../config';
+import type { RouteLoopRequest, RouteLoopResult, RouteRequest, RoutingProvider } from './provider';
+import {
+  buildValhallaRouteBody,
+  mapValhallaRouteResponse,
+  valhallaUpstreamHeaders,
+  type ValhallaResponse,
+} from './valhalla-mapping';
 
 export type ValhallaProviderOptions = {
   baseUrl: string;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+  clientId?: string;
 };
 
 /**
  * Valhalla-compatible HTTP adapter. Maps to provider-neutral POC types only.
- * Never returns raw upstream payloads or URLs to callers of generate.
+ * Never returns raw upstream payloads or URLs to callers.
  */
 export class ValhallaRoutingProvider implements RoutingProvider {
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
+  private readonly clientId: string;
 
   constructor(options: ValhallaProviderOptions) {
     const trimmed = options.baseUrl.replace(/\/+$/, '');
     this.baseUrl = trimmed;
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
     this.timeoutMs = options.timeoutMs ?? POC_CONFIG.timeoutMs;
+    this.clientId = options.clientId ?? POC_CONFIG.valhallaClientId;
   }
 
-  async routeLoop(request: RouteLoopRequest): Promise<RouteLoopResult> {
-    const locations: ValhallaLocation[] = [
-      { lat: request.start.latitude, lon: request.start.longitude, type: 'break' },
-      ...request.waypoints.map((wp) => ({
-        lat: wp.latitude,
-        lon: wp.longitude,
-        type: 'break' as const,
-      })),
-      { lat: request.start.latitude, lon: request.start.longitude, type: 'break' },
-    ];
+  async route(request: RouteRequest): Promise<RouteLoopResult> {
+    if (request.locations.length < 2) {
+      return {
+        ok: false,
+        reason: 'malformed_geometry',
+        message: 'At least two locations are required',
+      };
+    }
 
-    const body: ValhallaRouteBody = {
-      locations,
-      costing: 'bicycle',
-      costing_options: {
-        bicycle: costingOptionsFor(request.costing),
-      },
-      units: 'kilometers',
-      shape_format: 'polyline6',
-    };
+    const body = buildValhallaRouteBody(request.locations, request.costing ?? 'road');
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -111,7 +51,7 @@ export class ValhallaRoutingProvider implements RoutingProvider {
     try {
       const response = await this.fetchImpl(`${this.baseUrl}/route`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        headers: valhallaUpstreamHeaders(this.clientId),
         body: JSON.stringify(body),
         signal: controller.signal,
       });
@@ -135,51 +75,16 @@ export class ValhallaRoutingProvider implements RoutingProvider {
         };
       }
 
-      if (payload.error || payload.error_code) {
-        return {
-          ok: false,
-          reason: 'upstream_failure',
-          message: 'upstream reported a routing error',
-        };
-      }
-
-      const legs = payload.trip?.legs;
-      if (!legs || legs.length === 0) {
-        return {
-          ok: false,
-          reason: 'malformed_geometry',
-          message: 'upstream response missing legs',
-        };
-      }
-
-      const coordinates = joinLegShapes(legs);
-      if (!coordinates) {
-        return {
-          ok: false,
-          reason: 'malformed_geometry',
-          message: 'unable to decode route geometry',
-        };
-      }
-
-      const summary = payload.trip?.summary;
-      const lengthKm = summary?.length;
-      const timeSeconds = summary?.time;
-      if (!Number.isFinite(lengthKm) || !Number.isFinite(timeSeconds)) {
-        return {
-          ok: false,
-          reason: 'malformed_geometry',
-          message: 'upstream summary missing length or time',
-        };
+      const mapped = mapValhallaRouteResponse(payload);
+      if (!mapped.ok) {
+        return mapped;
       }
 
       return {
         ok: true,
-        geometry: {
-          type: 'LineString',
-          coordinates,
-        },
-        distanceMeters: (lengthKm as number) * 1000,
-        durationSeconds: Math.round(timeSeconds as number),
+        geometry: mapped.route.geometry,
+        distanceMeters: mapped.route.distanceMeters,
+        durationSeconds: mapped.route.durationSeconds,
       };
     } catch {
       return {
@@ -191,5 +96,14 @@ export class ValhallaRoutingProvider implements RoutingProvider {
       clearTimeout(timeout);
       request.signal?.removeEventListener('abort', onAbort);
     }
+  }
+
+  async routeLoop(request: RouteLoopRequest): Promise<RouteLoopResult> {
+    const locations = [request.start, ...request.waypoints, request.start];
+    return this.route({
+      locations,
+      costing: request.costing,
+      signal: request.signal,
+    });
   }
 }

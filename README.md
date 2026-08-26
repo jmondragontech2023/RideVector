@@ -25,8 +25,9 @@ The POC reuses `apps/web` and `apps/api`; it does not create a second applicatio
 ## Prerequisites
 
 - [mise](https://mise.jdx.dev/) (toolchain)
-- Docker-compatible runtime for local Supabase
 - macOS/Linux shell; pnpm via mise (do not rely on a global floating pnpm)
+- Network access to the configured Valhalla routing endpoint (POC defaults to a public hosted demo)
+- Docker-compatible runtime for local Supabase only (optional; not required for route-generation POC)
 
 ## Toolchain
 
@@ -47,34 +48,37 @@ pnpm run check
 
 ## Local development (verified commands)
 
-### Route-generation POC (two processes)
+### Route-generation POC (no local Valhalla Docker)
 
-The POC endpoint is available only when the Worker runs with `ENVIRONMENT=local`.
+The POC Worker calls a **configurable Valhalla-compatible endpoint** through an internal adapter. The web app talks only to the RideVector API.
 
-1. Confirm local Worker base config (optional `.dev.vars` override):
-
-```bash
-# Optional: cp apps/api/.dev.vars.example apps/api/.dev.vars
-# Base wrangler.jsonc defaults VALHALLA_BASE_URL to http://127.0.0.1:8002
-# Override only if your Valhalla-compatible router listens elsewhere.
-```
-
-2. Start a Valhalla-compatible router that exposes `POST /route` at that base URL.
-
-3. Start the Worker (terminal 1):
+During the POC phase, local development defaults to the public hosted demo at `https://valhalla1.openstreetmap.de`. This is temporary infrastructure so low-memory machines can validate routing without building OSM tiles locally. Override with `VALHALLA_BASE_URL` in `apps/api/.dev.vars` when pointing at self-hosted Valhalla later.
 
 ```bash
-pnpm --filter @ridevector/api dev
-# health: curl -s http://127.0.0.1:8787/api/health
+mise install
+pnpm install
+pnpm dev
 ```
 
-4. Start the web app (terminal 2):
+That starts the local Worker (`http://127.0.0.1:8787`) and web app (`http://localhost:5173`) in parallel.
+
+Smoke the routing spike:
 
 ```bash
-pnpm --filter @ridevector/web dev
+curl -s http://127.0.0.1:8787/api/health
+curl -s http://127.0.0.1:8787/api/poc/routes/route \
+  -H 'content-type: application/json' \
+  -d '{"start":{"lat":33.0,"lon":-117.0},"destination":{"lat":33.1,"lon":-117.1}}'
 ```
 
-By default `apps/web/.env.development.example` points `VITE_API_BASE_URL` at `http://127.0.0.1:8787`. Vite also proxies `/api` to the local Worker for same-origin requests.
+Loop generation (map UI) uses `POST /api/poc/routes/generate`. Both POC routes are available only when `ENVIRONMENT=local`.
+
+Optional overrides:
+
+```bash
+cp apps/api/.dev.vars.example apps/api/.dev.vars
+# VALHALLA_BASE_URL=https://valhalla1.openstreetmap.de
+```
 
 POC docs: [`poc/README.md`](poc/README.md). Owner evaluation worksheet: [`poc/EVALUATION.md`](poc/EVALUATION.md) (results remain pending until the owner fills them).
 

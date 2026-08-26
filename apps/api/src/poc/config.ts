@@ -17,6 +17,16 @@ export const POC_CONFIG = {
   maxAlternatives: 3,
   /** Bounded concurrency for upstream route calls. */
   concurrency: 3,
+  /**
+   * Identifies RideVector on public Valhalla demo instances (POC/development only).
+   * Override via VALHALLA_CLIENT_ID if needed.
+   */
+  valhallaClientId: 'RideVector',
+  /**
+   * Documented public POC default. Production should point at RideVector-controlled Valhalla.
+   * Actual runtime value comes from Worker env `VALHALLA_BASE_URL`.
+   */
+  defaultValhallaBaseUrl: 'https://valhalla1.openstreetmap.de',
   /** Per-call upstream timeout in milliseconds. */
   timeoutMs: 8_000,
   /**

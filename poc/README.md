@@ -20,7 +20,8 @@ Use these choices so the POC does not stall on design exploration:
 - Display distance: miles in the UI; convert once at the boundary and use meters internally. One mile is exactly 1,609.344 meters.
 - Geometry: provider-neutral GeoJSON `LineString` coordinates in `[longitude, latitude]` order.
 - Routing backend: Valhalla-compatible HTTP API behind a small `RoutingProvider` interface in `apps/api`.
-- Routing endpoint: required local Worker configuration value named `VALHALLA_BASE_URL`; keep secrets out of the URL and repository. An unavailable public endpoint is a documented local setup blocker, not a reason to introduce another provider.
+- Routing endpoint: required Worker configuration value named `VALHALLA_BASE_URL` (not hardcoded in application code). **POC default:** `https://valhalla1.openstreetmap.de` (public hosted demo; temporary). Override in `apps/api/.dev.vars` for self-hosted Valhalla. The React app must not call Valhalla directly.
+- Public demo etiquette: send `X-Client-Id: RideVector` on upstream requests; no retries and bounded concurrency (max 3, timeout 8s) against the demo service.
 - Bicycle costing: map Road to Valhalla `bicycle` with road-oriented costing options and Gravel to `bicycle` with gravel-oriented costing options. Keep these options centralized and label them provisional.
 - Loop generation: deterministic waypoint anchors derived from the start, target distance, and integer seed. Attempt 6 candidates first; permit up to 10 only when needed to obtain alternatives.
 - Tolerance: centralized ±20% of target distance.

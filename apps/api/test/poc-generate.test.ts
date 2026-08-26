@@ -4,6 +4,7 @@ import { isPocGenerationEnabled, handlePocGenerate } from '../src/poc/handler';
 import type {
   RouteLoopRequest,
   RouteLoopResult,
+  RouteRequest,
   RoutingProvider,
 } from '../src/poc/routing/provider';
 import { ValhallaRoutingProvider } from '../src/poc/routing/valhalla';
@@ -28,6 +29,23 @@ class MockRoutingProvider implements RoutingProvider {
       request: RouteLoopRequest,
     ) => Promise<RouteLoopResult> | RouteLoopResult,
   ) {}
+
+  route(request: RouteRequest): Promise<RouteLoopResult> {
+    if (request.locations.length < 2) {
+      return Promise.resolve({
+        ok: false,
+        reason: 'malformed_geometry',
+        message: 'need two locations',
+      });
+    }
+    const start = request.locations[0]!;
+    const waypoints = request.locations.slice(1, -1);
+    return this.routeLoop({
+      start,
+      waypoints,
+      costing: request.costing ?? 'road',
+    });
+  }
 
   routeLoop(request: RouteLoopRequest): Promise<RouteLoopResult> {
     return Promise.resolve(this.impl(request));
@@ -193,8 +211,8 @@ describe('POC handler environment gate', () => {
     const env = {
       ENVIRONMENT: 'development',
       SUPABASE_URL: 'http://127.0.0.1:54321',
-      VALHALLA_BASE_URL: 'http://127.0.0.1:8002',
-    } as Env;
+      VALHALLA_BASE_URL: 'https://valhalla.example.test',
+    } as unknown as Env;
     const response = await handlePocGenerate(
       new Request('http://localhost/api/poc/routes/generate', {
         method: 'POST',
@@ -214,8 +232,8 @@ describe('POC handler environment gate', () => {
     const env = {
       ENVIRONMENT: 'local',
       SUPABASE_URL: 'http://127.0.0.1:54321',
-      VALHALLA_BASE_URL: 'http://127.0.0.1:8002',
-    } as Env;
+      VALHALLA_BASE_URL: 'https://valhalla.example.test',
+    } as unknown as Env;
     const response = await handlePocGenerate(
       new Request('http://localhost/api/poc/routes/generate', {
         method: 'POST',
