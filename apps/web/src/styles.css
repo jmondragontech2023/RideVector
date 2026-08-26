@@ -201,6 +201,32 @@ button:disabled {
   font-size: 0.88rem;
 }
 
+.feedback-block {
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(20, 32, 26, 0.08);
+}
+
+.saved-block h2 {
+  margin: 0.4rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.saved-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.saved-list li {
+  display: grid;
+  gap: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(20, 32, 26, 0.08);
+}
+
 @media (max-width: 860px) {
   .poc-header {
     flex-direction: column;

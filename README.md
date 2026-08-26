@@ -47,8 +47,41 @@ pnpm run check
 
 ## Local development (verified commands)
 
+### Route-generation POC (two processes)
+
+The POC endpoint is available only when the Worker runs with `ENVIRONMENT=local`.
+
+1. Configure local Worker vars (gitignored):
+
 ```bash
-# Web smoke app
+cp apps/api/.dev.vars.example apps/api/.dev.vars
+# Edit VALHALLA_BASE_URL to a Valhalla-compatible HTTP base URL with no secrets
+# in the path/query. Example: http://127.0.0.1:8002
+```
+
+2. Start a Valhalla-compatible router that exposes `POST /route` at that base URL.
+
+3. Start the Worker (terminal 1):
+
+```bash
+pnpm --filter @ridevector/api dev
+# health: curl -s http://127.0.0.1:8787/api/health
+```
+
+4. Start the web app (terminal 2):
+
+```bash
+pnpm --filter @ridevector/web dev
+```
+
+By default `apps/web/.env.development.example` points `VITE_API_BASE_URL` at `http://127.0.0.1:8787`. Vite also proxies `/api` to the local Worker for same-origin requests.
+
+POC docs: [`poc/README.md`](poc/README.md). Owner evaluation worksheet: [`poc/EVALUATION.md`](poc/EVALUATION.md) (results remain pending until the owner fills them).
+
+### Other local commands
+
+```bash
+# Web smoke / POC planner
 pnpm --filter @ridevector/web dev
 
 # API Worker — base local config (ENVIRONMENT=local). Do NOT use --env development for ordinary local work.

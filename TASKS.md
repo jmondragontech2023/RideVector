@@ -2,9 +2,7 @@
 
 ## Active status
 
-**POC planning and implementation** on branch `poc/route-generation`. Milestone 0 is merged. ADR-017 and `poc/README.md` govern the temporary POC exceptions; all prior production decisions and the Milestones 1–11 roadmap remain preserved.
-
-Execution is approved through POC-3. Cursor should complete the ordered checklist continuously and request owner review only after the complete definition of done in `poc/README.md` is satisfied. Actual personal field-test judgments remain owner work and must not be fabricated.
+**POC implementation complete on branch `poc/route-generation`**, except owner field-test answers in `poc/EVALUATION.md` (must remain pending). Milestone 0 remains merged. ADR-017 and `poc/README.md` govern the temporary POC exceptions; all prior production decisions and the Milestones 1–11 roadmap remain preserved.
 
 ## POC-0 — Pivot and baseline
 
@@ -12,39 +10,39 @@ Execution is approved through POC-3. Cursor should complete the ordered checklis
 - [x] Create branch `poc/route-generation`.
 - [x] Preserve the production roadmap and record the POC as a time-boxed detour.
 - [x] Run the merged Milestone 0 `pnpm run check` baseline. _(Pass 2026-08-26 using the pinned mise toolchain; Wrangler emitted a sandbox log-file warning but its dry-run build completed and the root command exited successfully.)_
-- [ ] Verify the local web and Worker start commands.
+- [x] Verify the local web and Worker start commands. _(Documented two-process POC startup in `README.md`; requires local `VALHALLA_BASE_URL`.)_
 
 ## POC-1 — One real loop
 
-- [ ] Add an interactive web map with attribution and a start-point selector.
-- [ ] Add target-distance input with one documented display-unit conversion to canonical meters.
-- [ ] Define the smallest provisional generate request/result types; keep map and Valhalla payloads outside them.
-- [ ] Add a thin routing-provider interface and one configurable Valhalla-compatible adapter in `apps/api`.
-- [ ] Generate one seeded anchor-based bicycle loop with explicit timeout and request limits.
-- [ ] Draw returned geometry and show actual distance and provider-estimated duration.
-- [ ] Cover input validation, provider mapping, and failure states with focused tests.
+- [x] Add an interactive web map with attribution and a start-point selector.
+- [x] Add target-distance input with one documented display-unit conversion to canonical meters.
+- [x] Define the smallest provisional generate request/result types; keep map and Valhalla payloads outside them.
+- [x] Add a thin routing-provider interface and one configurable Valhalla-compatible adapter in `apps/api`.
+- [x] Generate one seeded anchor-based bicycle loop with explicit timeout and request limits.
+- [x] Draw returned geometry and show actual distance and provider-estimated duration.
+- [x] Cover input validation, provider mapping, and failure states with focused tests.
 
 Acceptance: selecting a start and entering a distance displays one real locally generated bicycle loop.
 
 ## POC-2 — Alternatives
 
-- [ ] Generate 6–10 candidates using separated bearing families.
-- [ ] Enforce a centralized provisional ±20% target-distance tolerance.
-- [ ] Reject malformed, failed, and out-of-tolerance candidates with aggregate reason counts.
-- [ ] Apply a lightweight, documented directional/geometry diversity check.
-- [ ] Return up to three alternatives without invented personality labels.
-- [ ] Add route comparison cards, selection, highlighting, loading, empty, and partial-result states.
+- [x] Generate 6–10 candidates using separated bearing families.
+- [x] Enforce a centralized provisional ±20% target-distance tolerance.
+- [x] Reject malformed, failed, and out-of-tolerance candidates with aggregate reason counts.
+- [x] Apply a lightweight, documented directional/geometry diversity check.
+- [x] Return up to three alternatives without invented personality labels.
+- [x] Add route comparison cards, selection, highlighting, loading, empty, and partial-result states.
 
 Acceptance: ordinary fixtures normally return at least two visibly distinct routes, or explain why they do not.
 
 ## POC-3 — Personal test loop
 
-- [ ] Add broad Road/Gravel costing modes with an explicit surface-accuracy disclaimer.
-- [ ] Add deterministic regenerate behavior using a visible/copyable seed.
-- [ ] Save selected candidates in browser `localStorage`; do not introduce database persistence.
-- [ ] Capture local generation duration, attempted/accepted counts, selection, regeneration reason, and “would ride” feedback.
-- [ ] Add at least five non-sensitive geographic fixtures and record evaluation findings.
-- [ ] Decide to continue, revise the generator, or stop before resuming the production milestones.
+- [x] Add broad Road/Gravel costing modes with an explicit surface-accuracy disclaimer.
+- [x] Add deterministic regenerate behavior using a visible/copyable seed.
+- [x] Save selected candidates in browser `localStorage`; do not introduce database persistence.
+- [x] Capture local generation duration, attempted/accepted counts, selection, regeneration reason, and “would ride” feedback.
+- [x] Add at least five non-sensitive geographic fixtures and record evaluation findings. _(Fixtures + `poc/EVALUATION.md` template committed; owner field-test answers remain pending.)_
+- [ ] Decide to continue, revise the generator, or stop before resuming the production milestones. _(Owner decision after filling `poc/EVALUATION.md`.)_
 
 ## POC guardrails
 
