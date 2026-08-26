@@ -1,0 +1,22 @@
+---
+description: React and TypeScript client boundaries and quality rules
+globs: "apps/web/**"
+alwaysApply: false
+---
+
+# React and TypeScript
+
+Applies only to `apps/web/**`. Do not apply these rules to `apps/api` or other packages.
+
+- Use strict TypeScript; avoid `any`, unchecked casts, non-null assertions, and duplicated contract types without a documented reason.
+- Keep route constraints, scoring, and provider translation out of React components.
+- Treat API data as untrusted and validate it at the boundary using the selected project convention.
+- Use functional components and accessible semantic controls; support keyboard, focus, loading, empty, error, and reduced-motion states.
+- Keep server state, form state, and map presentation state explicit; do not hide network effects in rendering.
+- Never put Supabase secret/service-role keys, provider credentials, signing secrets, or server-only configuration in client-exposed variables or bundles.
+- Keep map SDK objects behind presentation adapters; domain/API models use provider-neutral coordinates and geometry.
+- Display localized units/times without changing canonical meters, seconds, and timestamps.
+- Consume OpenAPI contracts from `contracts/`; Milestone 0 wires health/smoke only.
+- Add focused component/hook/contract tests and run lint, type checks, tests, and production build for affected work.
+- Follow repository patterns once scaffolding exists; verify current framework/library documentation before selecting APIs.
+- Milestone 0 web work is empty/smoke packages and configuration only; no product planner behavior.

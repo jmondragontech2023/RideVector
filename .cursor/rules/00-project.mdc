@@ -1,0 +1,21 @@
+---
+description: Core RideVector product, architecture, workflow, and documentation rules
+alwaysApply: true
+---
+
+# RideVector project rules
+
+- Prefer permanent documents named in `README.md` over `RIDEVECTOR_HANDOFF.md`; the handoff is historical input only.
+- Read `AGENTS.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `ENVIRONMENTS.md`, and task-relevant docs before non-trivial work.
+- Confirm the active milestone in `TASKS.md`; do not implement later milestones early.
+- Inspect existing code/config/tests and preserve unrelated work.
+- If code and documentation conflict, identify and resolve the discrepancy explicitly.
+- RideVector optimizes ride quality under constraints and returns distinct, explainable alternatives; it is not a shortest-path wrapper.
+- Keep domain models provider-neutral. Map SDK, Valhalla, Supabase, traffic, and weather types stop at adapters.
+- Centralize/version speed, scoring, tolerance, deadline-buffer, and diversity configuration.
+- Do not invent APIs, tables, bindings, environment variables, or package behavior; verify repository state and authoritative docs.
+- Approved Milestone 0 layout: `apps/web`, `apps/api`, `ios`, `supabase`, `contracts`. Do not create `packages/domain` until Milestone 1.
+- Make the smallest coherent change, add/update tests, run applicable checks, inspect the diff, and update source-of-truth docs.
+- Never claim a test, lint, type check, build, migration, or deploy passed unless it was run.
+- Current phase: Milestone 0 decisions are accepted through ADR-015 / `ENVIRONMENTS.md`. Do not install, scaffold, create cloud resources, commit, or push until the final ordered Milestone 0 execution plan receives explicit approval.
+- Production must always be an explicit protected target; follow `ENVIRONMENTS.md`.

@@ -1,0 +1,20 @@
+---
+description: Swift and SwiftUI client boundaries and quality rules
+globs: "ios/**/*.{swift,xcconfig,pbxproj,xcworkspace,xcscheme,plist,md}"
+alwaysApply: false
+---
+
+# iOS and SwiftUI
+
+Applies under `ios/`. Milestone 0 keeps a verified toolchain placeholder only; do not create an Xcode project in Milestone 0.
+
+- Use Swift concurrency and SwiftUI patterns supported by the project's pinned deployment targets; verify platform APIs before use.
+- Keep views declarative and move networking, validation, orchestration, and map translation into focused testable types.
+- Decode the versioned API contract explicitly; do not reproduce server scoring or authorization in the client.
+- Keep MapKit or other SDK types in adapters/presentation. Domain/API models use provider-neutral coordinates and geometry.
+- Store public configuration separately from secrets. Never embed Supabase service-role/secret keys, provider secrets, signing secrets, or database credentials.
+- Protect user sessions using the selected secure-storage convention and avoid sensitive coordinates/tokens in logs.
+- Preserve canonical meters, seconds, and timestamps internally; localize measurement and wall-clock display at presentation.
+- Include accessibility labels/actions, Dynamic Type support, and loading/empty/error states.
+- Add unit/UI tests appropriate to the change and run the actual build/test commands for supported schemes before reporting success.
+- Milestone 0: document and verify toolchain prerequisites only.

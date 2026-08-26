@@ -1,0 +1,23 @@
+---
+description: Cloudflare Worker API, bindings, environments, and provider-adapter rules
+globs: "{apps/api/**,**/wrangler.{toml,json,jsonc}}"
+alwaysApply: false
+---
+
+# Cloudflare Workers
+
+Applies to `apps/api/**` and Wrangler config files. The React rule must not govern this package.
+
+- Read `ARCHITECTURE.md`, `API.md`, and `ENVIRONMENTS.md`; verify current Cloudflare docs, Workers types, and Wrangler schema before selecting APIs/config.
+- Prefer permanent documents named in `README.md` over `RIDEVECTOR_HANDOFF.md`.
+- Workers authenticate, authorize, validate, rate-limit, orchestrate, persist, and map errors; heavy routing graphs run in the external routing service.
+- Keep handlers thin. Domain/application logic depends on ports; Supabase, Valhalla, traffic, weather, clocks, and telemetry are adapters.
+- Validate all client input and runtime bindings. Use stable safe errors; never return stack traces, SQL details, secrets, or raw upstream responses.
+- Use explicit timeouts and bounded safe retries. Avoid floating promises, mutable request-specific global state, and unbounded concurrency/body sizes.
+- Isolate local, development, staging, and production using `ENVIRONMENTS.md`. Worker names are `ridevector-api-development`, `ridevector-api-staging`, and `ridevector-api-production` under base config `ridevector-api`. Every remote deployment must specify an environment explicitly. No default command targets production.
+- Store secrets in Cloudflare/Wrangler platform-native secret facilities only for Worker secrets in Milestone 0. Never place privileged values in public client configuration.
+- Authentication product UX is undecided. Milestone 0 may establish session-validation wiring/configuration only. User-owned APIs must validate sessions before they are implemented.
+- Consume OpenAPI from `contracts/`; Milestone 0 implements health/smoke only.
+- Log correlation IDs, timings, counts, and safe error classes; redact auth headers, tokens, precise route coordinates, and personal provider payloads.
+- Mock providers in ordinary CI and run applicable lint, type checks, tests, build, and local Worker smoke checks before reporting success.
+- Milestone 0 Worker work is empty/smoke configuration and health stubs only; no product API resource behavior.

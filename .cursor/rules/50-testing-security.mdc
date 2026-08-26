@@ -1,0 +1,25 @@
+---
+description: Cross-stack testing, release evidence, privacy, and security requirements
+globs: "**/*"
+alwaysApply: false
+---
+
+# Testing and security
+
+- Prefer permanent documents named in `README.md` over `RIDEVECTOR_HANDOFF.md`.
+- Follow `ENVIRONMENTS.md` for environment isolation and production explicitness.
+- Treat web/iOS clients, identifiers, coordinates, timestamps, geometry, and provider responses as untrusted input.
+- Authorization belongs at Worker/database boundaries; test cross-user access for every user-owned resource.
+- Never commit or log tokens, database credentials, signing keys, provider secrets, production data, or a rider's private location history.
+- Keep direct dependencies pinned and lockfiles committed. Inspect generated artifacts and client bundles for secrets.
+- Maintain `.gitignore`, secret-ignore conventions, and a secret-scan baseline from Milestone 0 onward.
+- Use platform-native secrets only (GitHub, Cloudflare, Supabase) in Milestone 0.
+- Unit-test normalization, constraints, deadlines/timezones, surfaces, speed estimates, scoring, explanations, and diversity as introduced.
+- Integration-test Worker↔Supabase/RLS and provider adapters with disposable resources and deterministic mocks in CI.
+- Maintain geographic route-quality fixtures for urban, suburban, mountain, mixed/mostly gravel, waypoint, time-constrained, and long routes.
+- Do not blindly update snapshots/baselines. Explain and review changed route-quality expectations.
+- Test upstream timeouts, rate limits, partial failure, malformed responses, no valid candidates, and retry/idempotency behavior.
+- Run applicable formatting, lint, strict type checks, tests, builds, migration checks, and security/configuration scans.
+- Report commands actually run, failures/skips, environment, limitations, and final diff findings. Production deploys require protected explicit approval and rollback/forward-fix documentation.
+- Separate development, staging, and production resources remain a hard Milestone 0 acceptance requirement.
+- Do not create `packages/domain` until Milestone 1.
