@@ -84,8 +84,8 @@ Do not commit secret values. Document ownership and rotation without recording v
 
 ## Deploy workflows
 
-- **Staging:** `.github/workflows/deploy-staging.yml` — on push to `main` (path-filtered) or `workflow_dispatch`; runs full `pnpm run check` + gitleaks; deploys with `environment: staging`; post-deploy `GET /api/health` smoke.
-- **Production:** `.github/workflows/deploy-production.yml` — `workflow_dispatch` only; checks out `main`; runs full quality gate; deploys with `environment: production` (reviewer gate); post-deploy health smoke.
+- **Staging:** `.github/workflows/deploy-staging.yml` — on push to `main` (path-filtered) or `workflow_dispatch`; quality and deploy both check out `${{ github.sha }}` (immutable triggering commit); runs full `pnpm run check` + gitleaks; deploys with `environment: staging`; post-deploy `GET /api/health` smoke.
+- **Production:** `.github/workflows/deploy-production.yml` — `workflow_dispatch` only; quality and deploy both check out `${{ github.sha }}` (same commit that passed the quality gate, even after Environment approval wait); runs full quality gate; deploys with `environment: production` (reviewer gate); post-deploy health smoke.
 
 ### Rollback / forward-fix (Cloudflare Worker)
 

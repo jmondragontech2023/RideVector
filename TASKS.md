@@ -42,7 +42,7 @@ Create live resources in order: **local → development**. Staging/production Su
 - [x] Create/verify Free/Nano Supabase project `ridevector-development` in **`us-west-1`**; record non-secret ref/URL in `ENVIRONMENTS.md`. Stop if paid upgrade required. Do **not** create `ridevector-staging` or `ridevector-production`. _(Created Free/Nano; ref `hsokwavqmqlkbtnftoqw`; no payment/upgrade.)_
 - [x] Create/verify Cloudflare Workers `ridevector-api-development`, then `ridevector-api-staging`, then `ridevector-api-production` under base config `ridevector-api`; every remote deploy must pass an explicit environment.
 - [x] Configure GitHub Environments: `development` (no reviewer); `staging` (no reviewer initially, deploy only from `main`); `production` (approval by `jmondragontech2023`, deploy only from `main`); do not enable prevent-self-review while there is only one authorized reviewer.
-- [x] Configure development-only GitHub Environment values/secrets for the live development Supabase project (platform-native; no secrets in git). Do not set live staging/production Supabase credentials. _(Vars: URL/ref/region/name/status; secrets: `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. Staging/production Environments have no Supabase secrets.)_
+- [x] Configure development-only GitHub Environment values/secrets for the live development Supabase project (platform-native; no secrets in git). Do not set live staging/production Supabase credentials. _(Vars: URL/ref/region/name/status; secret: `SUPABASE_ANON_KEY` only. `SUPABASE_SERVICE_ROLE_KEY` is intentionally absent — Milestone 0 does not consume it. Staging/production Environments have no Supabase secrets.)_
 - [x] Add safe example environment files; ignore all real secret files.
 - [x] Make `local` / `development` the safe defaults per `ENVIRONMENTS.md`; require explicit protected production targeting. _(Ordinary API `dev` uses base local Wrangler config.)_
 - [x] Add an automated assertion that non-production builds/config cannot reference production project IDs, hosts, routes, or credentials _(structured wrangler assertions + negative fixtures + client-bundle secret scan)_.
@@ -95,6 +95,18 @@ No live Supabase `ridevector-staging` or `ridevector-production` projects (ADR-0
 3. **Explicitly approve** GitHub Environment production deployment when ready (do not bypass reviewer gate); confirm production health smoke.
 4. Optional: set Cloudflare Worker development secrets if/when the Worker needs Supabase (M0 health endpoint does not).
 
+## Verification log (pre-merge hardening, 2026-08-26)
+
+| Check | Command / action | Outcome |
+| --- | --- | --- |
+| Branch sync | `git pull --ff-only origin milestone-0/completion` | Pass (up to date) |
+| Deploy checkout immutability | quality + deploy jobs use `ref: ${{ github.sha }}` (not moving `main`) | Pass (workflows updated) |
+| Action SHA pins | `actions/checkout@8e8c483…` (v6.0.1), `jdx/mise-action@bfb9fa0…` (v2.4.0), `gitleaks/gitleaks-action@e0c47f4…` (v3.0.0) | Pass |
+| GitHub `development` secrets | `gh secret list --env development` | `SUPABASE_ANON_KEY` only; no `SUPABASE_SERVICE_ROLE_KEY` (intentional) |
+| Docs drift | `TASKS.md` + `ENVIRONMENTS.md` no longer claim service-role GitHub secret | Pass |
+| `pnpm run check` | format/lint/typecheck/test/build/env-isolation(+fixtures)/bundle/types | **Pass** |
+| Merge PR #4 | **Stopped for review** | |
+
 ## Verification log (agent session 2026-08-26, continued)
 
 | Check | Command / action | Outcome |
@@ -104,7 +116,7 @@ No live Supabase `ridevector-staging` or `ridevector-production` projects (ADR-0
 | Create `ridevector-development` | Free/Nano, `us-west-1`, ACTIVE_HEALTHY | Pass — ref `hsokwavqmqlkbtnftoqw` |
 | Record non-secret ref/URL | `ENVIRONMENTS.md` + wrangler development `SUPABASE_URL` | Pass (no secrets committed) |
 | GitHub `development` vars | `SUPABASE_URL`, `SUPABASE_PROJECT_REF`, region/name/status | Pass |
-| GitHub `development` secrets | `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (names only) | Pass |
+| GitHub `development` secrets | `SUPABASE_ANON_KEY` only (names only); `SUPABASE_SERVICE_ROLE_KEY` intentionally not set (M0 unused) | Pass |
 | Staging/production Supabase secrets | `gh secret list --env staging\|production` | Empty (none set) |
 | Link + remote DB | `supabase link`; `migration list --linked`; `db push --linked --dry-run`; `db push --linked` | Pass — up to date, no product migrations |
 | Isolation evidence | Live development URL required; deferred staging/production markers forbidden | Pass |
@@ -115,4 +127,4 @@ No live Supabase `ridevector-staging` or `ridevector-production` projects (ADR-0
 
 ### Staging deploy failure diagnosis (prior workflows)
 
-Previous `deploy-staging.yml` used `actions/checkout@v4`, no quality gate, and no post-deploy health smoke. Failures in that shape commonly come from missing `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` Environment secrets, outdated action versions, or deploying without verifying `pnpm run check`. The replacement workflow checks out `main`, runs full `pnpm run check` + gitleaks, deploys with explicit `--env staging`, and smokes `/api/health`.
+Previous `deploy-staging.yml` used `actions/checkout@v4`, no quality gate, and no post-deploy health smoke. Failures in that shape commonly come from missing `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` Environment secrets, outdated action versions, or deploying without verifying `pnpm run check`. The replacement workflow checks out the immutable workflow-triggering commit (`github.sha`) for both quality and deploy jobs (so Environment wait cannot pick up a newer `main`), runs full `pnpm run check` + gitleaks, deploys with explicit `--env staging`, and smokes `/api/health`.
