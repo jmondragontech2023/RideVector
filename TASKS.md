@@ -2,15 +2,13 @@
 
 ## Status
 
-**Milestone 0 decisions are accepted. Awaiting final approval of the ordered execution plan before any install, scaffold, cloud-resource creation, commit, or push.**
-
-Authoritative decisions: `DECISIONS.md` (ADR-006–ADR-015) and `ENVIRONMENTS.md`. Prefer permanent docs over `RIDEVECTOR_HANDOFF.md`.
+**Milestone 0 implementation in progress** on branch `milestone-0/scaffold`. Decisions: `DECISIONS.md` (ADR-006–ADR-015) and `ENVIRONMENTS.md`.
 
 ## 0.1 Baseline and decisions
 
 - [x] Approve the permanent documentation and Cursor rules as the source of truth over `RIDEVECTOR_HANDOFF.md`.
 - [x] Record first-commit policy: documentation-only first commit, then protected `main` and pull-request workflow (ADR-014).
-- [x] Record toolchain: Node 24.19.0 via mise, stable pnpm 11 (exact patch pinned at scaffold), pnpm workspace with root scripts, no Turbo/Nx (ADR-007).
+- [x] Record toolchain: Node 24.19.0 via mise, pnpm 11.24.0, pnpm workspace with root scripts, no Turbo/Nx (ADR-007).
 - [x] Record layout: `apps/web`, `apps/api`, `ios`, `supabase`, `contracts`; no `packages/domain` until Milestone 1 (ADR-006).
 - [x] Record CI: GitHub Actions with protected deployments (ADR-008).
 - [x] Record secrets: platform-native only (ADR-009).
@@ -20,8 +18,8 @@ Authoritative decisions: `DECISIONS.md` (ADR-006–ADR-015) and `ENVIRONMENTS.md
 - [x] Record OpenAPI 3.1 under `contracts/` with health/smoke only in M0 (ADR-012).
 - [x] Record iOS as verified toolchain placeholder; no Xcode project in M0 (ADR-013).
 - [x] Narrow Cursor rule globs to approved paths so React rules do not govern `apps/api`.
-- [ ] After execution-plan approval: add repository `.gitignore` and secret-ignore conventions before scaffold or env files.
-- [ ] After execution-plan approval: perform documentation-only first commit, then enable protected `main` and PR workflow before scaffold PRs.
+- [x] Add repository `.gitignore` and secret-ignore conventions.
+- [ ] Enable protected `main` and PR workflow; configure GitHub Environments per ADR-015.
 
 ## 0.2 Minimal repository scaffold
 

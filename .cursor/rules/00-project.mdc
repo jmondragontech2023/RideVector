@@ -17,5 +17,5 @@ alwaysApply: true
 - Approved Milestone 0 layout: `apps/web`, `apps/api`, `ios`, `supabase`, `contracts`. Do not create `packages/domain` until Milestone 1.
 - Make the smallest coherent change, add/update tests, run applicable checks, inspect the diff, and update source-of-truth docs.
 - Never claim a test, lint, type check, build, migration, or deploy passed unless it was run.
-- Current phase: Milestone 0 decisions are accepted through ADR-015 / `ENVIRONMENTS.md`. Do not install, scaffold, create cloud resources, commit, or push until the final ordered Milestone 0 execution plan receives explicit approval.
+- Current phase: Milestone 0 implementation is authorized. Follow `TASKS.md` and `ENVIRONMENTS.md`. Prefer pull requests to `main` after branch protection is enabled. Do not create `packages/domain` until Milestone 1. Production must always be an explicit protected target.
 - Production must always be an explicit protected target; follow `ENVIRONMENTS.md`.

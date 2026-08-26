@@ -1,0 +1,42 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ridevector-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+  },
+  "vars": {
+    "ENVIRONMENT": "local",
+  },
+  "env": {
+    "development": {
+      "name": "ridevector-api-development",
+      "vars": {
+        "ENVIRONMENT": "development",
+      },
+      "observability": {
+        "enabled": true,
+      },
+    },
+    "staging": {
+      "name": "ridevector-api-staging",
+      "vars": {
+        "ENVIRONMENT": "staging",
+      },
+      "observability": {
+        "enabled": true,
+      },
+    },
+    "production": {
+      "name": "ridevector-api-production",
+      "vars": {
+        "ENVIRONMENT": "production",
+      },
+      "observability": {
+        "enabled": true,
+      },
+    },
+  },
+}

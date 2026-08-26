@@ -1,0 +1,64 @@
+# Dependencies and package managers
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+.turbo/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Environment and secrets — never commit real values
+.env
+.env.*
+!.env.example
+!.env.*.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# Cloudflare / Wrangler
+.wrangler/
+.mf/
+
+# Supabase
+supabase/.branches/
+supabase/.temp/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+
+# Test / tooling caches
+.eslintcache
+.cache/
+.tmp/
+tmp/
+
+# iOS / Xcode (future; keep ignore conventions ready)
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Misc secrets and credentials
+*.pem
+*.p12
+*.key
+credentials.json
+service-account*.json
+**/secrets/**
+!**/secrets/.gitkeep
