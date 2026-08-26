@@ -59,18 +59,98 @@ export function parsePocStore(raw: string | null): PocLocalStoreV1 {
   }
 }
 
-function isSavedRoute(value: unknown): value is SavedPocRoute {
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isCoordinate(value: unknown): value is { latitude: number; longitude: number } {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return (
+    isFiniteNumber(record.latitude) &&
+    record.latitude >= -90 &&
+    record.latitude <= 90 &&
+    isFiniteNumber(record.longitude) &&
+    record.longitude >= -180 &&
+    record.longitude <= 180
+  );
+}
+
+function isLineStringGeometry(
+  value: unknown,
+): value is { type: 'LineString'; coordinates: Array<[number, number]> } {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  if (record.type !== 'LineString' || !Array.isArray(record.coordinates)) {
+    return false;
+  }
+  return record.coordinates.every(
+    (point) =>
+      Array.isArray(point) &&
+      point.length === 2 &&
+      isFiniteNumber(point[0]) &&
+      isFiniteNumber(point[1]),
+  );
+}
+
+function isAlternative(value: unknown): value is SavedPocRoute['alternative'] {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return false;
   }
   const record = value as Record<string, unknown>;
   return (
     typeof record.id === 'string' &&
-    typeof record.savedAt === 'string' &&
-    typeof record.label === 'string' &&
-    typeof record.alternative === 'object' &&
-    record.alternative !== null
+    typeof record.name === 'string' &&
+    isLineStringGeometry(record.geometry) &&
+    isFiniteNumber(record.distanceMeters) &&
+    isFiniteNumber(record.durationSeconds) &&
+    isFiniteNumber(record.distanceFromTargetMeters) &&
+    typeof record.bearingFamily === 'string' &&
+    Array.isArray(record.warnings) &&
+    record.warnings.every((item) => typeof item === 'string')
   );
+}
+
+function isFeedback(value: unknown): value is NonNullable<SavedPocRoute['feedback']> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  if (record.wouldRide !== 'yes' && record.wouldRide !== 'maybe' && record.wouldRide !== 'no') {
+    return false;
+  }
+  if (record.reason === undefined) {
+    return true;
+  }
+  return typeof record.reason === 'string';
+}
+
+function isSavedRoute(value: unknown): value is SavedPocRoute {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.id !== 'string' ||
+    typeof record.savedAt !== 'string' ||
+    typeof record.label !== 'string' ||
+    !isCoordinate(record.start) ||
+    !isFiniteNumber(record.targetDistanceMeters) ||
+    record.targetDistanceMeters <= 0 ||
+    (record.costing !== 'road' && record.costing !== 'gravel') ||
+    !isFiniteNumber(record.seed) ||
+    !isAlternative(record.alternative)
+  ) {
+    return false;
+  }
+  if (record.feedback !== undefined && !isFeedback(record.feedback)) {
+    return false;
+  }
+  return true;
 }
 
 export function loadPocStore(storage: Pick<Storage, 'getItem'> = localStorage): PocLocalStoreV1 {

@@ -59,9 +59,12 @@ export function haversineMeters(a: PocCoordinate, b: PocCoordinate): number {
   return 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+/** Straight-line perimeter for start → wp1 → wp2 → start with 120° waypoint spacing. */
+const TRIANGULAR_LOOP_PERIMETER_FACTOR = 2 + Math.sqrt(3);
+
 /**
  * Builds deterministic loop waypoint patterns from start, target distance, and seed.
- * Ideal loop radius approximates circumference ≈ targetDistance.
+ * Anchor radius sizes the triangular loop so straight-line legs sum ≈ targetDistance.
  */
 export function buildAnchorPatterns(
   start: PocCoordinate,
@@ -69,7 +72,7 @@ export function buildAnchorPatterns(
   seed: number,
   count: number,
 ): PocAnchorPattern[] {
-  const radiusMeters = targetDistanceMeters / (2 * Math.PI);
+  const radiusMeters = targetDistanceMeters / TRIANGULAR_LOOP_PERIMETER_FACTOR;
   const seedRotation = normalizeBearing(seed * 17);
   const baseBearings = [
     ...POC_CONFIG.bearingFamilyDegrees,

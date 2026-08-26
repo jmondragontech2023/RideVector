@@ -18,14 +18,25 @@ describe('poc anchors', () => {
     expect(a[0]?.bearingDegrees).not.toBe(b[0]?.bearingDegrees);
   });
 
-  it('places waypoints near the expected loop radius', () => {
+  it('places waypoints near the expected triangular loop radius', () => {
     const target = 20_000;
-    const radius = target / (2 * Math.PI);
+    const radius = target / (2 + Math.sqrt(3));
     const patterns = buildAnchorPatterns(start, target, 0, 1);
     const wp = patterns[0]!.waypoints[0]!;
     const distance = haversineMeters(start, wp);
     expect(distance).toBeGreaterThan(radius * 0.98);
     expect(distance).toBeLessThan(radius * 1.02);
+  });
+
+  it('sizes anchors so straight-line triangle perimeter matches target distance', () => {
+    const target = 20_000;
+    const patterns = buildAnchorPatterns(start, target, 0, 1);
+    const wp1 = patterns[0]!.waypoints[0]!;
+    const wp2 = patterns[0]!.waypoints[1]!;
+    const perimeter =
+      haversineMeters(start, wp1) + haversineMeters(wp1, wp2) + haversineMeters(wp2, start);
+    expect(perimeter).toBeGreaterThan(target * 0.98);
+    expect(perimeter).toBeLessThan(target * 1.02);
   });
 
   it('destinationPoint moves approximately the requested distance', () => {

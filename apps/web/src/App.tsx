@@ -39,6 +39,14 @@ export function App() {
     setSavedRoutes(loadPocStore().routes);
   }, []);
 
+  function clearGenerationResults() {
+    setResult(null);
+    setSelectedId(null);
+    setStatus('idle');
+    setErrorMessage(null);
+    setSaveMessage(null);
+  }
+
   const alternatives = result?.alternatives ?? [];
   const selected: PocAlternative | null =
     alternatives.find((alt) => alt.id === selectedId) ?? alternatives[0] ?? null;
@@ -184,7 +192,7 @@ export function App() {
             selectedId={selected?.id ?? null}
             onSelectStart={(coordinate) => {
               setStart(coordinate);
-              setErrorMessage(null);
+              clearGenerationResults();
             }}
           />
           <p className="map-hint">
@@ -222,7 +230,10 @@ export function App() {
               min={1}
               step={0.5}
               value={targetMiles}
-              onChange={(event) => setTargetMiles(event.target.value)}
+              onChange={(event) => {
+                setTargetMiles(event.target.value);
+                clearGenerationResults();
+              }}
             />
           </label>
 
@@ -233,7 +244,10 @@ export function App() {
                 type="radio"
                 name="costing"
                 checked={costing === 'road'}
-                onChange={() => setCosting('road')}
+                onChange={() => {
+                  setCosting('road');
+                  clearGenerationResults();
+                }}
               />
               Road
             </label>
@@ -242,7 +256,10 @@ export function App() {
                 type="radio"
                 name="costing"
                 checked={costing === 'gravel'}
-                onChange={() => setCosting('gravel')}
+                onChange={() => {
+                  setCosting('gravel');
+                  clearGenerationResults();
+                }}
               />
               Gravel
             </label>

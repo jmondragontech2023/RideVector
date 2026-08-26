@@ -45,6 +45,30 @@ describe('poc local storage', () => {
     expect(parsePocStore('null')).toEqual(emptyStore());
   });
 
+  it('drops saved routes with corrupt nested alternative fields', () => {
+    const corrupt = JSON.stringify({
+      version: 1,
+      routes: [
+        {
+          ...sampleRoute,
+          alternative: { id: 'alt-1', name: 'Route A' },
+        },
+        {
+          ...sampleRoute,
+          id: 'saved-2',
+          alternative: {
+            ...sampleRoute.alternative,
+            geometry: { type: 'Point', coordinates: [-122.42, 37.77] },
+          },
+        },
+        sampleRoute,
+      ],
+    });
+    const parsed = parsePocStore(corrupt);
+    expect(parsed.routes).toHaveLength(1);
+    expect(parsed.routes[0]?.id).toBe('saved-1');
+  });
+
   it('upserts and deletes saved routes', () => {
     const withOne = upsertSavedRoute(emptyStore(), sampleRoute);
     expect(withOne.routes).toHaveLength(1);
