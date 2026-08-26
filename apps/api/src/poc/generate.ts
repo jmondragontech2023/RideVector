@@ -1,5 +1,6 @@
-import { buildAnchorPatterns, geometryMidpoint, haversineMeters } from './anchors';
+import { buildAnchorPatterns, geometryMidpoint } from './anchors';
 import { POC_CONFIG } from './config';
+import { isNearDuplicateMidpoint } from './diversity';
 import type { RoutingProvider } from './routing/provider';
 import type {
   PocAlternative,
@@ -127,17 +128,16 @@ export async function generatePocRoutes(
       } satisfies CandidateOk;
     });
 
-    const minSeparation =
-      (request.targetDistanceMeters / (2 * Math.PI)) * POC_CONFIG.minMidpointSeparationFraction;
-
     for (const outcome of outcomes) {
       if (outcome.status === 'reject') {
         rejections[outcome.reason] += 1;
         continue;
       }
 
-      const isDuplicate = accepted.some(
-        (existing) => haversineMeters(existing.midpoint, outcome.alternative.midpoint) < minSeparation,
+      const isDuplicate = isNearDuplicateMidpoint(
+        outcome.alternative.midpoint,
+        accepted.map((item) => item.midpoint),
+        request.targetDistanceMeters,
       );
       if (isDuplicate) {
         rejections.duplicate_candidate += 1;
