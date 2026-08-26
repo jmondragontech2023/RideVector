@@ -2,7 +2,7 @@
 
 ## Status
 
-This is a conceptual Supabase/PostgreSQL design, not an executable schema. No database project or migration workflow exists yet. Milestone 0 uses **declarative schemas as source of truth with generated migrations that are reviewed before apply** (ADR-011). Product tables are implemented only in their approved milestones.
+This is a conceptual Supabase/PostgreSQL design for product entities. Milestone 0 establishes the **declarative schemas + generated reviewed migrations** workflow under `supabase/` (ADR-011) without product tables. Remote Supabase projects and the chosen region are recorded in `ENVIRONMENTS.md` when created. Product tables are implemented only in their approved milestones.
 
 Prefer permanent documents named in `README.md` over `RIDEVECTOR_HANDOFF.md`.
 

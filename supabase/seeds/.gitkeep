@@ -1,0 +1,3 @@
+# Optional synthetic seeds for local `supabase db reset`.
+# Enable in config.toml ([db.seed] enabled = true) only after review.
+# Never copy production identities, coordinates, tokens, or credentials.

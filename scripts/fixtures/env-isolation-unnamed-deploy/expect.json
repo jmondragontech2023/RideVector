@@ -1,0 +1,4 @@
+{
+  "kind": "negative",
+  "expectedRuleIds": ["REMOTE_DEPLOY_MISSING_EXPLICIT_ENV"]
+}

@@ -1,3 +1,4 @@
 # Cloudflare Worker local secrets (gitignored real file: .dev.vars)
-# Copy to .dev.vars and fill locally. Never put production values here.
+# Copy to .dev.vars for local `wrangler dev` (base config; no --env).
+# Never put production values, service-role keys, or DB passwords here.
 ENVIRONMENT=local

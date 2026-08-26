@@ -7,18 +7,71 @@ on:
     paths:
       - 'apps/api/**'
       - 'contracts/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'mise.toml'
       - '.github/workflows/deploy-staging.yml'
+      - '.github/workflows/ci.yml'
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          # Immutable workflow-triggering commit (not a moving branch tip).
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: jdx/mise-action@bfb9fa0b029db830a8c570757cee683df207a6c5 # v2.4.0
+        with:
+          version: 2026.8.14
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   deploy:
+    needs: quality
     runs-on: ubuntu-latest
     environment: staging
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          # Same SHA that passed quality, even if main moved during Environment wait.
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: jdx/mise-action@bfb9fa0b029db830a8c570757cee683df207a6c5 # v2.4.0
+        with:
+          version: 2026.8.14
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @ridevector/api run deploy:staging
+      - name: Deploy Worker (staging)
+        run: pnpm --filter @ridevector/api run deploy:staging
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Post-deploy health smoke
+        run: |
+          set -euo pipefail
+          url="https://ridevector-api-staging.jmondragontech.workers.dev/api/health"
+          for i in 1 2 3 4 5; do
+            body="$(curl -fsS "$url" || true)"
+            if echo "$body" | grep -q '"status":"ok"' && echo "$body" | grep -q 'ridevector-api'; then
+              echo "Staging health OK: $body"
+              exit 0
+            fi
+            echo "Attempt $i failed: $body"
+            sleep 3
+          done
+          echo "Staging health smoke failed"
+          exit 1

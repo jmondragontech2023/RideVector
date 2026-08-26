@@ -1,0 +1,4 @@
+{
+  "kind": "negative",
+  "expectedRuleIds": ["LOCAL_DEV_USES_REMOTE_ENV"]
+}

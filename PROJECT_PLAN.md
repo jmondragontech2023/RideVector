@@ -10,15 +10,16 @@ Prefer permanent documents named in `README.md` over `RIDEVECTOR_HANDOFF.md`.
 
 ### Milestone 0 — Repository and environments
 
-Establish workspace structure (`apps/web`, `apps/api`, `ios` placeholder, `supabase`, `contracts`), pnpm workspace with root scripts, mise-managed Node 24.19.0 and pnpm 11, local setup, development/staging/production separation for Supabase and Cloudflare per `ENVIRONMENTS.md`, platform-native secrets, GitHub Actions CI, linting, type checking, and test foundations.
+Establish workspace structure (`apps/web`, `apps/api`, `ios` placeholder, `supabase`, `contracts`), pnpm workspace with root scripts, mise-managed Node 24.19.0 and pnpm 11, local setup, development/staging/production separation for Cloudflare and environment taxonomy per `ENVIRONMENTS.md` / ADR-016 (one live remote Supabase development project; staging/production Supabase deferred), platform-native secrets, GitHub Actions CI, linting, type checking, and test foundations.
 
 Milestone 0 scaffolding is limited to empty/smoke packages and configuration. No `packages/domain`, route domain models, product schemas, product API contracts, or application behavior. Contract work is OpenAPI 3.1 health/smoke only. Authentication product UX is out of scope; session-validation wiring/configuration may be established, but user-owned APIs must validate sessions before they are implemented later. iOS remains a toolchain placeholder (no Xcode project).
 
 Acceptance:
 
 - Development cannot accidentally write production data.
-- Separate development, staging, and production Supabase projects and Cloudflare environments exist and are isolated. Creating them may happen later within Milestone 0, but this criterion is hard definition-of-done and must not be softened.
-- Production secrets and deployment permissions are isolated.
+- Cloudflare Workers exist for development, staging, and production and are isolated. Production secrets and deployment permissions are isolated.
+- Supabase in Milestone 0 (ADR-016): verified local stack; one live Free/Nano remote project `ridevector-development` in `us-west-1`; staging/production Supabase **names**, placeholders, guards, and secret conventions complete; **no** live `ridevector-staging` or `ridevector-production` projects yet (deferred for cost).
+- Development config cannot resolve future staging/production Supabase resources or credentials.
 - Tests and required quality checks gate production deployment.
 - `.gitignore`, secret-ignore conventions, and secret-scan baseline are in place.
 - A new contributor can follow verified environment/setup documentation, including the environment-name mapping.

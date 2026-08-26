@@ -1,4 +1,6 @@
 [tools]
 node = "24.19.0"
 pnpm = "11.24.0"
-supabase = "2.34.3"
+# Pinned to current stable (verified 2026-08-26 against GitHub releases / npm).
+# Prior pin 2.34.3 was far behind; 2.115.0 includes declarative-schema pg-delta defaults.
+supabase = "2.115.0"

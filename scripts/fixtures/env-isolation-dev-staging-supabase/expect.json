@@ -1,0 +1,4 @@
+{
+  "kind": "negative",
+  "expectedRuleIds": ["NON_PROD_SUPABASE_POINTS_TO_DEFERRED"]
+}
