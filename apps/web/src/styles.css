@@ -71,10 +71,69 @@ h1 {
   padding: 0.75rem;
 }
 
+.route-map-wrap {
+  position: relative;
+}
+
 .route-map {
   width: 100%;
   height: min(70vh, 36rem);
   min-height: 22rem;
+}
+
+.route-direction-marker {
+  background: transparent;
+  border: none;
+}
+
+.route-direction-marker__chevron {
+  display: block;
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 1;
+  transform-origin: center center;
+  filter: drop-shadow(0 0 1px #0b6e4f) drop-shadow(0 0 3px #0b6e4f)
+    drop-shadow(0 1px 2px rgba(0, 0, 0, 0.65));
+}
+
+.route-start-tooltip {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(11, 110, 79, 0.35);
+  color: #0b6e4f;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  box-shadow: 0 1px 4px rgba(20, 32, 26, 0.12);
+}
+
+.route-start-tooltip::before {
+  border-top-color: rgba(11, 110, 79, 0.35);
+}
+
+.route-map-legend {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: calc(100% - 1.5rem);
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(20, 32, 26, 0.12);
+  color: #2f4638;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  box-shadow: 0 1px 4px rgba(20, 32, 26, 0.08);
+  pointer-events: none;
+}
+
+.route-map-legend__arrow {
+  color: #0b6e4f;
+  font-size: 0.85rem;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.9));
 }
 
 .map-hint {
