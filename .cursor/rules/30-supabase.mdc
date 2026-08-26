@@ -9,8 +9,8 @@ alwaysApply: false
 - Read `DATABASE.md` and `ENVIRONMENTS.md`; verify current Supabase docs/changelog and installed CLI behavior before implementation.
 - Prefer permanent documents named in `README.md` over `RIDEVECTOR_HANDOFF.md`.
 - Use declarative schemas as source of truth with generated migrations reviewed before apply; never rewrite an applied migration.
-- Use separate local/development/staging/production resources per `ENVIRONMENTS.md`. Development, staging, and production remote projects are a hard Milestone 0 definition-of-done requirement; create in order local → development → staging → production.
-- Development must not default to production IDs, hosts, or credentials. Production must always be explicit.
+- Use separate local/development/staging/production resources per `ENVIRONMENTS.md`. Milestone 0 (ADR-016) requires verified local Supabase plus one live remote `ridevector-development` in `us-west-1`; do not create live `ridevector-staging` or `ridevector-production` yet. Create live remotes only in order local → development during Milestone 0.
+- Development must not default to production IDs, hosts, or credentials, and must not resolve deferred staging/production Supabase credentials. Production must always be explicit.
 - Enable RLS on every exposed table and test anonymous, owner, other-user, reassignment, and privileged paths.
 - `TO authenticated` is not ownership authorization. Use indexed ownership predicates; UPDATE needs SELECT plus `USING` and `WITH CHECK`.
 - Never authorize from user-editable metadata. Treat JWT/app-metadata freshness deliberately.

@@ -27,9 +27,10 @@ Accepted decisions are binding until superseded by a dated entry. Proposed decis
 
 ### ADR-004 — Environments and production secrets are isolated
 
-- Status: Accepted
+- Status: **Superseded** by ADR-016 (2026-08-26) for Milestone 0 Supabase remote-project count only
 - Decision: Use separate development, staging, and production Supabase projects and Cloudflare environments, plus local development. Production targeting is explicit and protected. Creating those resources may happen later within Milestone 0, but Milestone 0 is not complete until separate development, staging, and production resources exist and isolation is demonstrated.
 - Consequence: Milestone 0 must demonstrate isolation before feature work. Canonical names and platform mappings are recorded in ADR-010 and `ENVIRONMENTS.md`.
+- Superseded note: ADR-016 retains the three-environment naming and isolation model, but defers live Supabase staging/production projects past Milestone 0 for cost reasons. Cloudflare remotes and GitHub Environment guards remain required in Milestone 0.
 
 ### ADR-005 — Permanent documents replace the handoff as shared memory
 
@@ -64,18 +65,31 @@ Accepted decisions are binding until superseded by a dated entry. Proposed decis
 
 ### ADR-010 — Environment taxonomy and name mapping
 
-- Status: Accepted — 2026-08-26
+- Status: **Superseded in part** by ADR-016 (2026-08-26) for Milestone 0 Supabase remote-project liveness only
 - Decision: Canonical environments are `local`, `development`, `staging`, and `production`. Create resources in that order: local → development → staging → production. All three remote environments (`development`, `staging`, `production`) remain mandatory for Milestone 0 completion. Production must always be selected explicitly and protected. Full mapping lives in `ENVIRONMENTS.md`.
 - Consequence: Scripts, Wrangler env keys, GitHub Environments, Supabase projects, and client config suffixes use the mapping table; non-production config must fail if it resolves production identifiers.
+- Superseded note: ADR-016 keeps the four-name taxonomy and isolation rules, but Milestone 0 no longer requires live Supabase projects for staging and production.
 
 ### ADR-015 — Concrete remote resource names and deploy guards
 
-- Status: Accepted — 2026-08-26
+- Status: Accepted — 2026-08-26 (Supabase staging/production **creation timing** narrowed by ADR-016)
 - Decision:
   - Cloudflare base configuration/service name: `ridevector-api`. Per-environment Worker names: `ridevector-api-development`, `ridevector-api-staging`, `ridevector-api-production`. Every remote deployment must specify an environment explicitly.
-  - Supabase project names: `ridevector-development`, `ridevector-staging`, `ridevector-production`, all in the same region (region chosen at development project creation and recorded in `ENVIRONMENTS.md`).
+  - Supabase project names: `ridevector-development`, `ridevector-staging`, `ridevector-production`, all intended for the same region (region chosen at development project creation and recorded in `ENVIRONMENTS.md`).
   - GitHub Environments: `development` has no reviewer; `staging` has no reviewer initially and deploys only from `main`; `production` requires approval from `jmondragontech2023` and deploys only from `main`. Do not enable prevent-self-review while there is only one authorized production reviewer.
-- Consequence: Milestone 0 cloud/CI setup must use these exact names and guards; see `ENVIRONMENTS.md`.
+- Consequence: Milestone 0 cloud/CI setup must use these exact names and guards; see `ENVIRONMENTS.md`. ADR-016 defers creating live `ridevector-staging` and `ridevector-production` Supabase projects until a later deployment-readiness milestone.
+
+### ADR-016 — Milestone 0 Supabase remote scope (cost deferral)
+
+- Status: Accepted — 2026-08-26
+- Context: Free Plan limits active projects (two), and running three live Supabase remotes during Milestone 0 adds unnecessary cost before product tables and staging/production deploy readiness exist. ADR-004 and ADR-010 previously required three live remote Supabase projects as Milestone 0 definition-of-done.
+- Decision:
+  - Milestone 0 requires: (1) verified local Supabase (`ridevector-local`), (2) one isolated remote Free/Nano project `ridevector-development` in approved region **`us-west-1`**, (3) complete staging/production **naming**, configuration placeholders, deployment guards, and secret conventions for future `ridevector-staging` / `ridevector-production`, and (4) **no** live Supabase staging or production projects yet.
+  - Do not create `ridevector-staging` or `ridevector-production` in Milestone 0. Do not store or reference live staging/production Supabase credentials.
+  - Cloudflare Workers for development/staging/production may already exist; they must not bind to live staging/production Supabase secrets until those projects are created later.
+  - Development config and workflows must fail closed if they resolve future staging/production Supabase identifiers or credentials.
+  - Creating `ridevector-development` must use Free Plan / Nano only; stop if the platform requires a paid-plan upgrade or paid add-on.
+- Consequence: ADR-004 and the Milestone 0 remote-liveness clauses of ADR-010 are superseded for Supabase project count. Naming in ADR-015 remains; creation of staging/production Supabase projects moves to a later deployment-readiness milestone. `ENVIRONMENTS.md`, `PROJECT_PLAN.md`, and `TASKS.md` record the revised acceptance bar.
 
 ### ADR-011 — Supabase schema workflow
 
@@ -121,7 +135,7 @@ TomTom is a candidate only. Selection depends on bicycle-route applicability, pr
 
 ## Open decisions by milestone
 
-Milestone 0 (remaining execution choices): Supabase region (proposed `us-west-1`, create only after explicit approval); health endpoint is `/api/health` in the smoke contract; rollback/forward-fix runbooks documented in `ENVIRONMENTS.md`. Toolchain pins: pnpm **11.24.0**, Supabase CLI **2.115.0**, Wrangler **4.126.0**. Cloudflare Worker names, Supabase project names, and GitHub Environment protection rules are accepted in ADR-015 / `ENVIRONMENTS.md`.
+Milestone 0 (remaining execution): create Free/Nano `ridevector-development` in **`us-west-1`** after verifying a Free Plan slot (ADR-016); record non-secret ref/URL; configure GitHub `development` Environment secrets/vars only. Do not create live Supabase staging/production remotes in Milestone 0. Health endpoint is `/api/health` in the smoke contract; rollback/forward-fix runbooks documented in `ENVIRONMENTS.md`. Toolchain pins: pnpm **11.24.0**, Supabase CLI **2.115.0**, Wrangler **4.126.0**. Cloudflare Worker names, Supabase project **names**, and GitHub Environment protection rules are accepted in ADR-015 / ADR-016 / `ENVIRONMENTS.md`.
 
 Milestone 1: exact domain/API types, validation library, full error taxonomy, units/timezone semantics, configuration/versioning, product OpenAPI resource schemas, whether `GET /api/routes/:id` identifies a route request or a generated alternative, introduction of `packages/domain` (or equivalent), and authentication product UX (while any user-owned API must validate sessions before implementation).
 

@@ -11,8 +11,8 @@ Prefer permanent documents named in `README.md` over `RIDEVECTOR_HANDOFF.md`.
 - Formatting, lint, strict type checks, unit tests, and builds for every created workspace.
 - Repository `.gitignore` and secret-ignore conventions exist before scaffold secrets or env files are introduced.
 - Secret-scan baseline fails on committed secrets and verifies ignored secret paths; client-bundle inspection prevents privileged credentials from shipping.
-- Configuration tests prove development/staging cannot resolve production Supabase IDs/URLs, Cloudflare routes/bindings, or secrets per `ENVIRONMENTS.md`.
-- Separate development, staging, and production resources are part of Milestone 0 definition of done; create in order local → development → staging → production; isolation checks cover all three remote environments once they exist.
+- Configuration tests prove development/staging cannot resolve production Supabase IDs/URLs, Cloudflare routes/bindings, or secrets per `ENVIRONMENTS.md`; development/local also must not resolve deferred live staging Supabase identifiers.
+- Milestone 0 resource bar (ADR-016): local Supabase + live `ridevector-development` + Cloudflare Workers for all three remotes + naming/guards for future Supabase staging/production (not live yet). Isolation checks cover configured environments.
 - Production deployment is protected, explicit, and depends on all required checks.
 - Setup commands are verified from a clean checkout/environment as practical.
 

@@ -21,5 +21,5 @@ alwaysApply: false
 - Test upstream timeouts, rate limits, partial failure, malformed responses, no valid candidates, and retry/idempotency behavior.
 - Run applicable formatting, lint, strict type checks, tests, builds, migration checks, and security/configuration scans.
 - Report commands actually run, failures/skips, environment, limitations, and final diff findings. Production deploys require protected explicit approval and rollback/forward-fix documentation.
-- Separate development, staging, and production resources remain a hard Milestone 0 acceptance requirement.
+- Separate development, staging, and production **Cloudflare** resources remain a hard Milestone 0 acceptance requirement. For Supabase, Milestone 0 requires local + live `ridevector-development` only; staging/production Supabase remotes are deferred (ADR-016) but naming and isolation guards remain required.
 - Do not create `packages/domain` until Milestone 1.

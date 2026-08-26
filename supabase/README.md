@@ -78,13 +78,17 @@ Also usable via Supabase MCP `get_advisors` when authenticated to a project.
 
 ## Remote projects
 
-Names (ADR-015): `ridevector-development`, `ridevector-staging`, `ridevector-production`
-— **same region**. Creating remotes may incur cost; obtain explicit region approval
-before `supabase projects create`. Record non-secret refs/URLs and the region in
-`ENVIRONMENTS.md` only.
+Names (ADR-015 / ADR-016): `ridevector-development`, `ridevector-staging`,
+`ridevector-production` — intended region **`us-west-1`**.
+
+Milestone 0 creates **only** the Free/Nano remote `ridevector-development`.
+Do **not** create staging or production Supabase remotes yet (cost deferral).
+Record non-secret development ref/URL and the region in `ENVIRONMENTS.md` only.
 
 ```bash
 supabase projects list
+# Free/Nano only — omit --size and --high-availability; stop if upgrade required
+supabase projects create ridevector-development --org-id <org> --region us-west-1 --db-password <generated>
 supabase link --project-ref <ref>   # one linked project at a time; switch deliberately
 ```
 

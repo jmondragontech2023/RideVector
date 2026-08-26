@@ -27,9 +27,18 @@ const root = args.fixture ? resolve(repoRoot, args.fixture) : repoRoot;
 
 const PRODUCTION_WORKER = 'ridevector-api-production';
 const PRODUCTION_SUPABASE = 'ridevector-production';
+const STAGING_SUPABASE = 'ridevector-staging';
 const PRODUCTION_HOST_MARKERS = [
   'ridevector-api-production.',
   'workers.dev/ridevector-api-production',
+];
+
+/** Live staging/production Supabase markers forbidden in local/development config (ADR-016). */
+const DEFERRED_REMOTE_SUPABASE_MARKERS = [
+  STAGING_SUPABASE,
+  PRODUCTION_SUPABASE,
+  'supabase.co/ridevector-staging',
+  'supabase.co/ridevector-production',
 ];
 
 /** Known-safe docs/scripts that may name production identifiers. */
@@ -53,6 +62,7 @@ const SKIP_DIRS = new Set([
   'coverage',
   '.cursor',
   'fixtures',
+  '.temp',
 ]);
 
 const violations = [];
@@ -170,6 +180,7 @@ function checkWranglerConfig() {
       );
     }
     assertNonProductionEnv('development', envs.development, config);
+    assertNoDeferredSupabase('development', envs.development, config);
   }
   if (envs.staging) {
     if (envs.staging.name !== 'ridevector-api-staging') {
@@ -185,6 +196,35 @@ function checkWranglerConfig() {
     }
     if (envs.production.vars?.ENVIRONMENT !== 'production') {
       fail('wrangler env.production.vars.ENVIRONMENT must be "production"');
+    }
+  }
+  // Local/base config must not point at deferred remote Supabase projects.
+  assertNoDeferredSupabase('local(base)', { vars: config.vars ?? {} }, { vars: {} });
+}
+
+function assertNoDeferredSupabase(envName, envConfig, topLevel) {
+  const vars = { ...(topLevel.vars ?? {}), ...(envConfig.vars ?? {}) };
+  const supabaseBlob = JSON.stringify({
+    SUPABASE_PROJECT_REF: vars.SUPABASE_PROJECT_REF,
+    SUPABASE_URL: vars.SUPABASE_URL,
+    SUPABASE_PROJECT_URL: vars.SUPABASE_PROJECT_URL,
+  });
+  for (const marker of DEFERRED_REMOTE_SUPABASE_MARKERS) {
+    if (supabaseBlob.includes(marker)) {
+      fail(
+        `wrangler env.${envName}: must not resolve deferred/live staging|production Supabase marker "${marker}"`,
+      );
+    }
+  }
+  // Reject accidental use of staging/production placeholder hosts in development/local.
+  if (envName === 'development' || envName.startsWith('local')) {
+    for (const url of [vars.SUPABASE_URL, vars.SUPABASE_PROJECT_URL, vars.SUPABASE_PROJECT_REF]) {
+      if (!url) continue;
+      if (/REPLACE_ME_(STAGING|PRODUCTION)_REF/i.test(String(url))) {
+        fail(
+          `wrangler env.${envName}: must not use staging/production REPLACE_ME placeholders (got "${url}")`,
+        );
+      }
     }
   }
 }
@@ -298,6 +338,12 @@ function checkExampleEnvIsolation() {
     const text = readFileSync(path, 'utf8');
     if (text.includes(PRODUCTION_WORKER) || text.includes(PRODUCTION_SUPABASE)) {
       fail(`${rel} (${kind}) must not reference production resources`);
+    }
+    if (
+      (kind === 'development' || kind === 'local') &&
+      (text.includes(STAGING_SUPABASE) || /REPLACE_ME_(STAGING|PRODUCTION)_REF/i.test(text))
+    ) {
+      fail(`${rel} (${kind}) must not reference deferred staging/production Supabase resources`);
     }
     if (/SERVICE_ROLE|service_role|DATABASE_URL\s*=\s*postgres/i.test(text)) {
       fail(
