@@ -100,9 +100,9 @@ No live Supabase `ridevector-staging` or `ridevector-production` projects (ADR-0
 | Check | Command / action | Outcome |
 | --- | --- | --- |
 | Branch sync | `milestone-0/completion` tracks `origin/milestone-0/completion` @ prior tip | Pass |
-| ADR-016 docs | Supersede ADR-004 / ADR-010 Supabase liveness; update ENVIRONMENTS/PROJECT_PLAN/TASKS/README/TEST_PLAN/rules | In progress |
-| Supabase CLI pin | mise `2.115.0` | Pass |
-| `supabase projects create --help` | Flags verified (`--region`, `--org-id`, `--size`, `--high-availability`) | Pass — Free/Nano: omit `--size` / `--high-availability` |
+| ADR-016 docs + isolation fixture | Commit `69fde5e` pushed to PR #4 | Pass |
+| `pnpm run check` | format/lint/typecheck/test/build/env-isolation(+5 fixtures)/bundle/types | **Pass** |
+| GitHub Env non-secret vars | `development`: REGION/PROJECT_NAME/REMOTE_STATUS; `staging`/`production`: REGION + `deferred_adr016` | Pass (no live Supabase secrets set) |
 | Free Plan slot / create | `supabase projects list` / `create` | **Blocked** — no CLI access token in non-TTY agent (`SUPABASE_ACCESS_TOKEN` unset; `supabase login` requires TTY) |
 | Docker / `supabase start` | After starting Docker Desktop | **Pass** (image pull rate-limited briefly, then started) |
 | `supabase status` | Keys present (values not logged) | **Pass** |
