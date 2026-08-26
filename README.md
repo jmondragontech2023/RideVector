@@ -100,7 +100,7 @@ Use these permanent documents as shared memory. Prefer them over `RIDEVECTOR_HAN
 Never place secrets in committed files. Use platform-native secrets only. See [ENVIRONMENTS.md](ENVIRONMENTS.md).
 
 - Cloudflare base Worker: `ridevector-api` → `ridevector-api-{development,staging,production}`
-- Supabase: live `ridevector-development` in **`us-west-1`** (ADR-016); `ridevector-staging` / `ridevector-production` named but not created yet
+- Supabase: live `ridevector-development` in **`us-west-1`** (ref `hsokwavqmqlkbtnftoqw`; ADR-016); `ridevector-staging` / `ridevector-production` named but not created yet
 - Every remote Cloudflare deploy must pass an explicit `--env`
 - Production deploys only from `main` with GitHub Environment approval by `jmondragontech2023`
 

@@ -16,7 +16,7 @@
       "name": "ridevector-api-development",
       "vars": {
         "ENVIRONMENT": "development",
-        "SUPABASE_URL": "https://REPLACE_ME_DEVELOPMENT_REF.supabase.co",
+        "SUPABASE_URL": "https://hsokwavqmqlkbtnftoqw.supabase.co",
       },
       "observability": {
         "enabled": true,

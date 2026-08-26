@@ -28,6 +28,9 @@ const root = args.fixture ? resolve(repoRoot, args.fixture) : repoRoot;
 const PRODUCTION_WORKER = 'ridevector-api-production';
 const PRODUCTION_SUPABASE = 'ridevector-production';
 const STAGING_SUPABASE = 'ridevector-staging';
+/** Non-secret live development project ref (ADR-016). */
+const LIVE_DEVELOPMENT_SUPABASE_REF = 'hsokwavqmqlkbtnftoqw';
+const LIVE_DEVELOPMENT_SUPABASE_URL = `https://${LIVE_DEVELOPMENT_SUPABASE_REF}.supabase.co`;
 const PRODUCTION_HOST_MARKERS = [
   'ridevector-api-production.',
   'workers.dev/ridevector-api-production',
@@ -177,6 +180,12 @@ function checkWranglerConfig() {
     if (envs.development.name !== 'ridevector-api-development') {
       fail(
         `wrangler env.development.name must be ridevector-api-development, got "${envs.development.name}"`,
+      );
+    }
+    const developmentUrl = envs.development.vars?.SUPABASE_URL;
+    if (developmentUrl !== LIVE_DEVELOPMENT_SUPABASE_URL) {
+      fail(
+        `wrangler env.development.vars.SUPABASE_URL must be live development ${LIVE_DEVELOPMENT_SUPABASE_URL}, got "${developmentUrl}"`,
       );
     }
     assertNonProductionEnv('development', envs.development, config);

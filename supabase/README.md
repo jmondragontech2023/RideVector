@@ -90,6 +90,12 @@ supabase projects list
 # Free/Nano only — omit --size and --high-availability; stop if upgrade required
 supabase projects create ridevector-development --org-id <org> --region us-west-1 --db-password <generated>
 supabase link --project-ref <ref>   # one linked project at a time; switch deliberately
+supabase migration list --linked
+supabase db push --linked --dry-run
 ```
+
+Live development (Milestone 0): ref `hsokwavqmqlkbtnftoqw`, region `us-west-1`,
+public URL `https://hsokwavqmqlkbtnftoqw.supabase.co`. Linked + empty migration push
+verified (no product tables). Do not create staging/production remotes yet.
 
 Never commit access tokens, DB passwords, or service-role keys.

@@ -42,10 +42,10 @@ Milestone 0 (ADR-016) requires verified local Supabase, one live remote Supabase
 - Approved region for all RideVector Supabase remotes: **`us-west-1` (West US / North California)** (ADR-016).
 - **Live in Milestone 0:** `ridevector-development` only (Free/Nano). Staging and production Supabase projects are named and guarded in config but **not created** yet (cost deferral).
 - Non-secret project refs / API URLs:
-  - `ridevector-development`: _pending create / record after create_ (never commit secrets)
+  - `ridevector-development`: ref `hsokwavqmqlkbtnftoqw`; public URL `https://hsokwavqmqlkbtnftoqw.supabase.co` (never commit secrets)
   - `ridevector-staging` / `ridevector-production`: _not created — no live refs or credentials_
 - Local stack: `supabase start` with Docker; see `supabase/README.md`. Verified on developer Docker: `start` / `status` / `db reset`.
-- Wrangler `vars.SUPABASE_URL`: development may use the real development public URL after create; staging/production keep `REPLACE_ME_*_REF` placeholders until those remotes exist. Isolation checks forbid production (and deferred staging live) identifiers in development/local config.
+- Wrangler `vars.SUPABASE_URL`: development uses the live development public URL; staging/production keep `REPLACE_ME_*_REF` placeholders until those remotes exist. Isolation checks forbid production (and deferred staging live) identifiers in development/local config.
 
 ### GitHub Actions Environments
 
@@ -110,7 +110,7 @@ Prefer forward-fix via a revert or fix PR to `main`, then the protected deploy w
 - Automated assertion: non-production config cannot reference production identifiers, including `ridevector-api-production` and `ridevector-production` (see `scripts/check-env-isolation.mjs` + negative fixtures). Development/local config also must not resolve deferred live staging Supabase identifiers (`ridevector-staging` as a live host/ref).
 - Client bundle/secret scan: `scripts/check-client-bundle-secrets.mjs`.
 - Local Supabase verified (`supabase start` / `status` / `db reset`).
-- Live remote Supabase in Milestone 0: **`ridevector-development` only** in **`us-west-1`** (ADR-016). Staging/production Supabase projects are named but not created yet.
+- Live remote Supabase in Milestone 0: **`ridevector-development` only** in **`us-west-1`** (ref `hsokwavqmqlkbtnftoqw`). Staging/production Supabase projects are named but not created yet; GitHub `staging`/`production` Environments have no live Supabase secrets.
 - Cloudflare Workers `ridevector-api-development`, `ridevector-api-staging`, and `ridevector-api-production` exist under base config `ridevector-api`.
 - GitHub Environments match the protection table above.
 - Setup docs record the mapping table, chosen Supabase region, and commands actually verified.

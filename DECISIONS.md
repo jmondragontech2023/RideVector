@@ -135,7 +135,7 @@ TomTom is a candidate only. Selection depends on bicycle-route applicability, pr
 
 ## Open decisions by milestone
 
-Milestone 0 (remaining execution): create Free/Nano `ridevector-development` in **`us-west-1`** after verifying a Free Plan slot (ADR-016); record non-secret ref/URL; configure GitHub `development` Environment secrets/vars only. Do not create live Supabase staging/production remotes in Milestone 0. Health endpoint is `/api/health` in the smoke contract; rollback/forward-fix runbooks documented in `ENVIRONMENTS.md`. Toolchain pins: pnpm **11.24.0**, Supabase CLI **2.115.0**, Wrangler **4.126.0**. Cloudflare Worker names, Supabase project **names**, and GitHub Environment protection rules are accepted in ADR-015 / ADR-016 / `ENVIRONMENTS.md`.
+Milestone 0 (remaining execution): Free/Nano `ridevector-development` created in **`us-west-1`** (ref recorded in `ENVIRONMENTS.md`); GitHub `development` Environment non-secret vars + platform-native secrets configured. Do **not** create live Supabase staging/production remotes. Remaining before merge: PR review stop, independent security/configuration review, then merge to `main` and confirm Cloudflare staging/production Worker smoke (no Supabase staging/production). Health endpoint is `/api/health`. Toolchain pins: pnpm **11.24.0**, Supabase CLI **2.115.0**, Wrangler **4.126.0**.
 
 Milestone 1: exact domain/API types, validation library, full error taxonomy, units/timezone semantics, configuration/versioning, product OpenAPI resource schemas, whether `GET /api/routes/:id` identifies a route request or a generated alternative, introduction of `packages/domain` (or equivalent), and authentication product UX (while any user-owned API must validate sessions before implementation).
 

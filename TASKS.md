@@ -39,14 +39,14 @@ Create live resources in order: **local → development**. Staging/production Su
 
 - [x] Apply `ENVIRONMENTS.md` mapping across GitHub, Cloudflare, Supabase naming, and client config _(Cloudflare live; Supabase staging/production names only)_.
 - [x] Establish local Supabase and local Worker workflows. _(Local Worker health verified earlier; Docker `supabase start` / `status` / `db reset` verified 2026-08-26.)_
-- [ ] Create/verify Free/Nano Supabase project `ridevector-development` in **`us-west-1`**; record non-secret ref/URL in `ENVIRONMENTS.md`. Stop if paid upgrade required. Do **not** create `ridevector-staging` or `ridevector-production`.
+- [x] Create/verify Free/Nano Supabase project `ridevector-development` in **`us-west-1`**; record non-secret ref/URL in `ENVIRONMENTS.md`. Stop if paid upgrade required. Do **not** create `ridevector-staging` or `ridevector-production`. _(Created Free/Nano; ref `hsokwavqmqlkbtnftoqw`; no payment/upgrade.)_
 - [x] Create/verify Cloudflare Workers `ridevector-api-development`, then `ridevector-api-staging`, then `ridevector-api-production` under base config `ridevector-api`; every remote deploy must pass an explicit environment.
 - [x] Configure GitHub Environments: `development` (no reviewer); `staging` (no reviewer initially, deploy only from `main`); `production` (approval by `jmondragontech2023`, deploy only from `main`); do not enable prevent-self-review while there is only one authorized reviewer.
-- [ ] Configure development-only GitHub Environment values/secrets for the live development Supabase project (platform-native; no secrets in git). Do not set live staging/production Supabase credentials.
+- [x] Configure development-only GitHub Environment values/secrets for the live development Supabase project (platform-native; no secrets in git). Do not set live staging/production Supabase credentials. _(Vars: URL/ref/region/name/status; secrets: `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. Staging/production Environments have no Supabase secrets.)_
 - [x] Add safe example environment files; ignore all real secret files.
 - [x] Make `local` / `development` the safe defaults per `ENVIRONMENTS.md`; require explicit protected production targeting. _(Ordinary API `dev` uses base local Wrangler config.)_
 - [x] Add an automated assertion that non-production builds/config cannot reference production project IDs, hosts, routes, or credentials _(structured wrangler assertions + negative fixtures + client-bundle secret scan)_.
-- [ ] Demonstrate development cannot reference future staging/production Supabase resources (isolation evidence after development project exists).
+- [x] Demonstrate development cannot reference future staging/production Supabase resources (isolation evidence after development project exists). _(Live development URL wired; isolation check requires that URL and forbids deferred staging/production markers; negative fixtures green.)_
 
 ## 0.4 CI and deployment safety
 
@@ -62,6 +62,7 @@ Create live resources in order: **local → development**. Staging/production Su
 - [x] Add local configuration only after verifying installed CLI behavior with `--help` and current docs.
 - [x] Establish migration, seed-test-data, RLS-test, type-generation, and database-advisor conventions without product tables.
 - [x] Verify declarative-schema and migration workflow locally without product tables (`db reset` applied empty migration set).
+- [x] Verify remote development link + empty migration push (`migration list` / `db push --dry-run` / `db push` — up to date; no product tables).
 - [x] Verify that no service-role/secret key can enter a client bundle. _(script + build scan; smoke app has none)_
 - [x] Session-validation wiring/configuration only if needed for scaffold; no authentication product UX or user-owned product APIs. _(Inapplicable — not needed for health-only Worker; no session wiring added.)_
 
@@ -74,12 +75,12 @@ Create live resources in order: **local → development**. Staging/production Su
 
 ## 0.7 Documentation and acceptance
 
-- [x] Replace provisional setup sections with commands actually run successfully on a clean checkout _(local Supabase Docker path verified; remote development create still blocked on CLI auth)_.
+- [x] Replace provisional setup sections with commands actually run successfully on a clean checkout _(local Supabase Docker + remote development create/link/push verified)_
 - [x] Document local startup, testing, environment selection, secret setup, staging deploy, production recovery/rollback, and common failures.
-- [x] Keep `ENVIRONMENTS.md` synchronized with real project/environment names (no secret values). _(Region `us-west-1` recorded; development ref pending create.)_
-- [ ] Run every required local/CI-equivalent check and record actual results. _(see Verification log)_
+- [x] Keep `ENVIRONMENTS.md` synchronized with real project/environment names (no secret values). _(Development ref/URL recorded; staging/production still deferred.)_
+- [x] Run every required local/CI-equivalent check and record actual results. _(`pnpm run check` Pass 2026-08-26 after development create)_
 - [ ] Inspect the complete diff and conduct an independent security/configuration review. _(pending PR review stop)_
-- [ ] Demonstrate all revised Milestone 0 acceptance criteria from `PROJECT_PLAN.md` / ADR-016. _(blocked on remote development create + GH development secrets)_
+- [ ] Demonstrate all revised Milestone 0 acceptance criteria from `PROJECT_PLAN.md` / ADR-016. _(pending PR review stop + post-merge Cloudflare staging/production smoke)_
 
 ## Explicitly not in this milestone
 
@@ -89,28 +90,28 @@ No live Supabase `ridevector-staging` or `ridevector-production` projects (ADR-0
 
 ## Remaining user actions (block Milestone 0 complete)
 
-1. **Provide Supabase CLI auth** for this agent session: run `supabase login` in a TTY, or set `SUPABASE_ACCESS_TOKEN` (do not paste the token into chat/git). Needed to list Free Plan slots and create `ridevector-development`.
-2. After create: confirm GitHub Environment `development` secrets/vars were set (or set publishable URL / anon key via `gh secret set --env development` yourself if preferred).
-3. **Merge completion PR to `main` only after review stop** — then confirm staging protected Worker workflow + `/api/health` smoke (Cloudflare; no Supabase staging required).
-4. **Explicitly approve** GitHub Environment production deployment when ready (do not bypass reviewer gate); confirm production health smoke.
-5. **Independent security/configuration review** of the PR diff.
+1. **Review stop on PR #4** — do not merge until independent security/configuration review.
+2. **Merge completion PR to `main` only after review stop** — then confirm staging protected Worker workflow + `/api/health` smoke (Cloudflare; no Supabase staging required).
+3. **Explicitly approve** GitHub Environment production deployment when ready (do not bypass reviewer gate); confirm production health smoke.
+4. Optional: set Cloudflare Worker development secrets if/when the Worker needs Supabase (M0 health endpoint does not).
 
 ## Verification log (agent session 2026-08-26, continued)
 
 | Check | Command / action | Outcome |
 | --- | --- | --- |
-| Branch sync | `milestone-0/completion` tracks `origin/milestone-0/completion` @ prior tip | Pass |
-| ADR-016 docs + isolation fixture | Commit `69fde5e` pushed to PR #4 | Pass |
+| Branch sync | `milestone-0/completion` up to date with origin | Pass |
+| Free Plan slot | Org had 1 ACTIVE + 1 INACTIVE; create omitted `--size`/`--high-availability` | Pass (no payment/upgrade) |
+| Create `ridevector-development` | Free/Nano, `us-west-1`, ACTIVE_HEALTHY | Pass — ref `hsokwavqmqlkbtnftoqw` |
+| Record non-secret ref/URL | `ENVIRONMENTS.md` + wrangler development `SUPABASE_URL` | Pass (no secrets committed) |
+| GitHub `development` vars | `SUPABASE_URL`, `SUPABASE_PROJECT_REF`, region/name/status | Pass |
+| GitHub `development` secrets | `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (names only) | Pass |
+| Staging/production Supabase secrets | `gh secret list --env staging\|production` | Empty (none set) |
+| Link + remote DB | `supabase link`; `migration list --linked`; `db push --linked --dry-run`; `db push --linked` | Pass — up to date, no product migrations |
+| Isolation evidence | Live development URL required; deferred staging/production markers forbidden | Pass |
 | `pnpm run check` | format/lint/typecheck/test/build/env-isolation(+5 fixtures)/bundle/types | **Pass** |
-| GitHub Env non-secret vars | `development`: REGION/PROJECT_NAME/REMOTE_STATUS; `staging`/`production`: REGION + `deferred_adr016` | Pass (no live Supabase secrets set) |
-| Free Plan slot / create | `supabase projects list` / `create` | **Blocked** — no CLI access token in non-TTY agent (`SUPABASE_ACCESS_TOKEN` unset; `supabase login` requires TTY) |
-| Docker / `supabase start` | After starting Docker Desktop | **Pass** (image pull rate-limited briefly, then started) |
-| `supabase status` | Keys present (values not logged) | **Pass** |
-| `supabase db reset` | Empty migration set (`.gitkeep` skipped) | **Pass** |
-| MCP Supabase | Authenticated; linked to unrelated budget project — **not** used as RideVector | Do not reuse |
-| `gh` / PR #4 | Open; CI `check` pass | Pass |
 | Staging/production Worker HTTP from agent | Earlier `curl` 403 from this environment | Unchanged |
 | Production deploy | **Not run** — requires explicit Environment approval | |
+| Merge PR #4 | **Stopped for review** | |
 
 ### Staging deploy failure diagnosis (prior workflows)
 
