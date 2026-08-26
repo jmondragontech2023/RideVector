@@ -19,20 +19,20 @@
 - [x] Record iOS as verified toolchain placeholder; no Xcode project in M0 (ADR-013).
 - [x] Narrow Cursor rule globs to approved paths so React rules do not govern `apps/api`.
 - [x] Add repository `.gitignore` and secret-ignore conventions.
-- [ ] Enable protected `main` and PR workflow; configure GitHub Environments per ADR-015.
+- [x] Enable protected `main` and PR workflow; configure GitHub Environments per ADR-015.
 
 ## 0.2 Minimal repository scaffold
 
 Prerequisite: execution-plan approval; `.gitignore` present; docs first commit and branch protection per ADR-014 as applicable to the step order in the plan.
 
-- [ ] Create empty/smoke `apps/web` and `apps/api` only (no product behavior).
-- [ ] Create `contracts/` with OpenAPI 3.1 health/smoke contract only.
-- [ ] Create `supabase/` foundation config for declarative schema workflow without product tables.
-- [ ] Create `ios/` verified toolchain placeholder only (no Xcode project).
+- [x] Create empty/smoke `apps/web` and `apps/api` only (no product behavior).
+- [x] Create `contracts/` with OpenAPI 3.1 health/smoke contract only.
+- [x] Create `supabase/` foundation config for declarative schema workflow without product tables.
+- [x] Create `ios/` verified toolchain placeholder only (no Xcode project).
 - [ ] Do not create `packages/domain` or any route domain models, product schemas, product API resources, auth UX, planner UI, routing, providers, scoring, persistence, or GPX behavior.
-- [ ] Pin direct dependencies and CLIs exactly; commit lockfiles.
-- [ ] Add format, lint, TypeScript strict type-check, unit-test, and build commands with non-placeholder smoke tests only.
-- [ ] Add root pnpm scripts that run required checks consistently across the workspace.
+- [x] Pin direct dependencies and CLIs exactly; commit lockfiles.
+- [x] Add format, lint, TypeScript strict type-check, unit-test, and build commands with non-placeholder smoke tests only.
+- [x] Add root pnpm scripts that run required checks consistently across the workspace.
 
 ## 0.3 Environment isolation and secrets
 
@@ -41,19 +41,19 @@ Create in order: **local → development → staging → production**. All three
 - [ ] Apply `ENVIRONMENTS.md` mapping across GitHub, Cloudflare, Supabase, and client config.
 - [ ] Establish local Supabase and local Worker workflows.
 - [ ] Create/verify Supabase projects `ridevector-development`, then `ridevector-staging`, then `ridevector-production` in the same region; record the region in `ENVIRONMENTS.md`.
-- [ ] Create/verify Cloudflare Workers `ridevector-api-development`, then `ridevector-api-staging`, then `ridevector-api-production` under base config `ridevector-api`; every remote deploy must pass an explicit environment.
-- [ ] Configure GitHub Environments: `development` (no reviewer); `staging` (no reviewer initially, deploy only from `main`); `production` (approval by `jmondragontech2023`, deploy only from `main`); do not enable prevent-self-review while there is only one authorized reviewer.
-- [ ] Add safe example environment files; ignore all real secret files.
+- [x] Create/verify Cloudflare Workers `ridevector-api-development`, then `ridevector-api-staging`, then `ridevector-api-production` under base config `ridevector-api`; every remote deploy must pass an explicit environment.
+- [x] Configure GitHub Environments: `development` (no reviewer); `staging` (no reviewer initially, deploy only from `main`); `production` (approval by `jmondragontech2023`, deploy only from `main`); do not enable prevent-self-review while there is only one authorized reviewer.
+- [x] Add safe example environment files; ignore all real secret files.
 - [ ] Make `local` / `development` the safe defaults per `ENVIRONMENTS.md`; require explicit protected production targeting.
-- [ ] Add an automated assertion that non-production builds/config cannot reference production project IDs, hosts, routes, or credentials.
+- [x] Add an automated assertion that non-production builds/config cannot reference production project IDs, hosts, routes, or credentials.
 
 ## 0.4 CI and deployment safety
 
-- [ ] Configure GitHub Actions to run formatting check, lint, type checks, unit tests, and builds on pull requests.
+- [x] Configure GitHub Actions to run formatting check, lint, type checks, unit tests, and builds on pull requests.
 - [ ] Mock external services in CI; do not require production credentials.
 - [ ] Define staging deployment gates and smoke checks.
 - [ ] Define production deployment as an explicit protected workflow gated on all required checks and environment approval.
-- [ ] Add dependency/secret scanning, including baseline coverage for `.gitignore` secret paths.
+- [x] Add dependency/secret scanning, including baseline coverage for `.gitignore` secret paths.
 
 ## 0.5 Supabase foundation
 
