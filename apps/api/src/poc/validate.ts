@@ -19,7 +19,9 @@ function isCostingMode(value: unknown): value is PocCostingMode {
  */
 export function validatePocGenerateRequest(
   body: unknown,
-): { ok: true; request: Required<PocGenerateRequest> } | { ok: false; details: PocValidationIssue[] } {
+):
+  | { ok: true; request: Required<PocGenerateRequest> }
+  | { ok: false; details: PocValidationIssue[] } {
   const details: PocValidationIssue[] = [];
 
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
@@ -36,8 +38,15 @@ export function validatePocGenerateRequest(
     details.push({ field: 'start', reason: 'must be an object with latitude and longitude' });
   } else {
     const startRecord = start as Record<string, unknown>;
-    if (!isFiniteNumber(startRecord.latitude) || startRecord.latitude < -90 || startRecord.latitude > 90) {
-      details.push({ field: 'start.latitude', reason: 'must be a finite number between -90 and 90' });
+    if (
+      !isFiniteNumber(startRecord.latitude) ||
+      startRecord.latitude < -90 ||
+      startRecord.latitude > 90
+    ) {
+      details.push({
+        field: 'start.latitude',
+        reason: 'must be a finite number between -90 and 90',
+      });
     }
     if (
       !isFiniteNumber(startRecord.longitude) ||

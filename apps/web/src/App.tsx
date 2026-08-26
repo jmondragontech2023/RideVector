@@ -10,7 +10,12 @@ import {
   type SavedPocRoute,
   type WouldRide,
 } from './poc/storage';
-import type { PocAlternative, PocCoordinate, PocCostingMode, PocGenerateResponse } from './poc/types';
+import type {
+  PocAlternative,
+  PocCoordinate,
+  PocCostingMode,
+  PocGenerateResponse,
+} from './poc/types';
 import { formatDuration, formatMiles, METERS_PER_MILE, milesToMeters } from './poc/units';
 import { smokeContractTitle } from './smokeContract';
 
@@ -76,7 +81,9 @@ export function App() {
       setResult(null);
       setSelectedId(null);
       setStatus('error');
-      setErrorMessage(error instanceof PocApiError ? error.message : 'Unexpected generation failure.');
+      setErrorMessage(
+        error instanceof PocApiError ? error.message : 'Unexpected generation failure.',
+      );
     }
   }
 
@@ -245,7 +252,11 @@ export function App() {
           </fieldset>
 
           <div className="actions">
-            <button type="button" disabled={status === 'loading'} onClick={() => void runGenerate(seed)}>
+            <button
+              type="button"
+              disabled={status === 'loading'}
+              onClick={() => void runGenerate(seed)}
+            >
               {status === 'loading' ? 'Generating…' : 'Generate'}
             </button>
             <button
@@ -277,8 +288,8 @@ export function App() {
           {result && selected ? (
             <div className="result-block">
               <p className="metrics">
-                {formatMiles(selected.distanceMeters)} · {formatDuration(selected.durationSeconds)} ·{' '}
-                {selected.distanceFromTargetMeters >= 0 ? '+' : ''}
+                {formatMiles(selected.distanceMeters)} · {formatDuration(selected.durationSeconds)}{' '}
+                · {selected.distanceFromTargetMeters >= 0 ? '+' : ''}
                 {formatMiles(Math.abs(selected.distanceFromTargetMeters))} from target
               </p>
               <p className="metrics subtle">
@@ -360,10 +371,18 @@ export function App() {
                       </p>
                     </div>
                     <div className="actions">
-                      <button type="button" className="secondary" onClick={() => handleOpenSaved(route)}>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => handleOpenSaved(route)}
+                      >
                         Open
                       </button>
-                      <button type="button" className="secondary" onClick={() => handleDeleteSaved(route.id)}>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => handleDeleteSaved(route.id)}
+                      >
                         Delete
                       </button>
                     </div>

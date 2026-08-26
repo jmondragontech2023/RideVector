@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { generatePocRoutes } from '../src/poc/generate';
-import { isPocGenerationEnabled, handlePocGenerate, type PocEnv } from '../src/poc/handler';
-import type { RouteLoopRequest, RouteLoopResult, RoutingProvider } from '../src/poc/routing/provider';
+import { isPocGenerationEnabled, handlePocGenerate } from '../src/poc/handler';
+import type {
+  RouteLoopRequest,
+  RouteLoopResult,
+  RoutingProvider,
+} from '../src/poc/routing/provider';
 import { ValhallaRoutingProvider } from '../src/poc/routing/valhalla';
 
 function squareLoop(
@@ -20,7 +24,9 @@ function squareLoop(
 
 class MockRoutingProvider implements RoutingProvider {
   constructor(
-    private readonly impl: (request: RouteLoopRequest) => Promise<RouteLoopResult> | RouteLoopResult,
+    private readonly impl: (
+      request: RouteLoopRequest,
+    ) => Promise<RouteLoopResult> | RouteLoopResult,
   ) {}
 
   routeLoop(request: RouteLoopRequest): Promise<RouteLoopResult> {
@@ -187,7 +193,8 @@ describe('POC handler environment gate', () => {
     const env = {
       ENVIRONMENT: 'development',
       SUPABASE_URL: 'http://127.0.0.1:54321',
-    } as PocEnv;
+      VALHALLA_BASE_URL: 'http://127.0.0.1:8002',
+    } as Env;
     const response = await handlePocGenerate(
       new Request('http://localhost/api/poc/routes/generate', {
         method: 'POST',
@@ -208,7 +215,7 @@ describe('POC handler environment gate', () => {
       ENVIRONMENT: 'local',
       SUPABASE_URL: 'http://127.0.0.1:54321',
       VALHALLA_BASE_URL: 'http://127.0.0.1:8002',
-    } as PocEnv;
+    } as Env;
     const response = await handlePocGenerate(
       new Request('http://localhost/api/poc/routes/generate', {
         method: 'POST',

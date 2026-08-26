@@ -57,7 +57,9 @@ async function mapPool<T, R>(
 
 type CandidateOk = {
   status: 'ok';
-  alternative: Omit<PocAlternative, 'name' | 'id'> & { midpoint: ReturnType<typeof geometryMidpoint> };
+  alternative: Omit<PocAlternative, 'name' | 'id'> & {
+    midpoint: ReturnType<typeof geometryMidpoint>;
+  };
 };
 
 type CandidateReject = {
@@ -157,24 +159,30 @@ export async function generatePocRoutes(
 
   await runBatch(0, attemptCount);
 
-  if (accepted.length < 2 && attemptCount < POC_CONFIG.maxCandidateCount && deps.candidateCount === undefined) {
+  if (
+    accepted.length < 2 &&
+    attemptCount < POC_CONFIG.maxCandidateCount &&
+    deps.candidateCount === undefined
+  ) {
     const expanded = POC_CONFIG.maxCandidateCount;
     await runBatch(attemptCount, expanded);
     attemptCount = expanded;
   }
 
-  const alternatives: PocAlternative[] = accepted.slice(0, POC_CONFIG.maxAlternatives).map((item, index) => {
-    return {
-      id: item.id,
-      name: alternativeName(index),
-      geometry: item.geometry,
-      distanceMeters: item.distanceMeters,
-      durationSeconds: item.durationSeconds,
-      distanceFromTargetMeters: item.distanceFromTargetMeters,
-      bearingFamily: item.bearingFamily,
-      warnings: item.warnings,
-    };
-  });
+  const alternatives: PocAlternative[] = accepted
+    .slice(0, POC_CONFIG.maxAlternatives)
+    .map((item, index) => {
+      return {
+        id: item.id,
+        name: alternativeName(index),
+        geometry: item.geometry,
+        distanceMeters: item.distanceMeters,
+        durationSeconds: item.durationSeconds,
+        distanceFromTargetMeters: item.distanceFromTargetMeters,
+        bearingFamily: item.bearingFamily,
+        warnings: item.warnings,
+      };
+    });
 
   if (alternatives.length === 0) {
     warnings.push('No valid loop candidates remained after filtering.');

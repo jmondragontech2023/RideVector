@@ -3,10 +3,6 @@ import { ValhallaRoutingProvider } from './routing/valhalla';
 import type { PocErrorBody, PocGenerateResponse } from './types';
 import { validatePocGenerateRequest } from './validate';
 
-export type PocEnv = Env & {
-  VALHALLA_BASE_URL?: string;
-};
-
 function jsonResponse(body: unknown, status = 200, init?: ResponseInit): Response {
   return Response.json(body, {
     status,
@@ -18,7 +14,12 @@ function jsonResponse(body: unknown, status = 200, init?: ResponseInit): Respons
   });
 }
 
-function errorResponse(status: number, code: string, message: string, details?: PocErrorBody['error']['details']): Response {
+function errorResponse(
+  status: number,
+  code: string,
+  message: string,
+  details?: PocErrorBody['error']['details'],
+): Response {
   const body: PocErrorBody = {
     error: {
       code,
@@ -30,11 +31,11 @@ function errorResponse(status: number, code: string, message: string, details?: 
 }
 
 /** POC generation is available only when ENVIRONMENT=local. */
-export function isPocGenerationEnabled(env: Pick<PocEnv, 'ENVIRONMENT'>): boolean {
+export function isPocGenerationEnabled(env: Pick<Env, 'ENVIRONMENT'>): boolean {
   return env.ENVIRONMENT === 'local';
 }
 
-export async function handlePocGenerate(request: Request, env: PocEnv): Promise<Response> {
+export async function handlePocGenerate(request: Request, env: Env): Promise<Response> {
   if (!isPocGenerationEnabled(env)) {
     return new Response('Not Found', { status: 404 });
   }
@@ -55,7 +56,7 @@ export async function handlePocGenerate(request: Request, env: PocEnv): Promise<
     return errorResponse(
       503,
       'ROUTING_UNAVAILABLE',
-      'Local routing endpoint is not configured. Set VALHALLA_BASE_URL in apps/api/.dev.vars.',
+      'Local routing endpoint is not configured. Set VALHALLA_BASE_URL for the local Worker.',
     );
   }
 
@@ -68,7 +69,12 @@ export async function handlePocGenerate(request: Request, env: PocEnv): Promise<
 
   const validated = validatePocGenerateRequest(body);
   if (!validated.ok) {
-    return errorResponse(400, 'VALIDATION_FAILED', 'The route request is invalid.', validated.details);
+    return errorResponse(
+      400,
+      'VALIDATION_FAILED',
+      'The route request is invalid.',
+      validated.details,
+    );
   }
 
   const provider = new ValhallaRoutingProvider({ baseUrl });

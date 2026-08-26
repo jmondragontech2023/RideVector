@@ -19,7 +19,13 @@ const sampleRoute: SavedPocRoute = {
   alternative: {
     id: 'alt-1',
     name: 'Route A',
-    geometry: { type: 'LineString', coordinates: [[-122.42, 37.77], [-122.41, 37.78]] },
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [-122.42, 37.77],
+        [-122.41, 37.78],
+      ],
+    },
     distanceMeters: 16_000,
     durationSeconds: 3000,
     distanceFromTargetMeters: -93.44,

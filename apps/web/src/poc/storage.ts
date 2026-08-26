@@ -84,10 +84,7 @@ export function savePocStore(
   storage.setItem(POC_STORAGE_KEY, JSON.stringify(store));
 }
 
-export function upsertSavedRoute(
-  store: PocLocalStoreV1,
-  route: SavedPocRoute,
-): PocLocalStoreV1 {
+export function upsertSavedRoute(store: PocLocalStoreV1, route: SavedPocRoute): PocLocalStoreV1 {
   const without = store.routes.filter((item) => item.id !== route.id);
   return { version: 1, routes: [route, ...without] };
 }

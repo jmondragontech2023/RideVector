@@ -10,6 +10,9 @@
   "vars": {
     "ENVIRONMENT": "local",
     "SUPABASE_URL": "http://127.0.0.1:54321",
+    // Local POC default only (not a secret). Override via .dev.vars if needed.
+    // Named remote envs do not set this; POC generation remains ENVIRONMENT=local gated.
+    "VALHALLA_BASE_URL": "http://127.0.0.1:8002",
   },
   "env": {
     "development": {

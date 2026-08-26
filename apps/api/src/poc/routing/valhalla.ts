@@ -1,9 +1,5 @@
 import { POC_CONFIG, type PocCostingMode } from '../config';
-import type {
-  RouteLoopRequest,
-  RouteLoopResult,
-  RoutingProvider,
-} from './provider';
+import type { RouteLoopRequest, RouteLoopResult, RoutingProvider } from './provider';
 import { decodePolyline } from './polyline';
 
 type ValhallaLocation = { lat: number; lon: number; type?: string };
@@ -39,7 +35,9 @@ type ValhallaResponse = {
 };
 
 function costingOptionsFor(mode: PocCostingMode): Record<string, string | number> {
-  return mode === 'road' ? { ...POC_CONFIG.roadCostingOptions } : { ...POC_CONFIG.gravelCostingOptions };
+  return mode === 'road'
+    ? { ...POC_CONFIG.roadCostingOptions }
+    : { ...POC_CONFIG.gravelCostingOptions };
 }
 
 function joinLegShapes(legs: ValhallaLeg[]): Array<[number, number]> | null {

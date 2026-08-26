@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, formatMiles, metersToMiles, milesToMeters, METERS_PER_MILE } from './units';
+import {
+  formatDuration,
+  formatMiles,
+  metersToMiles,
+  milesToMeters,
+  METERS_PER_MILE,
+} from './units';
 
 describe('poc units', () => {
   it('converts miles and meters with the exact statute mile', () => {

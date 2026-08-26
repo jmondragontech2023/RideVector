@@ -72,9 +72,7 @@ export type RouteMapProps = {
 };
 
 export function RouteMap({ start, alternatives, selectedId, onSelectStart }: RouteMapProps) {
-  const center: LatLngExpression = start
-    ? [start.latitude, start.longitude]
-    : DEFAULT_CENTER;
+  const center: LatLngExpression = start ? [start.latitude, start.longitude] : DEFAULT_CENTER;
 
   return (
     <MapContainer center={center} zoom={DEFAULT_ZOOM} className="route-map" scrollWheelZoom>

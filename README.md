@@ -51,12 +51,12 @@ pnpm run check
 
 The POC endpoint is available only when the Worker runs with `ENVIRONMENT=local`.
 
-1. Configure local Worker vars (gitignored):
+1. Confirm local Worker base config (optional `.dev.vars` override):
 
 ```bash
-cp apps/api/.dev.vars.example apps/api/.dev.vars
-# Edit VALHALLA_BASE_URL to a Valhalla-compatible HTTP base URL with no secrets
-# in the path/query. Example: http://127.0.0.1:8002
+# Optional: cp apps/api/.dev.vars.example apps/api/.dev.vars
+# Base wrangler.jsonc defaults VALHALLA_BASE_URL to http://127.0.0.1:8002
+# Override only if your Valhalla-compatible router listens elsewhere.
 ```
 
 2. Start a Valhalla-compatible router that exposes `POST /route` at that base URL.

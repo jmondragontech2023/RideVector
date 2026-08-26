@@ -53,6 +53,20 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 - Do not send precise personal locations to logs, fixtures, or committed files.
 - Do not deploy POC feature behavior through staging or production workflows.
 
+## Verification log (POC implementation, 2026-08-26)
+
+| Check | Command / action | Outcome |
+| --- | --- | --- |
+| Branch | `poc/route-generation` synced with origin | Pass |
+| Unit / mocked tests | `pnpm -r run test` (api 20, web 10) | Pass |
+| Full gate | `pnpm run check` | Pass |
+| Local Worker health | `curl http://127.0.0.1:8787/api/health` | Pass |
+| Local POC validation path | invalid POST → `VALIDATION_FAILED` | Pass |
+| Local POC generate w/o Valhalla | POST returns 200 with `upstream_failure` counts | Pass (expected without router) |
+| Live Valhalla smoke | `http://127.0.0.1:8002` | **Unverified** — no local Valhalla-compatible endpoint available |
+| Owner field tests | `poc/EVALUATION.md` | Pending owner |
+| Merge / deploy | — | Not done (owner review) |
+
 ---
 
 # Historical Milestone 0 completion record
