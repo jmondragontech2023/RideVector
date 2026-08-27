@@ -50,6 +50,8 @@ export type GenerateDeps = {
   elevationProvider?: ElevationProvider | null;
   weatherProvider?: WeatherProvider | null;
   trafficProvider?: TrafficProvider | null;
+  /** Safe flag only — never pass the key itself. */
+  trafficApiKeyConfigured?: boolean;
 };
 
 function emptyRejections(): Record<PocRejectionReason, number> {
@@ -317,6 +319,8 @@ export async function generatePocRoutes(
     elevation: deps.elevationProvider ?? null,
     weather: deps.weatherProvider ?? null,
     traffic: deps.trafficProvider ?? null,
+    trafficApiKeyConfigured: deps.trafficApiKeyConfigured === true,
+    trafficPreference: request.trafficPreference,
     departureInstant: new Date(request.departure.departureInstantIso),
   };
   const enrichment = await enrichSelectedRoutes(
@@ -583,5 +587,6 @@ export async function generatePocRoutes(
     scoringVersion: SCORING_CONFIG_VERSION,
     enrichmentWarnings: enrichment.warnings,
     attribution,
+    trafficDiagnostics: enrichment.trafficDiagnostics,
   };
 }

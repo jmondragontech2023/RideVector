@@ -14,5 +14,7 @@
 #
 # Optional TomTom Traffic API key (local secret only). Required only when motor-traffic
 # enrichment is enabled in the planner. Ordinary CI and traffic-disabled runs do not need it.
-# Obtain a key from the TomTom developer portal; never commit the real value.
+# Obtain a key from https://developer.tomtom.com/ and enable the Traffic API product on that key.
+# A key without Traffic API access returns HTTP 401/403 on flowSegmentData calls.
+# Never commit the real value.
 # TOMTOM_API_KEY=replace-with-local-tomtom-key

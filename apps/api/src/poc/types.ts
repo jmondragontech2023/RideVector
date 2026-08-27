@@ -182,6 +182,38 @@ export type PocTrafficSummary = {
   warnings: string[];
 };
 
+/** Safe debug summary for traffic enrichment — no keys, URLs, payloads, or coordinates. */
+export type PocTrafficDiagnostics = {
+  enrichmentRequested: boolean;
+  scoringRequested: boolean;
+  apiKeyConfigured: boolean;
+  providerInvoked: boolean;
+  callsAttempted: number;
+  callOutcomes: {
+    ok: number;
+    timeout: number;
+    error: number;
+    unavailable: number;
+  };
+  /** Counts of non-secret upstream HTTP statuses, e.g. { "401": 15 }. */
+  httpStatusCounts: Record<string, number>;
+  routesConsidered: number;
+  routesEnriched: number;
+  routesWithComparableCoverage: number;
+  minComparableCoverage: number;
+  minComparableRoutes: number;
+  rankingEnabled: boolean;
+  rankingDisabledReason:
+    | null
+    | 'enrichment_disabled'
+    | 'scoring_disabled'
+    | 'api_key_missing'
+    | 'no_provider'
+    | 'no_calls_attempted'
+    | 'insufficient_comparable_coverage'
+    | 'preference_none';
+};
+
 export type PocDiversitySummary = {
   sharedRoutePercentByPeer: Record<string, number>;
   contributionScore: number;
@@ -230,6 +262,7 @@ export type PocGenerateResponse = {
   scoringVersion: string;
   enrichmentWarnings: string[];
   attribution: string[];
+  trafficDiagnostics: PocTrafficDiagnostics;
 };
 
 export type PocValidationIssue = {

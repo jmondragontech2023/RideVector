@@ -7,7 +7,13 @@ import {
   type TrafficRouteSummary,
   type TrafficSample,
 } from './traffic/provider';
-import type { PocCoordinate, PocExperimentalFeatures, PocLineString } from './types';
+import type {
+  PocCoordinate,
+  PocExperimentalFeatures,
+  PocLineString,
+  PocTrafficDiagnostics,
+  PocTrafficPreference,
+} from './types';
 import {
   farthestPointFromStart,
   type WeatherProvider,
@@ -33,6 +39,7 @@ export type EnrichmentResult = {
   warnings: string[];
   attribution: string[];
   trafficRankingEnabled: boolean;
+  trafficDiagnostics: PocTrafficDiagnostics;
 };
 
 export type EnrichmentDeps = {
@@ -40,9 +47,86 @@ export type EnrichmentDeps = {
   elevation?: ElevationProvider | null;
   weather?: WeatherProvider | null;
   traffic?: TrafficProvider | null;
+  /** Whether TOMTOM_API_KEY was present (never the key itself). */
+  trafficApiKeyConfigured?: boolean;
+  trafficPreference?: PocTrafficPreference;
   departureInstant: Date;
   signal?: AbortSignal;
 };
+
+function emptyCallOutcomes(): PocTrafficDiagnostics['callOutcomes'] {
+  return { ok: 0, timeout: 0, error: 0, unavailable: 0 };
+}
+
+export function buildTrafficDiagnostics(input: {
+  features: PocExperimentalFeatures;
+  apiKeyConfigured: boolean;
+  providerPresent: boolean;
+  preference: PocTrafficPreference;
+  callsAttempted: number;
+  callOutcomes: PocTrafficDiagnostics['callOutcomes'];
+  httpStatusCounts: Record<string, number>;
+  routesConsidered: number;
+  routesEnriched: number;
+  routesWithComparableCoverage: number;
+  rankingEnabled: boolean;
+}): PocTrafficDiagnostics {
+  const enrichmentRequested = input.features.motorTrafficEnrichment;
+  const scoringRequested = input.features.motorTrafficScoring;
+  let rankingDisabledReason: PocTrafficDiagnostics['rankingDisabledReason'] = null;
+
+  if (!enrichmentRequested) {
+    rankingDisabledReason = 'enrichment_disabled';
+  } else if (!input.apiKeyConfigured) {
+    rankingDisabledReason = 'api_key_missing';
+  } else if (!input.providerPresent) {
+    rankingDisabledReason = 'no_provider';
+  } else if (input.callsAttempted === 0) {
+    rankingDisabledReason = 'no_calls_attempted';
+  } else if (!scoringRequested) {
+    rankingDisabledReason = 'scoring_disabled';
+  } else if (input.preference === 'none') {
+    rankingDisabledReason = 'preference_none';
+  } else if (!input.rankingEnabled) {
+    rankingDisabledReason = 'insufficient_comparable_coverage';
+  }
+
+  return {
+    enrichmentRequested,
+    scoringRequested,
+    apiKeyConfigured: input.apiKeyConfigured,
+    providerInvoked: input.providerPresent && enrichmentRequested && input.callsAttempted > 0,
+    callsAttempted: input.callsAttempted,
+    callOutcomes: input.callOutcomes,
+    httpStatusCounts: input.httpStatusCounts,
+    routesConsidered: input.routesConsidered,
+    routesEnriched: input.routesEnriched,
+    routesWithComparableCoverage: input.routesWithComparableCoverage,
+    minComparableCoverage: POC_SCORING_CONFIG.traffic.minComparableCoverage,
+    minComparableRoutes: POC_SCORING_CONFIG.traffic.minComparableRoutes,
+    rankingEnabled: input.rankingEnabled,
+    rankingDisabledReason: input.rankingEnabled ? null : rankingDisabledReason,
+  };
+}
+
+export function describeHttpStatusCounts(counts: Record<string, number>): string {
+  const entries = Object.entries(counts).sort(([left], [right]) => Number(left) - Number(right));
+  if (entries.length === 0) {
+    return 'none';
+  }
+  return entries.map(([status, count]) => `${status}×${count}`).join(', ');
+}
+
+export function tomtomAuthFailureHint(counts: Record<string, number>): string | null {
+  const unauthorized = (counts['401'] ?? 0) + (counts['403'] ?? 0);
+  if (unauthorized === 0) {
+    return null;
+  }
+  return (
+    `TomTom rejected authentication on ${unauthorized} call(s) (HTTP 401/403). ` +
+    `Confirm TOMTOM_API_KEY in apps/api/.dev.vars is a valid developer key with Traffic API access, then restart the Worker.`
+  );
+}
 
 async function mapPool<T, R>(
   items: T[],
@@ -191,6 +275,13 @@ export async function enrichSelectedRoutes(
   }
 
   let trafficRankingEnabled = false;
+  const callOutcomes = emptyCallOutcomes();
+  const httpStatusCounts: Record<string, number> = {};
+  let callsAttempted = 0;
+  let routesEnriched = 0;
+  const apiKeyConfigured = deps.trafficApiKeyConfigured === true;
+  const preference = deps.trafficPreference ?? 'none';
+
   if (deps.features.motorTrafficEnrichment && deps.traffic) {
     attribution.push('Traffic data © TomTom');
     const limitedRoutes = routes.slice(0, POC_SCORING_CONFIG.traffic.maxRoutes);
@@ -219,16 +310,28 @@ export async function enrichSelectedRoutes(
         return true;
       });
       const points = candidates.slice(0, desired);
+      if (points.length === 0) {
+        continue;
+      }
       const samples: TrafficSample[] = await mapPool(
         points,
         POC_SCORING_CONFIG.traffic.concurrency,
         async (coordinate) => {
           callsRemaining -= 1;
+          callsAttempted += 1;
           try {
-            return await deps.traffic!.sample({ coordinate, signal: deps.signal });
+            const sample = await deps.traffic!.sample({ coordinate, signal: deps.signal });
+            callOutcomes[sample.status] += 1;
+            if (typeof sample.httpStatus === 'number') {
+              const key = String(sample.httpStatus);
+              httpStatusCounts[key] = (httpStatusCounts[key] ?? 0) + 1;
+            }
+            return sample;
           } catch {
+            callOutcomes.error += 1;
             return {
               status: 'error',
+              httpStatus: null,
               currentSpeedKmh: null,
               freeFlowSpeedKmh: null,
               currentFreeFlowRatio: null,
@@ -241,6 +344,7 @@ export async function enrichSelectedRoutes(
         },
       );
       const traffic = summarizeTrafficSamples(samples);
+      routesEnriched += 1;
       const current = byRouteId.get(route.id)!;
       byRouteId.set(route.id, { ...current, traffic });
     }
@@ -252,13 +356,71 @@ export async function enrichSelectedRoutes(
     ).length;
     trafficRankingEnabled =
       deps.features.motorTrafficScoring &&
+      preference !== 'none' &&
       comparable >= POC_SCORING_CONFIG.traffic.minComparableRoutes;
-    if (deps.features.motorTrafficScoring && !trafficRankingEnabled) {
+
+    const authHint = tomtomAuthFailureHint(httpStatusCounts);
+    if (authHint) {
+      warnings.push(authHint);
+    }
+
+    if (deps.features.motorTrafficScoring && preference !== 'none' && !trafficRankingEnabled) {
       warnings.push(
-        'Insufficient comparable traffic coverage; motor-traffic ranking disabled for this result set.',
+        `Insufficient comparable traffic coverage; motor-traffic ranking disabled for this result set. ` +
+          `TomTom calls attempted: ${callsAttempted} ` +
+          `(ok ${callOutcomes.ok}, timeout ${callOutcomes.timeout}, error ${callOutcomes.error}, unavailable ${callOutcomes.unavailable}). ` +
+          `HTTP statuses: ${describeHttpStatusCounts(httpStatusCounts)}. ` +
+          `Routes with ≥${Math.round(POC_SCORING_CONFIG.traffic.minComparableCoverage * 100)}% coverage: ${comparable}/${limitedRoutes.length} ` +
+          `(need ≥${POC_SCORING_CONFIG.traffic.minComparableRoutes}).`,
       );
     }
+
+    return {
+      byRouteId,
+      warnings,
+      attribution,
+      trafficRankingEnabled,
+      trafficDiagnostics: buildTrafficDiagnostics({
+        features: deps.features,
+        apiKeyConfigured,
+        providerPresent: true,
+        preference,
+        callsAttempted,
+        callOutcomes,
+        httpStatusCounts,
+        routesConsidered: limitedRoutes.length,
+        routesEnriched,
+        routesWithComparableCoverage: comparable,
+        rankingEnabled: trafficRankingEnabled,
+      }),
+    };
   }
 
-  return { byRouteId, warnings, attribution, trafficRankingEnabled };
+  if (deps.features.motorTrafficEnrichment && !deps.traffic) {
+    warnings.push(
+      apiKeyConfigured
+        ? 'Motor-traffic enrichment enabled but traffic provider was not attached.'
+        : 'Motor-traffic enrichment enabled but TOMTOM_API_KEY is not configured; no TomTom calls were made.',
+    );
+  }
+
+  return {
+    byRouteId,
+    warnings,
+    attribution,
+    trafficRankingEnabled,
+    trafficDiagnostics: buildTrafficDiagnostics({
+      features: deps.features,
+      apiKeyConfigured,
+      providerPresent: Boolean(deps.traffic),
+      preference,
+      callsAttempted: 0,
+      callOutcomes,
+      httpStatusCounts,
+      routesConsidered: 0,
+      routesEnriched: 0,
+      routesWithComparableCoverage: 0,
+      rankingEnabled: false,
+    }),
+  };
 }

@@ -13,7 +13,8 @@ const appSource = readApp(join(dirname(fileURLToPath(import.meta.url)), '..', 'A
 
 describe('RouteMap rejected preview', () => {
   it('renders rejected candidates as a dashed orange polyline beneath accepted routes', () => {
-    expect(routeMapSource).toContain('REJECTED_PREVIEW_COLOR');
+    expect(routeMapSource).toContain('mapTheme');
+    expect(routeMapSource).toContain('--rv-route-rejected');
     expect(routeMapSource).toContain('route-rejected-preview');
     expect(routeMapSource).toContain('dashArray');
     expect(routeMapSource).toContain('rejectedPreview');

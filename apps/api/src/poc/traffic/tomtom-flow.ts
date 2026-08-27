@@ -18,6 +18,23 @@ export type TomTomTrafficProviderOptions = {
   timeoutMs?: number;
 };
 
+function failureSample(
+  status: TrafficSample['status'],
+  httpStatus: number | null = null,
+): TrafficSample {
+  return {
+    status,
+    httpStatus,
+    currentSpeedKmh: null,
+    freeFlowSpeedKmh: null,
+    currentFreeFlowRatio: null,
+    functionalRoadClass: null,
+    confidence: null,
+    roadClosure: null,
+    observedAtIso: null,
+  };
+}
+
 export class TomTomTrafficProvider implements TrafficProvider {
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -37,7 +54,8 @@ export class TomTomTrafficProvider implements TrafficProvider {
     const url = new URL(`${this.baseUrl}/traffic/services/4/flowSegmentData/${style}/${zoom}/json`);
     url.searchParams.set('key', this.apiKey);
     url.searchParams.set('point', point);
-    url.searchParams.set('unit', 'KMPH');
+    // Official TomTom parameter values are lowercase (`kmph` / `mph`).
+    url.searchParams.set('unit', 'kmph');
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -51,35 +69,18 @@ export class TomTomTrafficProvider implements TrafficProvider {
         signal: controller.signal,
       });
       if (!response.ok) {
-        return {
-          status: 'error',
-          currentSpeedKmh: null,
-          freeFlowSpeedKmh: null,
-          currentFreeFlowRatio: null,
-          functionalRoadClass: null,
-          confidence: null,
-          roadClosure: null,
-          observedAtIso: null,
-        };
+        return failureSample('error', response.status);
       }
       const payload = (await response.json()) as TomTomFlowResponse;
       const data = payload.flowSegmentData;
       if (!data) {
-        return {
-          status: 'unavailable',
-          currentSpeedKmh: null,
-          freeFlowSpeedKmh: null,
-          currentFreeFlowRatio: null,
-          functionalRoadClass: null,
-          confidence: null,
-          roadClosure: null,
-          observedAtIso: null,
-        };
+        return failureSample('unavailable', response.status);
       }
       const current = data.currentSpeed ?? null;
       const free = data.freeFlowSpeed ?? null;
       return {
         status: 'ok',
+        httpStatus: response.status,
         currentSpeedKmh: current,
         freeFlowSpeedKmh: free,
         currentFreeFlowRatio: current !== null && free !== null && free > 0 ? current / free : null,
@@ -91,16 +92,7 @@ export class TomTomTrafficProvider implements TrafficProvider {
     } catch (error) {
       const timedOut =
         error instanceof Error && (error.name === 'AbortError' || /abort/i.test(error.message));
-      return {
-        status: timedOut ? 'timeout' : 'error',
-        currentSpeedKmh: null,
-        freeFlowSpeedKmh: null,
-        currentFreeFlowRatio: null,
-        functionalRoadClass: null,
-        confidence: null,
-        roadClosure: null,
-        observedAtIso: null,
-      };
+      return failureSample(timedOut ? 'timeout' : 'error');
     } finally {
       clearTimeout(timer);
       request.signal?.removeEventListener('abort', onAbort);

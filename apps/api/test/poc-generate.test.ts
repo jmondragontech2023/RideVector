@@ -111,7 +111,9 @@ describe('generatePocRoutes with mocked provider', () => {
     expect(result.durationMs).toBeGreaterThan(0);
     expect(result.candidateDiagnostics.length).toBeGreaterThan(0);
     expect(result.diagnosticSummary.acceptedCount).toBe(result.acceptedCount);
-    expect(JSON.stringify(result)).not.toContain('timeout');
+    expect(result.trafficDiagnostics.callsAttempted).toBe(0);
+    expect(JSON.stringify(result)).not.toContain('api.tomtom');
+    expect(JSON.stringify(result)).not.toContain('valhalla.example');
   });
 
   it('is deterministic for identical input and seed', async () => {

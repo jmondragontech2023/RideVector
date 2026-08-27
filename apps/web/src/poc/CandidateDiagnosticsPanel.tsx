@@ -14,6 +14,8 @@ export type CandidateDiagnosticsPanelProps = {
   onToggleExpanded: () => void;
   previewAttemptNumber: number | null;
   onPreviewAttempt: (attemptNumber: number | null) => void;
+  /** When true, always show the list and omit the expand/collapse control. */
+  hideToggle?: boolean;
 };
 
 function DiagnosticRow({
@@ -99,35 +101,41 @@ export function CandidateDiagnosticsPanel({
   onToggleExpanded,
   previewAttemptNumber,
   onPreviewAttempt,
+  hideToggle = false,
 }: CandidateDiagnosticsPanelProps) {
   const summary = buildGenerationSummary(result);
+  const showList = hideToggle || expanded;
 
   return (
     <section className="candidate-diagnostics-block" aria-label="Candidate diagnostics">
       <p className="generation-summary" role="status">
         {summary}
       </p>
-      <button
-        type="button"
-        className="diagnostics-toggle secondary"
-        aria-expanded={expanded}
-        onClick={onToggleExpanded}
-      >
-        {expanded ? 'Hide candidate diagnostics' : 'Candidate diagnostics'}
-        <span className="subtle"> ({result.candidateDiagnostics.length})</span>
-      </button>
-      {expanded ? (
-        <ul className="candidate-diagnostics-list">
-          {result.candidateDiagnostics.map((diagnostic) => (
-            <DiagnosticRow
-              key={diagnostic.attemptNumber}
-              diagnostic={diagnostic}
-              targetDistanceMeters={targetDistanceMeters}
-              previewAttemptNumber={previewAttemptNumber}
-              onPreviewAttempt={onPreviewAttempt}
-            />
-          ))}
-        </ul>
+      {hideToggle ? null : (
+        <button
+          type="button"
+          className="diagnostics-toggle secondary"
+          aria-expanded={expanded}
+          onClick={onToggleExpanded}
+        >
+          {expanded ? 'Hide candidate diagnostics' : 'Candidate diagnostics'}
+          <span className="subtle"> ({result.candidateDiagnostics.length})</span>
+        </button>
+      )}
+      {showList ? (
+        <div className="candidate-diagnostics-scroll">
+          <ul className="candidate-diagnostics-list">
+            {result.candidateDiagnostics.map((diagnostic) => (
+              <DiagnosticRow
+                key={diagnostic.attemptNumber}
+                diagnostic={diagnostic}
+                targetDistanceMeters={targetDistanceMeters}
+                previewAttemptNumber={previewAttemptNumber}
+                onPreviewAttempt={onPreviewAttempt}
+              />
+            ))}
+          </ul>
+        </div>
       ) : null}
     </section>
   );

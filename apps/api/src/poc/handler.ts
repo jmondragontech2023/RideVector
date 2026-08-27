@@ -75,14 +75,8 @@ export async function handlePocGenerate(request: Request, env: Env): Promise<Res
     elevationProvider,
     weatherProvider,
     trafficProvider,
+    trafficApiKeyConfigured: Boolean(tomtomKey),
   });
-
-  if (validated.request.features.motorTrafficEnrichment && !tomtomKey) {
-    result.enrichmentWarnings = [
-      ...result.enrichmentWarnings,
-      'Motor-traffic enrichment enabled but TOMTOM_API_KEY is not configured; traffic data unavailable.',
-    ];
-  }
 
   return jsonResponse(result, 200, { headers: pocCorsHeaders() });
 }

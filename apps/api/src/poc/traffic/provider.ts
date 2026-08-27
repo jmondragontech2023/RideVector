@@ -7,6 +7,8 @@ export type TrafficSampleRequest = {
 
 export type TrafficSample = {
   status: 'ok' | 'unavailable' | 'timeout' | 'error';
+  /** Safe HTTP status when the upstream responded with a non-OK code. */
+  httpStatus?: number | null;
   currentSpeedKmh: number | null;
   freeFlowSpeedKmh: number | null;
   currentFreeFlowRatio: number | null;

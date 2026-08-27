@@ -1,17 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { generatePocRoutes, PocApiError } from './poc/api';
-import { CandidateDiagnosticsPanel } from './poc/CandidateDiagnosticsPanel';
 import { emptyDiagnosticSummary, findRejectedPreview } from './poc/candidate-diagnostics';
-import { ExperimentalFeaturesPanel } from './poc/ExperimentalFeaturesPanel';
 import {
   defaultFeatureSettings,
   loadFeatureSettings,
   saveFeatureSettings,
 } from './poc/feature-settings';
 import { POC_SCENARIO_FIXTURES, fixtureFlexibilityMiles } from './poc/fixtures';
-import { RouteComparisonPanel } from './poc/RouteComparisonPanel';
+import { ExperimentalSettingsPanel } from './poc/layout/ExperimentalSettingsPanel';
+import { PlanPanel } from './poc/layout/PlanPanel';
+import { PlannerHeader } from './poc/layout/PlannerHeader';
+import {
+  defaultResultsTab,
+  derivePlannerWorkspaceMode,
+  formatActivePlanSummary,
+  type PlanningSidebarTab,
+  type ResultsWorkspaceTab,
+} from './poc/layout/planner-workspace';
+import { MapThemeToggle } from './poc/layout/MapThemeToggle';
+import { ResultsPanel } from './poc/layout/ResultsPanel';
+import { PlanningWorkspaceTabs } from './poc/layout/ResponsiveWorkspaceTabs';
 import { RouteMap } from './poc/RouteMap';
-import { RouteScoreBreakdown } from './poc/RouteScoreBreakdown';
 import {
   deleteSavedRoute,
   loadPocStore,
@@ -23,8 +32,6 @@ import {
 import {
   DEFAULT_DISTANCE_FLEXIBILITY_MILES,
   DEFAULT_POC_FEATURES,
-  formatAcceptedRangeLabel,
-  formatNearMatchDeviation,
   type PocAlternative,
   type PocCoordinate,
   type PocCostingMode,
@@ -33,7 +40,7 @@ import {
   type PocGenerateResponse,
   type PocTrafficPreference,
 } from './poc/types';
-import { formatDuration, formatMiles, METERS_PER_MILE, milesToMeters } from './poc/units';
+import { formatMiles, METERS_PER_MILE, milesToMeters } from './poc/units';
 import {
   buildLocationSuccessMessage,
   buildPoorAccuracyWarning,
@@ -49,6 +56,7 @@ import { GenerationSession, shouldApplyGenerationResponse } from './poc/generati
 import { LocationSession, shouldApplyLocationResult } from './poc/location-session';
 import { createMapRecenterRequest, type MapRecenterRequest } from './poc/map-recenter';
 import { smokeContractTitle } from './smokeContract';
+import { useAppearance } from './poc/use-appearance';
 
 type Status = 'idle' | 'loading' | 'error' | 'success';
 
@@ -73,7 +81,6 @@ export function App() {
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [recenterRequest, setRecenterRequest] = useState<MapRecenterRequest | null>(null);
-  const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false);
   const [previewAttemptNumber, setPreviewAttemptNumber] = useState<number | null>(null);
   const [features, setFeatures] = useState<PocExperimentalFeatures>({ ...DEFAULT_POC_FEATURES });
   const [elevationPreference, setElevationPreference] = useState<PocElevationPreference>('none');
@@ -81,8 +88,16 @@ export function App() {
   const [departureMode, setDepartureMode] = useState<'now' | 'custom'>('now');
   const [customLocalDateTime, setCustomLocalDateTime] = useState('');
   const [featureSettingsHydrated, setFeatureSettingsHydrated] = useState(false);
+  const [planningTab, setPlanningTab] = useState<PlanningSidebarTab>('plan');
+  const [resultsTab, setResultsTab] = useState<ResultsWorkspaceTab>('overview');
   const generationSessionRef = useRef(new GenerationSession());
   const locationSessionRef = useRef(new LocationSession());
+  const {
+    themePreference,
+    mapTheme,
+    setThemePreference,
+    toggleMapTheme,
+  } = useAppearance();
 
   useEffect(() => {
     setSavedRoutes(loadPocStore().routes);
@@ -132,8 +147,13 @@ export function App() {
     setStatus('idle');
     setErrorMessage(null);
     setSaveMessage(null);
-    setDiagnosticsExpanded(false);
     setPreviewAttemptNumber(null);
+    setResultsTab('overview');
+  }
+
+  function handleEditPlan() {
+    clearGenerationResults();
+    setPlanningTab('plan');
   }
 
   function applyExperimentalSettings(next: {
@@ -167,6 +187,13 @@ export function App() {
   const alternatives = result?.alternatives ?? [];
   const selected: PocAlternative | null =
     alternatives.find((alt) => alt.id === selectedId) ?? alternatives[0] ?? null;
+  const workspaceMode = derivePlannerWorkspaceMode({ result });
+  const planSummary = formatActivePlanSummary({
+    targetMiles,
+    flexibilityMiles,
+    costing,
+    features: result?.features ?? features,
+  });
 
   async function runGenerate(nextSeed: number, overrideStart?: PocCoordinate) {
     const effectiveStart = overrideStart ?? start;
@@ -230,7 +257,7 @@ export function App() {
       setSeed(response.seed);
       setResult(response);
       setSelectedId(response.alternatives[0]?.id ?? null);
-      setDiagnosticsExpanded(response.alternatives.length === 0);
+      setResultsTab(defaultResultsTab(response));
       setStatus(response.alternatives.length > 0 ? 'success' : 'error');
       setErrorMessage(null);
     } catch (error) {
@@ -253,7 +280,6 @@ export function App() {
     if (!fixture) {
       return;
     }
-    // Clears in-flight generation and resets status so loading cannot stick.
     clearGenerationResults();
     invalidateInFlightLocation();
     setStart(fixture.start);
@@ -341,7 +367,7 @@ export function App() {
       attribution: [],
     });
     setSelectedId(route.alternative.id);
-    setDiagnosticsExpanded(false);
+    setResultsTab('overview');
     setPreviewAttemptNumber(null);
     setDeviationAcceptable(route.feedback?.deviationAcceptable ?? null);
     setWouldRide(route.feedback?.wouldRide ?? 'maybe');
@@ -376,17 +402,17 @@ export function App() {
     setLocationWarning(null);
 
     try {
-      const result = await requestCurrentPosition(navigator.geolocation);
+      const position = await requestCurrentPosition(navigator.geolocation);
       if (!shouldApplyLocationResult(locationSessionRef.current, locationToken)) {
         return;
       }
       clearGenerationResults();
-      setStart(result.coordinate);
-      setRecenterRequest(createMapRecenterRequest(result.coordinate, 14));
-      setLocationMessage(buildLocationSuccessMessage(result.accuracyMeters));
+      setStart(position.coordinate);
+      setRecenterRequest(createMapRecenterRequest(position.coordinate, 14));
+      setLocationMessage(buildLocationSuccessMessage(position.accuracyMeters));
       setLocationWarning(
-        isPoorAccuracy(result.accuracyMeters)
-          ? buildPoorAccuracyWarning(result.accuracyMeters)
+        isPoorAccuracy(position.accuracyMeters)
+          ? buildPoorAccuracyWarning(position.accuracyMeters)
           : null,
       );
     } catch (error) {
@@ -416,30 +442,106 @@ export function App() {
     }
   }
 
-  return (
-    <div className="poc-shell">
-      <header className="poc-header">
-        <div>
-          <p className="eyebrow">Local route-generation POC</p>
-          <h1>RideVector</h1>
-          <p className="lede">
-            Click the map to set a start, enter a target distance, and generate bicycle loop
-            alternatives. Road/Gravel is a costing preference, not a measured surface guarantee.
-          </p>
-        </div>
-        <p className="contract-meta" data-testid="contract-title">
-          Contract: {smokeContractTitle}
-        </p>
-      </header>
+  const savedList = (
+    <details className="saved-block" open={savedRoutes.length > 0}>
+      <summary>Saved locally ({savedRoutes.length})</summary>
+      {savedRoutes.length === 0 ? (
+        <p className="subtle">No browser-local saves yet.</p>
+      ) : (
+        <ul className="saved-list">
+          {savedRoutes.map((route) => (
+            <li key={route.id}>
+              <div>
+                <strong>{route.label}</strong>
+                <p className="subtle">
+                  seed {route.seed}
+                  {route.feedback ? ` · would ride: ${route.feedback.wouldRide}` : ''}
+                </p>
+              </div>
+              <div className="actions">
+                <button type="button" className="secondary" onClick={() => handleOpenSaved(route)}>
+                  Open
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => handleDeleteSaved(route.id)}
+                >
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
+  );
 
-      <section className="poc-layout" aria-label="Route planner">
-        <div className="map-panel">
+  return (
+    <div className={`poc-shell workspace-${workspaceMode}`}>
+      <PlannerHeader
+        contractTitle={smokeContractTitle}
+        themePreference={themePreference}
+        onThemePreferenceChange={setThemePreference}
+      />
+
+      <section
+        className={`poc-layout poc-layout--${workspaceMode}`}
+        aria-label="Route planner"
+        data-workspace={workspaceMode}
+      >
+        {workspaceMode === 'planning' ? (
+          <>
+            <div className="planning-sidebar-chrome">
+              <PlanningWorkspaceTabs active={planningTab} onChange={setPlanningTab} />
+            </div>
+            <PlanPanel
+              active={planningTab === 'plan'}
+              start={start}
+              targetMiles={targetMiles}
+              flexibilityMiles={flexibilityMiles}
+              previewRangeMeters={previewRangeMeters}
+              costing={costing}
+              seed={seed}
+              status={status}
+              errorMessage={errorMessage}
+              locating={locating}
+              locationMessage={locationMessage}
+              locationWarning={locationWarning}
+              onApplyFixture={applyFixture}
+              onTargetMilesChange={(value) => {
+                setTargetMiles(value);
+                clearGenerationResults();
+              }}
+              onFlexibilityMilesChange={(value) => {
+                setFlexibilityMiles(value);
+                clearGenerationResults();
+              }}
+              onCostingChange={(value) => {
+                setCosting(value);
+                clearGenerationResults();
+              }}
+              onUseMyLocation={() => void handleUseMyLocation()}
+              onGenerate={() => void runGenerate(seed)}
+            >
+              {saveMessage ? <p className="status">{saveMessage}</p> : null}
+              {savedList}
+            </PlanPanel>
+          </>
+        ) : null}
+
+        <div className="map-panel" aria-label="Map">
+          <div className="map-toolbar">
+            <MapThemeToggle mapTheme={mapTheme} onToggle={toggleMapTheme} />
+          </div>
           <RouteMap
             start={start}
             alternatives={alternatives}
             selectedId={selected?.id ?? null}
             recenterRequest={recenterRequest}
             rejectedPreview={rejectedPreview}
+            layoutKey={`${workspaceMode}-${resultsTab}-${mapTheme}`}
+            mapTheme={mapTheme}
             onSelectStart={(coordinate) => {
               invalidateInFlightLocation();
               setStart(coordinate);
@@ -448,119 +550,11 @@ export function App() {
               setLocationWarning(null);
             }}
           />
-          <div className="start-controls">
-            <button
-              type="button"
-              className="secondary"
-              disabled={locating || status === 'loading'}
-              onClick={() => void handleUseMyLocation()}
-            >
-              {locating ? 'Locating…' : 'Use my location'}
-            </button>
-            <p className="subtle location-disclosure">
-              Your start location is sent to the configured routing service when you generate
-              routes.
-            </p>
-          </div>
-          {locationMessage ? (
-            <p className="status" role="status">
-              {locationMessage}
-            </p>
-          ) : null}
-          {locationWarning ? (
-            <p className="status warning" role="status">
-              {locationWarning}
-            </p>
-          ) : null}
-          <p className="map-hint">
-            {start
-              ? `Start: ${start.latitude.toFixed(5)}, ${start.longitude.toFixed(5)}`
-              : 'Click the map to select a start point.'}
-          </p>
         </div>
 
-        <aside className="control-panel">
-          <label className="field">
-            <span>Scenario fixture</span>
-            <select
-              defaultValue=""
-              onChange={(event) => {
-                if (event.target.value) {
-                  applyFixture(event.target.value);
-                  event.target.value = '';
-                }
-              }}
-            >
-              <option value="">Load a public landmark scenario…</option>
-              {POC_SCENARIO_FIXTURES.map((fixture) => (
-                <option key={fixture.id} value={fixture.id}>
-                  {fixture.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field">
-            <span>Target distance (miles)</span>
-            <input
-              type="number"
-              min={1}
-              step={0.5}
-              value={targetMiles}
-              onChange={(event) => {
-                setTargetMiles(event.target.value);
-                clearGenerationResults();
-              }}
-            />
-          </label>
-
-          <label className="field">
-            <span>Distance flexibility (± miles)</span>
-            <input
-              type="number"
-              min={0.5}
-              step={0.5}
-              value={flexibilityMiles}
-              onChange={(event) => {
-                setFlexibilityMiles(event.target.value);
-                clearGenerationResults();
-              }}
-            />
-            <p className="subtle">{formatAcceptedRangeLabel(previewRangeMeters)}</p>
-          </label>
-
-          <fieldset className="field">
-            <legend>Costing mode</legend>
-            <label className="choice">
-              <input
-                type="radio"
-                name="costing"
-                checked={costing === 'road'}
-                onChange={() => {
-                  setCosting('road');
-                  clearGenerationResults();
-                }}
-              />
-              Road
-            </label>
-            <label className="choice">
-              <input
-                type="radio"
-                name="costing"
-                checked={costing === 'gravel'}
-                onChange={() => {
-                  setCosting('gravel');
-                  clearGenerationResults();
-                }}
-              />
-              Gravel
-            </label>
-            <p className="subtle">
-              Costing preference only — not a measured paved/gravel surface percentage.
-            </p>
-          </fieldset>
-
-          <ExperimentalFeaturesPanel
+        {workspaceMode === 'planning' ? (
+          <ExperimentalSettingsPanel
+            active={planningTab === 'experiment'}
             features={features}
             elevationPreference={elevationPreference}
             trafficPreference={trafficPreference}
@@ -569,225 +563,42 @@ export function App() {
             disabled={status === 'loading'}
             onChange={applyExperimentalSettings}
           />
+        ) : null}
 
-          <div className="actions">
-            <button
-              type="button"
-              disabled={status === 'loading'}
-              onClick={() => void runGenerate(seed)}
-            >
-              {status === 'loading' ? 'Generating…' : 'Generate'}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={status === 'loading'}
-              onClick={() => void runGenerate(seed + 1)}
-            >
-              Regenerate
-            </button>
-          </div>
-
-          <p className="seed-line">
-            Active seed: <code>{seed}</code>
-          </p>
-
-          {errorMessage ? (
-            <p className="status error" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
-
-          {status === 'loading' ? (
-            <p className="status" role="status">
-              Trying up to 10 directionally varied loops…
-            </p>
-          ) : null}
-
-          {result ? (
-            <CandidateDiagnosticsPanel
-              result={result}
-              targetDistanceMeters={targetDistanceMeters}
-              expanded={diagnosticsExpanded}
-              onToggleExpanded={() => setDiagnosticsExpanded((value) => !value)}
-              previewAttemptNumber={previewAttemptNumber}
-              onPreviewAttempt={setPreviewAttemptNumber}
-            />
-          ) : null}
-
-          {result && selected ? (
-            <div className="result-block">
-              <p className="metrics">
-                {formatMiles(selected.distanceMeters)} · {formatDuration(selected.durationSeconds)}{' '}
-                · {selected.distanceFromTargetMeters >= 0 ? '+' : ''}
-                {formatMiles(Math.abs(selected.distanceFromTargetMeters))} from target
-              </p>
-              <p className="metrics subtle">
-                Generation {result.durationMs} ms · attempted {result.attemptedCount} · accepted{' '}
-                {result.acceptedCount}
-              </p>
-
-              <ul className="route-cards">
-                {alternatives.map((alt) => {
-                  const nearMatchDeviation = formatNearMatchDeviation(alt);
-                  return (
-                    <li key={alt.id}>
-                      <button
-                        type="button"
-                        className={alt.id === selected.id ? 'route-card selected' : 'route-card'}
-                        onClick={() => {
-                          setSelectedId(alt.id);
-                          setDeviationAcceptable(null);
-                        }}
-                      >
-                        <span className="route-card-title">
-                          <strong>{alt.name}</strong>
-                          {alt.scoring?.overallScore !== null &&
-                          alt.scoring?.overallScore !== undefined ? (
-                            <span className="poc-fit-badge">
-                              POC fit {alt.scoring.overallScore}
-                            </span>
-                          ) : null}
-                          {alt.distanceClassification === 'near_match' ? (
-                            <span className="near-match-badge">Near match</span>
-                          ) : null}
-                        </span>
-                        <span>
-                          {formatMiles(alt.distanceMeters)} · {formatDuration(alt.durationSeconds)}
-                        </span>
-                        {nearMatchDeviation ? (
-                          <span className="near-match-deviation">{nearMatchDeviation}</span>
-                        ) : null}
-                        <span className="subtle">{alt.bearingFamily}</span>
-                      </button>
-                      {alt.id === selected.id ? (
-                        <RouteScoreBreakdown
-                          alternative={alt}
-                          features={result.features ?? features}
-                        />
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-
-              <RouteComparisonPanel
-                alternatives={alternatives}
-                features={result.features ?? features}
-              />
-
-              {result.enrichmentWarnings && result.enrichmentWarnings.length > 0 ? (
-                <ul className="warnings">
-                  {result.enrichmentWarnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
-                  ))}
-                </ul>
-              ) : null}
-
-              {result.attribution && result.attribution.length > 0 ? (
-                <p className="subtle attribution-line">{result.attribution.join(' · ')}</p>
-              ) : null}
-
-              {result.warnings.length > 0 ? (
-                <ul className="warnings">
-                  {result.warnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
-                  ))}
-                </ul>
-              ) : null}
-
-              <fieldset className="field feedback-block">
-                <legend>Would you ride this?</legend>
-                {(['yes', 'maybe', 'no'] as const).map((value) => (
-                  <label key={value} className="choice">
-                    <input
-                      type="radio"
-                      name="wouldRide"
-                      checked={wouldRide === value}
-                      onChange={() => setWouldRide(value)}
-                    />
-                    {value}
-                  </label>
-                ))}
-                <label className="field">
-                  <span>Optional reason</span>
-                  <textarea
-                    rows={2}
-                    maxLength={280}
-                    value={feedbackReason}
-                    onChange={(event) => setFeedbackReason(event.target.value)}
-                    placeholder="Why regenerate or reject?"
-                  />
-                </label>
-                {selected.distanceClassification === 'near_match' ? (
-                  <fieldset className="field">
-                    <legend>Was this distance deviation acceptable?</legend>
-                    <label className="choice">
-                      <input
-                        type="radio"
-                        name="deviationAcceptable"
-                        checked={deviationAcceptable === true}
-                        onChange={() => setDeviationAcceptable(true)}
-                      />
-                      Yes, acceptable for this ride
-                    </label>
-                    <label className="choice">
-                      <input
-                        type="radio"
-                        name="deviationAcceptable"
-                        checked={deviationAcceptable === false}
-                        onChange={() => setDeviationAcceptable(false)}
-                      />
-                      No, too far from my requested range
-                    </label>
-                  </fieldset>
-                ) : null}
-                <button type="button" onClick={handleSaveSelected}>
-                  Save selected locally
-                </button>
-              </fieldset>
-            </div>
-          ) : null}
-
-          {saveMessage ? <p className="status">{saveMessage}</p> : null}
-
-          <section className="saved-block" aria-label="Saved local routes">
-            <h2>Saved locally</h2>
-            {savedRoutes.length === 0 ? (
-              <p className="subtle">No browser-local saves yet.</p>
-            ) : (
-              <ul className="saved-list">
-                {savedRoutes.map((route) => (
-                  <li key={route.id}>
-                    <div>
-                      <strong>{route.label}</strong>
-                      <p className="subtle">
-                        seed {route.seed}
-                        {route.feedback ? ` · would ride: ${route.feedback.wouldRide}` : ''}
-                      </p>
-                    </div>
-                    <div className="actions">
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => handleOpenSaved(route)}
-                      >
-                        Open
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => handleDeleteSaved(route.id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </aside>
+        {workspaceMode === 'results' && result ? (
+          <ResultsPanel
+            result={result}
+            selected={selected}
+            alternatives={alternatives}
+            features={features}
+            planSummary={planSummary}
+            seed={seed}
+            status={status}
+            errorMessage={errorMessage}
+            resultsTab={resultsTab}
+            targetDistanceMeters={targetDistanceMeters}
+            previewAttemptNumber={previewAttemptNumber}
+            wouldRide={wouldRide}
+            feedbackReason={feedbackReason}
+            deviationAcceptable={deviationAcceptable}
+            saveMessage={saveMessage}
+            savedRoutes={savedRoutes}
+            onResultsTabChange={setResultsTab}
+            onSelectAlternative={(id) => {
+              setSelectedId(id);
+              setDeviationAcceptable(null);
+            }}
+            onEditPlan={handleEditPlan}
+            onRegenerate={() => void runGenerate(seed + 1)}
+            onPreviewAttempt={setPreviewAttemptNumber}
+            onWouldRideChange={setWouldRide}
+            onFeedbackReasonChange={setFeedbackReason}
+            onDeviationAcceptableChange={setDeviationAcceptable}
+            onSaveSelected={handleSaveSelected}
+            onOpenSaved={handleOpenSaved}
+            onDeleteSaved={handleDeleteSaved}
+          />
+        ) : null}
       </section>
     </div>
   );

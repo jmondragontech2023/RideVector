@@ -6,6 +6,17 @@ import {
   type PocFeaturePreset,
   type PocTrafficPreference,
 } from './types';
+import { FeatureHelpTip } from './FeatureHelpTip';
+import {
+  DEPARTURE_HELP,
+  ELEVATION_PREFERENCE_HELP,
+  EXPERIMENTAL_FEATURE_HELP,
+  featureHelpId,
+  preferenceHelpId,
+  PRESET_HELP,
+  presetHelpId,
+  TRAFFIC_PREFERENCE_HELP,
+} from './experimental-feature-help';
 
 type Props = {
   features: PocExperimentalFeatures;
@@ -81,21 +92,27 @@ export function ExperimentalFeaturesPanel({
 
       <div className="preset-row">
         {(Object.keys(FEATURE_PRESETS) as PocFeaturePreset[]).map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            className="secondary"
-            disabled={disabled}
-            onClick={() => update({ features: FEATURE_PRESETS[preset] })}
-          >
-            {preset === 'full' ? 'Full experiment' : preset[0]!.toUpperCase() + preset.slice(1)}
-          </button>
+          <span key={preset} className="preset-chip">
+            <button
+              type="button"
+              className="secondary"
+              disabled={disabled}
+              onClick={() => update({ features: FEATURE_PRESETS[preset] })}
+            >
+              {preset === 'full' ? 'Full experiment' : preset[0]!.toUpperCase() + preset.slice(1)}
+            </button>
+            <FeatureHelpTip
+              id={presetHelpId(preset)}
+              text={PRESET_HELP[preset]}
+              label={`${preset} preset information`}
+            />
+          </span>
         ))}
       </div>
 
       <div className="toggle-grid">
         {TOGGLE_LABELS.map(({ key, label }) => (
-          <label key={key} className="choice">
+          <label key={key} className="choice choice--with-help">
             <input
               type="checkbox"
               checked={features[key]}
@@ -109,13 +126,27 @@ export function ExperimentalFeaturesPanel({
                 })
               }
             />
-            {label}
+            <span className="choice__label-row">
+              <span>{label}</span>
+              <FeatureHelpTip
+                id={featureHelpId(key)}
+                text={EXPERIMENTAL_FEATURE_HELP[key]}
+                label={`${label} information`}
+              />
+            </span>
           </label>
         ))}
       </div>
 
       <label className="field">
-        <span>Elevation preference</span>
+        <span className="field-label-row">
+          Elevation preference
+          <FeatureHelpTip
+            id={preferenceHelpId('elevation')}
+            text={ELEVATION_PREFERENCE_HELP[elevationPreference]}
+            label="Elevation preference information"
+          />
+        </span>
         <select
           value={elevationPreference}
           disabled={disabled || !features.elevationEnrichment}
@@ -125,15 +156,30 @@ export function ExperimentalFeaturesPanel({
             })
           }
         >
-          <option value="none">No preference</option>
-          <option value="flatter">Prefer flatter</option>
-          <option value="rolling">Prefer rolling</option>
-          <option value="climbing">Prefer climbing</option>
+          <option value="none" title={ELEVATION_PREFERENCE_HELP.none}>
+            No preference
+          </option>
+          <option value="flatter" title={ELEVATION_PREFERENCE_HELP.flatter}>
+            Prefer flatter
+          </option>
+          <option value="rolling" title={ELEVATION_PREFERENCE_HELP.rolling}>
+            Prefer rolling
+          </option>
+          <option value="climbing" title={ELEVATION_PREFERENCE_HELP.climbing}>
+            Prefer climbing
+          </option>
         </select>
       </label>
 
       <label className="field">
-        <span>Motor-traffic preference</span>
+        <span className="field-label-row">
+          Motor-traffic preference
+          <FeatureHelpTip
+            id={preferenceHelpId('traffic')}
+            text={TRAFFIC_PREFERENCE_HELP[trafficPreference]}
+            label="Motor-traffic preference information"
+          />
+        </span>
         <select
           value={trafficPreference}
           disabled={disabled || !features.motorTrafficEnrichment}
@@ -143,14 +189,27 @@ export function ExperimentalFeaturesPanel({
             })
           }
         >
-          <option value="none">No preference</option>
-          <option value="prefer_lower">Prefer lower motor traffic</option>
-          <option value="strongly_avoid_heavy">Strongly avoid heavy motor traffic</option>
+          <option value="none" title={TRAFFIC_PREFERENCE_HELP.none}>
+            No preference
+          </option>
+          <option value="prefer_lower" title={TRAFFIC_PREFERENCE_HELP.prefer_lower}>
+            Prefer lower motor traffic
+          </option>
+          <option value="strongly_avoid_heavy" title={TRAFFIC_PREFERENCE_HELP.strongly_avoid_heavy}>
+            Strongly avoid heavy motor traffic
+          </option>
         </select>
       </label>
 
       <fieldset className="field">
-        <legend>Departure</legend>
+        <legend className="field-label-row">
+          Departure
+          <FeatureHelpTip
+            id={preferenceHelpId('departure')}
+            text={DEPARTURE_HELP}
+            label="Departure information"
+          />
+        </legend>
         <label className="choice">
           <input
             type="radio"
