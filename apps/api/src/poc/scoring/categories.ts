@@ -20,7 +20,9 @@ export type CategoryCandidate = {
  * Assign factual category badges from measurements.
  * Categories are not forced unique or required to exist.
  */
-export function assignCategoryBadges(candidates: CategoryCandidate[]): Map<string, PocCategoryBadge[]> {
+export function assignCategoryBadges(
+  candidates: CategoryCandidate[],
+): Map<string, PocCategoryBadge[]> {
   const byId = new Map<string, PocCategoryBadge[]>();
   for (const candidate of candidates) {
     const badges: PocCategoryBadge[] = [];
@@ -147,15 +149,12 @@ export function assignCategoryBadges(candidates: CategoryCandidate[]): Map<strin
   });
 
   addBest('lowest_estimated_motor_traffic_exposure', (items) => {
-    const scored = items.filter(
-      (item) => item.trafficComparable && item.trafficExposure !== null,
-    );
+    const scored = items.filter((item) => item.trafficComparable && item.trafficExposure !== null);
     if (scored.length === 0) {
       return null;
     }
     return [...scored].sort(
-      (a, b) =>
-        (a.trafficExposure ?? 100) - (b.trafficExposure ?? 100) || a.id.localeCompare(b.id),
+      (a, b) => (a.trafficExposure ?? 100) - (b.trafficExposure ?? 100) || a.id.localeCompare(b.id),
     )[0]!;
   });
 

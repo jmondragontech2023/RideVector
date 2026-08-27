@@ -47,7 +47,7 @@ export class OpenMeteoWeatherProvider implements WeatherProvider {
 
   constructor(options: OpenMeteoProviderOptions = {}) {
     this.baseUrl = (options.baseUrl ?? 'https://api.open-meteo.com').replace(/\/+$/, '');
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
     this.timeoutMs = options.timeoutMs ?? POC_SCORING_CONFIG.weather.timeoutMs;
     this.cache = options.cache ?? new Map();
   }
@@ -74,7 +74,8 @@ export class OpenMeteoWeatherProvider implements WeatherProvider {
     url.searchParams.set('latitude', latitudes);
     url.searchParams.set('longitude', longitudes);
     url.searchParams.set('hourly', HOURLY_FIELDS);
-    url.searchParams.set('timezone', 'auto');
+    // Request UTC so hourly timestamps align with departureInstantIso (also UTC).
+    url.searchParams.set('timezone', 'UTC');
     url.searchParams.set('wind_speed_unit', 'kmh');
     url.searchParams.set('forecast_days', '3');
 
@@ -139,6 +140,7 @@ function aggregateLocations(
     }
     for (let i = 0; i < hourly.time.length; i += 1) {
       const raw = hourly.time[i]!;
+      // With timezone=UTC, Open-Meteo returns offset-less local(=UTC) strings or Z.
       const normalized = /Z$|[+-]\d{2}:\d{2}$/.test(raw) ? raw : `${raw}Z`;
       const time = new Date(normalized);
       if (!Number.isFinite(time.getTime())) {
@@ -155,9 +157,10 @@ function aggregateLocations(
       const w = hourly.wind_speed_10m?.[i];
       const g = hourly.wind_gusts_10m?.[i];
       const c = hourly.weather_code?.[i];
+      let hourCovered = false;
       if (t !== null && t !== undefined && Number.isFinite(t)) {
         temps.push(t);
-        coveredHours += 1;
+        hourCovered = true;
       }
       if (a !== null && a !== undefined && Number.isFinite(a)) {
         apparent.push(a);
@@ -177,6 +180,9 @@ function aggregateLocations(
       if (c !== null && c !== undefined && Number.isFinite(c)) {
         codes.push(c);
       }
+      if (hourCovered) {
+        coveredHours += 1;
+      }
     }
   }
 
@@ -186,11 +192,11 @@ function aggregateLocations(
 
   const warnings: string[] = [];
   const cfg = POC_SCORING_CONFIG.weather;
-  const precipMm = precip.reduce((sum, value) => sum + value, 0);
+  const precipMm = precip.length === 0 ? null : precip.reduce((sum, value) => sum + value, 0);
   const maxProb = precipProb.length ? Math.max(...precipProb) : null;
   const maxWind = wind.length ? Math.max(...wind) : null;
   const maxGust = gust.length ? Math.max(...gust) : null;
-  if (precipMm >= cfg.heavyPrecipitationMm) {
+  if (precipMm !== null && precipMm >= cfg.heavyPrecipitationMm) {
     warnings.push('Heavy precipitation expected in the ride window');
   }
   if (maxProb !== null && maxProb >= cfg.highPrecipProbability) {
@@ -216,7 +222,7 @@ function aggregateLocations(
     apparentTemperatureMinC: apparent.length ? Math.round(Math.min(...apparent) * 10) / 10 : null,
     apparentTemperatureMaxC: apparent.length ? Math.round(Math.max(...apparent) * 10) / 10 : null,
     precipitationProbabilityMax: maxProb === null ? null : Math.round(maxProb),
-    precipitationMm: Math.round(precipMm * 10) / 10,
+    precipitationMm: precipMm === null ? null : Math.round(precipMm * 10) / 10,
     windSpeedMaxKmh: maxWind === null ? null : Math.round(maxWind * 10) / 10,
     windGustMaxKmh: maxGust === null ? null : Math.round(maxGust * 10) / 10,
     weatherCodes: [...new Set(codes)],

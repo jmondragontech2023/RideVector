@@ -9,11 +9,7 @@ describe('weather mapping and scoring', () => {
         JSON.stringify([
           {
             hourly: {
-              time: [
-                '2026-08-26T18:00:00Z',
-                '2026-08-26T19:00:00Z',
-                '2026-08-26T20:00:00Z',
-              ],
+              time: ['2026-08-26T18:00:00Z', '2026-08-26T19:00:00Z', '2026-08-26T20:00:00Z'],
               temperature_2m: [18, 19, 17],
               apparent_temperature: [17, 18, 16],
               precipitation_probability: [10, 20, 15],
@@ -49,5 +45,29 @@ describe('weather mapping and scoring', () => {
     const scored = scoreWeatherSuitability(null);
     expect(scored.score).toBeNull();
     expect(scored.raw.missing).toBe(true);
+  });
+
+  it('does not score incomplete weather payloads as dry/favorable', () => {
+    const scored = scoreWeatherSuitability({
+      status: 'ok',
+      temperatureMinC: 18,
+      temperatureMaxC: 20,
+      apparentTemperatureMinC: null,
+      apparentTemperatureMaxC: null,
+      precipitationProbabilityMax: null,
+      precipitationMm: null,
+      windSpeedMaxKmh: null,
+      windGustMaxKmh: null,
+      weatherCodes: [],
+      warnings: [],
+      coverage: 1,
+      confidence: 'high',
+      provider: 'open_meteo',
+      forecastGeneratedAtIso: '2026-08-26T18:00:00.000Z',
+      intervalStartIso: '2026-08-26T18:00:00.000Z',
+      intervalEndIso: '2026-08-26T20:00:00.000Z',
+    });
+    expect(scored.score).toBeNull();
+    expect(scored.raw.incompleteFields).toBe(true);
   });
 });

@@ -23,7 +23,9 @@ describe('loop quality scoring', () => {
     open[open.length - 1] = [-122.4, 37.8];
     const metrics = analyzeLoopQuality({ type: 'LineString', coordinates: open });
     expect(metrics.closureDistanceMeters).toBeGreaterThan(100);
-    expect(scoreLoopQuality(metrics)).toBeLessThan(scoreLoopQuality(analyzeLoopQuality({ type: 'LineString', coordinates: loop() })));
+    expect(scoreLoopQuality(metrics)).toBeLessThan(
+      scoreLoopQuality(analyzeLoopQuality({ type: 'LineString', coordinates: loop() })),
+    );
   });
 
   it('flags empty geometry as malformed', () => {

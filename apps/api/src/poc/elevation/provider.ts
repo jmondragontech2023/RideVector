@@ -47,7 +47,9 @@ export function summarizeHeights(
   distanceMeters: number,
   metersPerMile: number,
 ): Omit<ElevationSummary, 'provider'> {
-  const known = heights.filter((value): value is number => value !== null && Number.isFinite(value));
+  const known = heights.filter(
+    (value): value is number => value !== null && Number.isFinite(value),
+  );
   if (known.length < 2) {
     return {
       status: 'unknown',

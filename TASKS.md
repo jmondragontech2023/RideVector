@@ -2,7 +2,7 @@
 
 ## Active status
 
-**POC implementation complete on branch `poc/route-generation`**, except owner field-test answers in `poc/EVALUATION.md` (must remain pending). Milestone 0 remains merged. ADR-017 and `poc/README.md` govern the temporary POC exceptions; all prior production decisions and the Milestones 1–11 roadmap remain preserved.
+**POC scoring/enrichment iteration implemented on branch `poc/route-generation`**, except owner field-test answers in `poc/EVALUATION.md` (must remain pending). Milestone 0 remains merged. ADR-017 and `poc/README.md` govern the temporary POC exceptions; all prior production decisions and the Milestones 1–11 roadmap remain preserved.
 
 ## POC-0 — Pivot and baseline
 
@@ -44,14 +44,43 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 - [x] Add at least five non-sensitive geographic fixtures and record evaluation findings. _(Fixtures + `poc/EVALUATION.md` template committed; owner field-test answers remain pending.)_
 - [ ] Decide to continue, revise the generator, or stop before resuming the production milestones. _(Owner decision after filling `poc/EVALUATION.md`.)_
 
+## POC scoring and enrichment iteration
+
+- [x] Create `poc/SCORING_AND_ENRICHMENT.md` (`poc-scoring-v1` weights, thresholds, provider limits).
+- [x] Independent experimental feature toggles + presets; enrichment vs scoring separation; preference persistence.
+- [x] Deterministic distance-fit, loop-quality, and diversity scoring with factual category badges.
+- [x] Elevation enrichment via Valhalla `/height` + preference scoring.
+- [x] Departure time + Open-Meteo weather forecast enrichment + optional weather scoring.
+- [x] TomTom motor-traffic enrichment + exposure proxy scoring with coverage gates.
+- [x] Combined POC fit ranking, expandable score UI, comparison panel.
+- [x] Provider failure isolation; rejected candidates never enriched.
+- [x] Expand `poc/EVALUATION.md` mode matrix; keep owner results pending.
+- [ ] Owner completes evaluation matrix in `poc/EVALUATION.md`.
+
 ## POC guardrails
 
-- No Supabase product schema, authentication, RLS, remote deployment, iOS, GPX, traffic, weather, or production analytics.
+- No Supabase product schema, authentication, RLS, remote deployment, iOS, GPX, or production analytics.
 - No `packages/domain` during the POC.
-- No “Best Overall,” “Quietest,” or “Adventure” labels without the corresponding measured ranking inputs.
-- Maximum 10 routing-provider calls per generation attempt.
+- No “Best Overall,” “Quietest,” or “Adventure” labels. Use **POC fit** and “lowest estimated motor-traffic exposure.”
+- Maximum 10 routing-provider calls per generation attempt; traffic enrichment ≤15 TomTom calls.
 - Do not send precise personal locations to logs, fixtures, or committed files.
 - Do not deploy POC feature behavior through staging or production workflows.
+
+## Verification log (scoring/enrichment iteration)
+
+| Check | Command / action | Outcome |
+| --- | --- | --- |
+| Branch | `poc/route-generation` from latest `main` | Pass |
+| Baseline | `pnpm run check` before changes | Pass |
+| Unit / mocked tests | `pnpm -r run test` (api 81, web 69) | Pass |
+| Full gate | `pnpm run check` | Pass |
+| Live Valhalla generate + scoring | `POST /api/poc/routes/generate` | Pass (3 alts, `poc-scoring-v1`) |
+| Live Valhalla `/height` enrichment | via Worker | Pass (`status: ok`, gain/loss present) |
+| Live Open-Meteo weather enrichment | via Worker | Pass (`status: ok`) |
+| Live TomTom traffic | requires `TOMTOM_API_KEY` | Skipped (key not configured) |
+| BugBot | branch review + fixes | Actionable findings fixed |
+| Owner field tests | `poc/EVALUATION.md` | Pending owner |
+| Merge / deploy | — | Not done (owner review) |
 
 ## Verification log (POC implementation, 2026-08-26)
 

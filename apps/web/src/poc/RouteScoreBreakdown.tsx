@@ -53,7 +53,8 @@ export function RouteScoreBreakdown({ alternative, features }: Props) {
       {expanded ? (
         <div className="score-details">
           <p className="subtle">
-            {formatMiles(alternative.distanceMeters)} · {formatDuration(alternative.durationSeconds)}
+            {formatMiles(alternative.distanceMeters)} ·{' '}
+            {formatDuration(alternative.durationSeconds)}
           </p>
           {scoring ? (
             <ul className="component-list">
@@ -91,8 +92,7 @@ export function RouteScoreBreakdown({ alternative, features }: Props) {
               {trafficLabelText(alternative.traffic?.exposureLabel ?? null) ??
                 alternative.traffic?.status ??
                 'unavailable'}
-              {alternative.traffic?.coverage !== null &&
-              alternative.traffic?.coverage !== undefined
+              {alternative.traffic?.coverage !== null && alternative.traffic?.coverage !== undefined
                 ? ` · ${Math.round(alternative.traffic.coverage * 100)}% coverage`
                 : ''}
               {alternative.traffic?.currentCongestionDetected

@@ -40,7 +40,12 @@ export function RouteComparisonPanel({ alternatives, features }: Props) {
     ? pickBy(alternatives, (alt) => alt.diversity?.contributionScore ?? null, 'max')
     : null;
   const lowestTraffic = features.motorTrafficEnrichment
-    ? pickBy(alternatives, (alt) => alt.traffic?.baselineExposure ?? null)
+    ? pickBy(alternatives, (alt) =>
+        (alt.traffic?.coverage ?? 0) >= 0.6 &&
+        alt.traffic?.exposureLabel !== 'insufficient_traffic_coverage'
+          ? (alt.traffic?.baselineExposure ?? null)
+          : null,
+      )
     : null;
   const flattest = features.elevationEnrichment
     ? pickBy(alternatives, (alt) => alt.elevation?.gainPerMile ?? null)
@@ -49,7 +54,14 @@ export function RouteComparisonPanel({ alternatives, features }: Props) {
     ? pickBy(alternatives, (alt) => alt.elevation?.gainPerMile ?? null, 'max')
     : null;
   const bestWeather = features.weatherForecast
-    ? pickBy(alternatives, (alt) => alt.scoring?.components.weather?.score ?? alt.weather?.precipitationProbabilityMax ?? null, features.weatherScoring ? 'max' : 'min')
+    ? pickBy(
+        alternatives,
+        (alt) =>
+          alt.scoring?.components.weather?.score ??
+          alt.weather?.precipitationProbabilityMax ??
+          null,
+        features.weatherScoring ? 'max' : 'min',
+      )
     : null;
 
   const rows: Array<{ question: string; answer: string }> = [

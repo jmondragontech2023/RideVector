@@ -1,9 +1,5 @@
 import type { PocExperimentalFeatures } from '../types';
-import {
-  POC_SCORING_CONFIG,
-  SCORING_CONFIG_VERSION,
-  type ScoringComponentKey,
-} from './config';
+import { POC_SCORING_CONFIG, SCORING_CONFIG_VERSION, type ScoringComponentKey } from './config';
 
 export type ComponentScore = {
   score: number | null;

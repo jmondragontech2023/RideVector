@@ -76,8 +76,7 @@ export function App() {
   const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false);
   const [previewAttemptNumber, setPreviewAttemptNumber] = useState<number | null>(null);
   const [features, setFeatures] = useState<PocExperimentalFeatures>({ ...DEFAULT_POC_FEATURES });
-  const [elevationPreference, setElevationPreference] =
-    useState<PocElevationPreference>('none');
+  const [elevationPreference, setElevationPreference] = useState<PocElevationPreference>('none');
   const [trafficPreference, setTrafficPreference] = useState<PocTrafficPreference>('none');
   const [departureMode, setDepartureMode] = useState<'now' | 'custom'>('now');
   const [customLocalDateTime, setCustomLocalDateTime] = useState('');
@@ -645,7 +644,9 @@ export function App() {
                           <strong>{alt.name}</strong>
                           {alt.scoring?.overallScore !== null &&
                           alt.scoring?.overallScore !== undefined ? (
-                            <span className="poc-fit-badge">POC fit {alt.scoring.overallScore}</span>
+                            <span className="poc-fit-badge">
+                              POC fit {alt.scoring.overallScore}
+                            </span>
                           ) : null}
                           {alt.distanceClassification === 'near_match' ? (
                             <span className="near-match-badge">Near match</span>

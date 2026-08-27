@@ -15,10 +15,7 @@ function toCoordinate(point: [number, number]): PocCoordinate {
   return { longitude: point[0], latitude: point[1] };
 }
 
-function sampleCoordinates(
-  geometry: PocLineString,
-  count: number,
-): Array<[number, number]> {
+function sampleCoordinates(geometry: PocLineString, count: number): Array<[number, number]> {
   const coords = geometry.coordinates;
   if (coords.length <= count) {
     return [...coords];
@@ -167,7 +164,8 @@ export function scoreLoopQuality(metrics: LoopQualityMetrics): number {
   const { closureExcellentMeters, closurePoorMeters } = POC_SCORING_CONFIG.geometry;
   if (metrics.closureDistanceMeters > closureExcellentMeters) {
     const span = closurePoorMeters - closureExcellentMeters;
-    const excess = Math.min(metrics.closureDistanceMeters, closurePoorMeters) - closureExcellentMeters;
+    const excess =
+      Math.min(metrics.closureDistanceMeters, closurePoorMeters) - closureExcellentMeters;
     score -= (excess / span) * 35;
   }
   score -= Math.min(25, metrics.repeatedGeometryFraction * 40);

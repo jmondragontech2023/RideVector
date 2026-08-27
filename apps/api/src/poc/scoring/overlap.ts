@@ -85,9 +85,6 @@ export function computeDiversityBreakdown(
     sum += overlap;
   }
   const meanOverlapFraction = sum / others.length;
-  const contributionScore = Math.max(
-    0,
-    Math.min(100, Math.round(100 * (1 - meanOverlapFraction))),
-  );
+  const contributionScore = Math.max(0, Math.min(100, Math.round(100 * (1 - meanOverlapFraction))));
   return { sharedRoutePercentByPeer, meanOverlapFraction, contributionScore };
 }

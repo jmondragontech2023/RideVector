@@ -7,10 +7,11 @@ Owner field-test record for the local route-generation POC. **Do not invent resu
 1. Start Valhalla-compatible routing and both RideVector processes (see root `README.md`).
 2. Open the web app, load the matching public fixture (or click a non-personal start).
 3. Set the target distance and distance flexibility (± miles). Confirm the displayed accepted range before generating.
-4. Generate, compare up to three alternatives (including any amber **Near match** routes), regenerate if needed, and optionally save with feedback in browser `localStorage` only.
-5. Fill the table below with your judgment.
+4. Optionally set departure time and experimental feature presets (see matrix below).
+5. Generate, compare up to three alternatives (including any amber **Near match** routes), regenerate if needed, and optionally save with feedback in browser `localStorage` only.
+6. Fill the tables below with your judgment.
 
-## Scenario results
+## Base scenario results
 
 | # | Fixture / area | Requested target | Flexibility (± mi) | Chosen route type | Would ride? | Deviation acceptable? | Dominant issue | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -28,6 +29,38 @@ Owner field-test record for the local route-generation POC. **Do not invent resu
 
 **Dominant issue values:** `candidate quality` / `comparison UX` / `missing constraints` / `other` (specify in notes)
 
+## Scoring / enrichment mode matrix
+
+Run the same five fixtures under each mode (or note which fixtures were skipped). Record for each mode across scenarios:
+
+| Mode | Generated alternatives | Selected route | Score order matched preference? | Traffic matched local knowledge? | Weather affected decision? | Elevation categories credible? | Latency | Missing-data behavior | Would ride |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1. Basic (distance only) | pending | pending | pending | n/a | n/a | n/a | pending | pending | pending |
+| 2. Geometry (distance + loop + diversity) | pending | pending | pending | n/a | n/a | n/a | pending | pending | pending |
+| 3. Traffic display only (enrich on, score off) | pending | pending | pending | pending | n/a | n/a | pending | pending | pending |
+| 4. Traffic ranking (enrich + score) | pending | pending | pending | pending | n/a | n/a | pending | pending | pending |
+| 5. Weather display only | pending | pending | pending | n/a | pending | n/a | pending | pending | pending |
+| 6. Weather ranking | pending | pending | pending | n/a | pending | n/a | pending | pending | pending |
+| 7. Elevation preference | pending | pending | pending | n/a | n/a | pending | pending | pending | pending |
+| 8. Full experiment | pending | pending | pending | pending | pending | pending | pending | pending | pending |
+| 9. Full experiment, traffic unavailable | pending | pending | pending | pending | pending | pending | pending | pending | pending |
+| 10. Full experiment, weather unavailable | pending | pending | pending | pending | pending | pending | pending | pending | pending |
+
+Preset mapping:
+
+1. Basic
+2. Geometry
+3. Geometry + motor-traffic enrichment only
+4. Traffic preset
+5. Weather preset
+6. Weather preset + weather scoring on
+7. Geometry + elevation enrichment/scoring + preference ≠ none
+8. Full experiment
+9. Full experiment without `TOMTOM_API_KEY`
+10. Full experiment with weather forecast forced unavailable (or Open-Meteo blocked)
+
+See `poc/SCORING_AND_ENRICHMENT.md` for formulas, limits, and language rules.
+
 ## Aggregate prompts (owner)
 
 Answer after at least five scenarios:
@@ -40,7 +73,9 @@ Answer after at least five scenarios:
    - pending
 4. Was the dominant problem candidate quality, comparison UX, or missing constraints?
    - pending
-5. Decision: **continue** into production milestones, **revise** candidate generation, or **stop**?
+5. Did POC fit scores, traffic exposure proxies, weather, or elevation change which route you would ride?
+   - pending
+6. Decision: **continue** into production milestones, **revise** candidate generation, or **stop**?
    - pending
 
 ## Guardrails reminder
@@ -48,4 +83,5 @@ Answer after at least five scenarios:
 - Do not commit personal home coordinates or private ride logs.
 - Road/Gravel is a costing preference, not a measured surface guarantee.
 - Near matches are labeled explicitly and do not satisfy the exact requested range.
+- Motor-traffic exposure is not bicycle safety, volume, or verified quietness.
 - This worksheet is evidence for ADR-017 exit; it does not change Milestone 1–11 scope by itself.

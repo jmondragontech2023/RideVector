@@ -64,10 +64,7 @@ async function mapPool<T, R>(
   return results;
 }
 
-function samplePointsAlongRoute(
-  geometry: PocLineString,
-  count: number,
-): PocCoordinate[] {
+function samplePointsAlongRoute(geometry: PocLineString, count: number): PocCoordinate[] {
   const coords = geometry.coordinates;
   if (coords.length === 0) {
     return [];
@@ -84,10 +81,7 @@ function samplePointsAlongRoute(
   return points;
 }
 
-function dedupeNearby(
-  points: PocCoordinate[],
-  radiusMeters: number,
-): PocCoordinate[] {
+function dedupeNearby(points: PocCoordinate[], radiusMeters: number): PocCoordinate[] {
   const kept: PocCoordinate[] = [];
   for (const point of points) {
     if (kept.some((existing) => haversineMeters(existing, point) < radiusMeters)) {
@@ -150,7 +144,11 @@ export async function enrichSelectedRoutes(
     await mapPool(routes, 3, async (route) => {
       const midpointCoords = samplePointsAlongRoute(route.geometry, 3);
       const midpoint = midpointCoords[1] ?? route.start;
-      const farthest = farthestPointFromStart(route.start, route.geometry.coordinates, haversineMeters);
+      const farthest = farthestPointFromStart(
+        route.start,
+        route.geometry.coordinates,
+        haversineMeters,
+      );
       try {
         const weather = await deps.weather!.forecast({
           samples: [
@@ -204,10 +202,7 @@ export async function enrichSelectedRoutes(
         warnings.push('Traffic sample budget reached; remaining routes lack traffic enrichment.');
         break;
       }
-      const desired = Math.min(
-        POC_SCORING_CONFIG.traffic.maxSamplesPerRoute,
-        callsRemaining,
-      );
+      const desired = Math.min(POC_SCORING_CONFIG.traffic.maxSamplesPerRoute, callsRemaining);
       const candidates = dedupeNearby(
         samplePointsAlongRoute(route.geometry, desired + 2),
         POC_SCORING_CONFIG.traffic.dedupeRadiusMeters,

@@ -23,10 +23,7 @@ export function scoreDistanceFit(input: DistanceFitInput): {
     input.targetDistanceMeters === 0
       ? 100
       : (absoluteDifferenceMeters / input.targetDistanceMeters) * 100;
-  const range = acceptedRangeMeters(
-    input.targetDistanceMeters,
-    input.distanceFlexibilityMeters,
-  );
+  const range = acceptedRangeMeters(input.targetDistanceMeters, input.distanceFlexibilityMeters);
   const insideRange = input.classification === 'within_range';
 
   if (insideRange) {

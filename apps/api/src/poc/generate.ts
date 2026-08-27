@@ -555,10 +555,7 @@ export async function generatePocRoutes(
 
   const durationMs = Math.max(0, (deps.now ?? Date.now)() - started);
   const boundedDiagnostics = sanitizeDiagnosticsForResponse(candidateDiagnostics);
-  const attribution = [
-    'Map data © OpenStreetMap contributors',
-    ...enrichment.attribution,
-  ];
+  const attribution = ['Map data © OpenStreetMap contributors', ...enrichment.attribution];
 
   return {
     seed,

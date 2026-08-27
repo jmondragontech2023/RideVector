@@ -1,15 +1,7 @@
 import { METERS_PER_MILE, POC_CONFIG, type PocCostingMode } from './config';
 import { defaultDistanceFlexibilityMeters } from './distance-range';
-import {
-  isElevationPreference,
-  isTrafficPreference,
-  normalizePocFeatures,
-} from './features';
-import type {
-  PocGenerateRequest,
-  PocNormalizedDeparture,
-  PocValidationIssue,
-} from './types';
+import { isElevationPreference, isTrafficPreference, normalizePocFeatures } from './features';
+import type { PocGenerateRequest, PocNormalizedDeparture, PocValidationIssue } from './types';
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -57,7 +49,9 @@ function normalizeDeparture(
     if (typeof record.localDateTime !== 'string' || record.localDateTime.trim() === '') {
       return {
         ok: false,
-        details: [{ field: 'departure.localDateTime', reason: 'must be a non-empty ISO-like string' }],
+        details: [
+          { field: 'departure.localDateTime', reason: 'must be a non-empty ISO-like string' },
+        ],
       };
     }
     if (typeof record.timeZone !== 'string' || record.timeZone.trim() === '') {

@@ -42,9 +42,11 @@ export function scoreElevationPreference(
   };
 }
 
-export function scoreWeatherSuitability(
-  weather: WeatherSummary | null,
-): { score: number | null; applicable: boolean; raw: Record<string, unknown> } {
+export function scoreWeatherSuitability(weather: WeatherSummary | null): {
+  score: number | null;
+  applicable: boolean;
+  raw: Record<string, unknown>;
+} {
   if (!weather || weather.status === 'unavailable' || weather.status === 'unknown') {
     return {
       score: null,
@@ -52,25 +54,37 @@ export function scoreWeatherSuitability(
       raw: { status: weather?.status ?? 'unknown', missing: true },
     };
   }
+  // Require core fields; incomplete forecasts must not score as favorable.
+  if (
+    weather.temperatureMinC === null ||
+    weather.temperatureMaxC === null ||
+    weather.precipitationProbabilityMax === null ||
+    weather.precipitationMm === null ||
+    weather.windSpeedMaxKmh === null
+  ) {
+    return {
+      score: null,
+      applicable: true,
+      raw: { status: weather.status, missing: true, incompleteFields: true },
+    };
+  }
   const cfg = POC_SCORING_CONFIG.weather;
   let score = 100;
-  if ((weather.precipitationMm ?? 0) >= cfg.heavyPrecipitationMm) {
+  if (weather.precipitationMm >= cfg.heavyPrecipitationMm) {
     score -= 30;
   }
-  if ((weather.precipitationProbabilityMax ?? 0) >= cfg.highPrecipProbability) {
+  if (weather.precipitationProbabilityMax >= cfg.highPrecipProbability) {
     score -= 20;
   }
-  if ((weather.windSpeedMaxKmh ?? 0) >= cfg.strongWindKmh) {
+  if (weather.windSpeedMaxKmh >= cfg.strongWindKmh) {
     score -= 15;
   }
   if ((weather.windGustMaxKmh ?? 0) >= cfg.strongGustKmh) {
     score -= 10;
   }
-  const minTemp = weather.temperatureMinC;
-  const maxTemp = weather.temperatureMaxC;
   if (
-    (minTemp !== null && minTemp <= cfg.extremeTempLowC) ||
-    (maxTemp !== null && maxTemp >= cfg.extremeTempHighC)
+    weather.temperatureMinC <= cfg.extremeTempLowC ||
+    weather.temperatureMaxC >= cfg.extremeTempHighC
   ) {
     score -= 20;
   }

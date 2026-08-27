@@ -39,12 +39,16 @@ export function readValhallaBaseUrl(env: Env): string | null {
 
 export function readOpenMeteoBaseUrl(env: Env): string {
   const configured = env.OPEN_METEO_BASE_URL?.trim();
-  return configured && configured.length > 0 ? configured.replace(/\/+$/, '') : 'https://api.open-meteo.com';
+  return configured && configured.length > 0
+    ? configured.replace(/\/+$/, '')
+    : 'https://api.open-meteo.com';
 }
 
 export function readTomTomBaseUrl(env: Env): string {
   const configured = env.TOMTOM_BASE_URL?.trim();
-  return configured && configured.length > 0 ? configured.replace(/\/+$/, '') : 'https://api.tomtom.com';
+  return configured && configured.length > 0
+    ? configured.replace(/\/+$/, '')
+    : 'https://api.tomtom.com';
 }
 
 /** Optional local secret — never required when traffic enrichment is disabled. */

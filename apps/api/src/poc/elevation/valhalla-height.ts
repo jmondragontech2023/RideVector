@@ -30,7 +30,7 @@ export class ValhallaHeightProvider implements ElevationProvider {
   constructor(options: ValhallaHeightProviderOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
     this.clientId = options.clientId ?? POC_CONFIG.valhallaClientId;
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
     this.timeoutMs = options.timeoutMs ?? POC_SCORING_CONFIG.elevation.timeoutMs;
   }
 

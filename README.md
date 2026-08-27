@@ -78,9 +78,13 @@ Optional overrides:
 ```bash
 cp apps/api/.dev.vars.example apps/api/.dev.vars
 # VALHALLA_BASE_URL=https://valhalla1.openstreetmap.de
+# Optional motor-traffic enrichment (TomTom Flow Segment Data):
+# TOMTOM_API_KEY=replace-with-local-tomtom-key
 ```
 
-POC docs: [`poc/README.md`](poc/README.md). Owner evaluation worksheet: [`poc/EVALUATION.md`](poc/EVALUATION.md) (results remain pending until the owner fills them).
+Experimental scoring/enrichment (distance fit, loop quality, diversity, elevation, traffic, weather) is documented in [`poc/SCORING_AND_ENRICHMENT.md`](poc/SCORING_AND_ENRICHMENT.md). Provider keys stay Worker-side; the browser never receives provider URLs, payloads, or credentials.
+
+POC docs: [`poc/README.md`](poc/README.md). Owner evaluation worksheet: [`poc/EVALUATION.md`](poc/EVALUATION.md) (results remain pending until the owner fills them). Scoring experiment: [`poc/SCORING_AND_ENRICHMENT.md`](poc/SCORING_AND_ENRICHMENT.md).
 
 ### Other local commands
 
@@ -129,6 +133,8 @@ Use these permanent documents as shared memory. Prefer them over `RIDEVECTOR_HAN
 - [DECISIONS.md](DECISIONS.md): accepted, proposed, and deferred decisions
 - [AGENTS.md](AGENTS.md): repository-wide contributor instructions
 - [poc/README.md](poc/README.md): time-boxed route-generation POC scope, sequence, and guardrails
+- [poc/SCORING_AND_ENRICHMENT.md](poc/SCORING_AND_ENRICHMENT.md): provisional POC scoring and enrichment experiment
+- [poc/EVALUATION.md](poc/EVALUATION.md): owner field-test worksheet (results pending)
 - [supabase/README.md](supabase/README.md): declarative schema / local Supabase workflow
 
 `RIDEVECTOR_HANDOFF.md` is historical planning input only.
