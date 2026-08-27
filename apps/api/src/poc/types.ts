@@ -27,6 +27,37 @@ export type PocRejectionReason =
   | 'outside_tolerance'
   | 'duplicate_candidate';
 
+export type PocCandidateOutcome = 'accepted' | 'rejected';
+
+export type PocCandidateDiagnostic = {
+  /** Stable 1-based attempt index for this generation. */
+  attemptNumber: number;
+  bearingFamily: string;
+  outcome: PocCandidateOutcome;
+  rejectionReason?: PocRejectionReason;
+  distanceMeters?: number;
+  durationSeconds?: number;
+  distanceFromTargetMeters?: number;
+  geometry?: PocLineString;
+  /** Safe factual explanation without provider internals. */
+  explanation: string;
+};
+
+export type PocDiagnosticSummary = {
+  attemptedCount: number;
+  acceptedCount: number;
+  rejectionCounts: Record<PocRejectionReason, number>;
+  acceptedDistanceRangeMeters?: { min: number; max: number };
+  closestRoutableRejected?: {
+    attemptNumber: number;
+    distanceMeters: number;
+    distanceFromTargetMeters: number;
+    toleranceMissMeters: number;
+    toleranceMissPercent: number;
+    direction: 'below' | 'above' | 'within';
+  };
+};
+
 export type PocAlternative = {
   /** Opaque POC-local identifier. */
   id: string;
@@ -49,6 +80,8 @@ export type PocGenerateResponse = {
   alternatives: PocAlternative[];
   rejections: Record<PocRejectionReason, number>;
   warnings: string[];
+  candidateDiagnostics: PocCandidateDiagnostic[];
+  diagnosticSummary: PocDiagnosticSummary;
 };
 
 export type PocValidationIssue = {

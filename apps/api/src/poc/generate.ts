@@ -1,9 +1,15 @@
 import { buildAnchorPatterns, geometryMidpoint } from './anchors';
 import { POC_CONFIG } from './config';
+import {
+  buildCandidateDiagnostic,
+  buildDiagnosticSummary,
+  sanitizeDiagnosticsForResponse,
+} from './diagnostics';
 import { isNearDuplicateMidpoint } from './diversity';
 import type { RoutingProvider } from './routing/provider';
 import type {
   PocAlternative,
+  PocCandidateDiagnostic,
   PocGenerateRequest,
   PocGenerateResponse,
   PocRejectionReason,
@@ -55,16 +61,10 @@ async function mapPool<T, R>(
   return results;
 }
 
-type CandidateOk = {
-  status: 'ok';
-  alternative: Omit<PocAlternative, 'name' | 'id'> & {
-    midpoint: ReturnType<typeof geometryMidpoint>;
-  };
-};
-
-type CandidateReject = {
-  status: 'reject';
-  reason: PocRejectionReason;
+type RoutedCandidate = {
+  attemptNumber: number;
+  bearingFamily: string;
+  result: Awaited<ReturnType<RoutingProvider['routeLoop']>>;
 };
 
 /**
@@ -79,11 +79,21 @@ export async function generatePocRoutes(
   const rejections = emptyRejections();
   const warnings: string[] = [];
   const seed = request.seed;
+  const candidateDiagnostics: PocCandidateDiagnostic[] = [];
 
   const initialCount = deps.candidateCount ?? POC_CONFIG.initialCandidateCount;
   let attemptCount = Math.min(initialCount, POC_CONFIG.maxCandidateCount);
 
-  const accepted: Array<CandidateOk['alternative'] & { id: string }> = [];
+  const accepted: Array<{
+    id: string;
+    geometry: PocAlternative['geometry'];
+    distanceMeters: number;
+    durationSeconds: number;
+    distanceFromTargetMeters: number;
+    bearingFamily: string;
+    warnings: string[];
+    midpoint: ReturnType<typeof geometryMidpoint>;
+  }> = [];
 
   const runBatch = async (from: number, to: number): Promise<void> => {
     const patterns = buildAnchorPatterns(
@@ -93,67 +103,136 @@ export async function generatePocRoutes(
       to,
     ).slice(from, to);
 
-    const outcomes = await mapPool(patterns, POC_CONFIG.concurrency, async (pattern) => {
+    const routed = await mapPool(patterns, POC_CONFIG.concurrency, async (pattern, index) => {
       const result = await deps.provider.routeLoop({
         start: request.start,
         waypoints: pattern.waypoints,
         costing: request.costing,
       });
+      return {
+        attemptNumber: from + index + 1,
+        bearingFamily: pattern.bearingFamily,
+        result,
+      } satisfies RoutedCandidate;
+    });
+
+    for (const attempt of routed) {
+      const { attemptNumber, bearingFamily, result } = attempt;
 
       if (!result.ok) {
-        return {
-          status: 'reject',
-          reason: result.reason,
-        } satisfies CandidateReject;
+        rejections[result.reason] += 1;
+        candidateDiagnostics.push(
+          buildCandidateDiagnostic({
+            attemptNumber,
+            bearingFamily,
+            outcome: 'rejected',
+            rejectionReason: result.reason,
+            targetDistanceMeters: request.targetDistanceMeters,
+          }),
+        );
+        continue;
       }
 
       if (result.geometry.coordinates.length < 2) {
-        return { status: 'reject', reason: 'malformed_geometry' } satisfies CandidateReject;
+        rejections.malformed_geometry += 1;
+        candidateDiagnostics.push(
+          buildCandidateDiagnostic({
+            attemptNumber,
+            bearingFamily,
+            outcome: 'rejected',
+            rejectionReason: 'malformed_geometry',
+            targetDistanceMeters: request.targetDistanceMeters,
+          }),
+        );
+        continue;
       }
 
+      const distanceFromTargetMeters = result.distanceMeters - request.targetDistanceMeters;
+
       if (!withinTolerance(result.distanceMeters, request.targetDistanceMeters)) {
-        return { status: 'reject', reason: 'outside_tolerance' } satisfies CandidateReject;
+        rejections.outside_tolerance += 1;
+        candidateDiagnostics.push(
+          buildCandidateDiagnostic({
+            attemptNumber,
+            bearingFamily,
+            outcome: 'rejected',
+            rejectionReason: 'outside_tolerance',
+            distanceMeters: result.distanceMeters,
+            durationSeconds: result.durationSeconds,
+            distanceFromTargetMeters,
+            geometry: result.geometry,
+            targetDistanceMeters: request.targetDistanceMeters,
+          }),
+        );
+        continue;
       }
 
       const midpoint = geometryMidpoint(result.geometry.coordinates);
-      return {
-        status: 'ok',
-        alternative: {
-          geometry: result.geometry,
-          distanceMeters: result.distanceMeters,
-          durationSeconds: result.durationSeconds,
-          distanceFromTargetMeters: result.distanceMeters - request.targetDistanceMeters,
-          bearingFamily: pattern.bearingFamily,
-          warnings: [],
-          midpoint,
-        },
-      } satisfies CandidateOk;
-    });
-
-    for (const outcome of outcomes) {
-      if (outcome.status === 'reject') {
-        rejections[outcome.reason] += 1;
-        continue;
-      }
-
       const isDuplicate = isNearDuplicateMidpoint(
-        outcome.alternative.midpoint,
+        midpoint,
         accepted.map((item) => item.midpoint),
         request.targetDistanceMeters,
       );
+
       if (isDuplicate) {
         rejections.duplicate_candidate += 1;
+        candidateDiagnostics.push(
+          buildCandidateDiagnostic({
+            attemptNumber,
+            bearingFamily,
+            outcome: 'rejected',
+            rejectionReason: 'duplicate_candidate',
+            distanceMeters: result.distanceMeters,
+            durationSeconds: result.durationSeconds,
+            distanceFromTargetMeters,
+            geometry: result.geometry,
+            targetDistanceMeters: request.targetDistanceMeters,
+          }),
+        );
         continue;
       }
 
+      if (accepted.length >= POC_CONFIG.maxAlternatives) {
+        candidateDiagnostics.push(
+          buildCandidateDiagnostic({
+            attemptNumber,
+            bearingFamily,
+            outcome: 'rejected',
+            distanceMeters: result.distanceMeters,
+            durationSeconds: result.durationSeconds,
+            distanceFromTargetMeters,
+            geometry: result.geometry,
+            targetDistanceMeters: request.targetDistanceMeters,
+          }),
+        );
+        continue;
+      }
+
+      const routeName = alternativeName(accepted.length);
       accepted.push({
-        ...outcome.alternative,
-        id: `poc-${seed}-${accepted.length}-${outcome.alternative.bearingFamily}`,
+        geometry: result.geometry,
+        distanceMeters: result.distanceMeters,
+        durationSeconds: result.durationSeconds,
+        distanceFromTargetMeters,
+        bearingFamily,
+        warnings: [],
+        midpoint,
+        id: `poc-${seed}-${accepted.length}-${bearingFamily}`,
       });
 
-      if (accepted.length >= POC_CONFIG.maxAlternatives) {
-        break;
-      }
+      candidateDiagnostics.push(
+        buildCandidateDiagnostic({
+          attemptNumber,
+          bearingFamily,
+          outcome: 'accepted',
+          distanceMeters: result.distanceMeters,
+          durationSeconds: result.durationSeconds,
+          distanceFromTargetMeters,
+          geometry: result.geometry,
+          targetDistanceMeters: request.targetDistanceMeters,
+          acceptedRouteName: routeName,
+        }),
+      );
     }
   };
 
@@ -193,6 +272,7 @@ export async function generatePocRoutes(
   }
 
   const durationMs = Math.max(0, (deps.now ?? Date.now)() - started);
+  const boundedDiagnostics = sanitizeDiagnosticsForResponse(candidateDiagnostics);
 
   return {
     seed,
@@ -202,5 +282,13 @@ export async function generatePocRoutes(
     alternatives,
     rejections,
     warnings,
+    candidateDiagnostics: boundedDiagnostics,
+    diagnosticSummary: buildDiagnosticSummary({
+      targetDistanceMeters: request.targetDistanceMeters,
+      diagnostics: boundedDiagnostics,
+      rejections,
+      attemptedCount: attemptCount,
+      acceptedCount: alternatives.length,
+    }),
   };
 }

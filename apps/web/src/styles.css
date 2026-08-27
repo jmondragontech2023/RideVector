@@ -350,6 +350,86 @@ button:disabled {
   border-top: 1px solid rgba(20, 32, 26, 0.08);
 }
 
+.generation-summary {
+  margin: 0.75rem 0 0;
+  font-size: 0.92rem;
+  color: #24352b;
+}
+
+.candidate-diagnostics-block {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.diagnostics-toggle {
+  justify-self: start;
+}
+
+.candidate-diagnostics-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.candidate-diagnostic {
+  border: 1px solid rgba(20, 32, 26, 0.1);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  background: #fafcfa;
+}
+
+.candidate-diagnostic.rejected {
+  border-color: rgba(217, 119, 6, 0.35);
+}
+
+.candidate-diagnostic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.candidate-diagnostic-badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #e5ece7;
+  color: #24352b;
+}
+
+.candidate-diagnostic-badge.rejected {
+  background: #fff1db;
+  color: #9a5b00;
+}
+
+.candidate-diagnostic-badge.accepted {
+  background: #e5f3ec;
+  color: #0b6e4f;
+}
+
+.candidate-diagnostic-metrics {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.65rem;
+  margin: 0.45rem 0 0;
+  font-size: 0.85rem;
+}
+
+.candidate-diagnostic-metrics dt {
+  color: #5b6b61;
+}
+
+.candidate-diagnostic-metrics dd {
+  margin: 0;
+}
+
+.route-rejected-preview {
+  pointer-events: none;
+}
+
 .saved-block h2 {
   margin: 0.4rem 0 0.5rem;
   font-size: 1rem;

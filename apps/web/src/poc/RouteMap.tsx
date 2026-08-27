@@ -5,12 +5,14 @@ import { directionBadgeHtml, sampleDirectionMarkers } from './route-direction';
 import type { DirectionMarker } from './route-direction';
 import type { MapRecenterRequest } from './map-recenter';
 import { createStartMarkerIcon } from './start-marker';
+import type { RejectedPreview } from './candidate-diagnostics';
 import type { PocAlternative, PocCoordinate } from './types';
 
 const DEFAULT_CENTER: LatLngExpression = [37.7749, -122.4194];
 const DEFAULT_ZOOM = 12;
 const SELECTED_ROUTE_COLOR = '#0b6e4f';
 const UNSELECTED_ROUTE_COLOR = '#7a8f84';
+const REJECTED_PREVIEW_COLOR = '#d97706';
 
 function numberedDirectionMarkerIcon(marker: DirectionMarker): L.DivIcon {
   return L.divIcon({
@@ -41,9 +43,10 @@ type FitRoutesProps = {
   start: PocCoordinate | null;
   alternatives: PocAlternative[];
   selectedId: string | null;
+  rejectedPreview: RejectedPreview | null;
 };
 
-function FitRoutes({ start, alternatives, selectedId }: FitRoutesProps) {
+function FitRoutes({ start, alternatives, selectedId, rejectedPreview }: FitRoutesProps) {
   const map = useMap();
 
   useEffect(() => {
@@ -56,6 +59,11 @@ function FitRoutes({ start, alternatives, selectedId }: FitRoutesProps) {
         points.push([lat, lon]);
       }
     }
+    if (rejectedPreview) {
+      for (const [lon, lat] of rejectedPreview.geometry.coordinates) {
+        points.push([lat, lon]);
+      }
+    }
     if (points.length === 0) {
       return;
     }
@@ -64,7 +72,7 @@ function FitRoutes({ start, alternatives, selectedId }: FitRoutesProps) {
       return;
     }
     map.fitBounds(points, { padding: [36, 36] });
-  }, [map, start, alternatives, selectedId]);
+  }, [map, start, alternatives, selectedId, rejectedPreview]);
 
   return null;
 }
@@ -95,6 +103,7 @@ export type RouteMapProps = {
   alternatives: PocAlternative[];
   selectedId: string | null;
   recenterRequest: MapRecenterRequest | null;
+  rejectedPreview: RejectedPreview | null;
   onSelectStart: (coordinate: PocCoordinate) => void;
 };
 
@@ -103,6 +112,7 @@ export function RouteMap({
   alternatives,
   selectedId,
   recenterRequest,
+  rejectedPreview,
   onSelectStart,
 }: RouteMapProps) {
   const center: LatLngExpression = start ? [start.latitude, start.longitude] : DEFAULT_CENTER;
@@ -119,6 +129,9 @@ export function RouteMap({
   const selectedPositions = selectedAlternative
     ? toPositions(selectedAlternative.geometry.coordinates)
     : [];
+  const rejectedPreviewPositions = rejectedPreview
+    ? toPositions(rejectedPreview.geometry.coordinates)
+    : [];
   const startMarkerIcon = useMemo(() => createStartMarkerIcon(), []);
 
   return (
@@ -129,8 +142,26 @@ export function RouteMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <StartSelector onSelect={onSelectStart} />
-        <FitRoutes start={start} alternatives={alternatives} selectedId={selectedId} />
+        <FitRoutes
+          start={start}
+          alternatives={alternatives}
+          selectedId={selectedId}
+          rejectedPreview={rejectedPreview}
+        />
         <RecenterMap request={recenterRequest} />
+        {rejectedPreview ? (
+          <Polyline
+            key={`rejected-preview-${rejectedPreview.attemptNumber}`}
+            positions={rejectedPreviewPositions}
+            pathOptions={{
+              color: REJECTED_PREVIEW_COLOR,
+              weight: 4,
+              opacity: 0.85,
+              dashArray: '8 10',
+              className: 'route-rejected-preview',
+            }}
+          />
+        ) : null}
         {unselectedAlternatives.map((alt) => (
           <Polyline
             key={alt.id}
@@ -188,7 +219,9 @@ export function RouteMap({
         ) : null}
       </MapContainer>
       <p className="route-map-legend" aria-label="Map legend">
-        Start → follow 1 → 2 → 3…
+        {rejectedPreview
+          ? `${rejectedPreview.label} (dashed orange) · Start → follow 1 → 2 → 3… on accepted routes`
+          : 'Start → follow 1 → 2 → 3…'}
       </p>
     </div>
   );

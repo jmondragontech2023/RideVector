@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { generatePocRoutes, PocApiError } from './poc/api';
+import { CandidateDiagnosticsPanel } from './poc/CandidateDiagnosticsPanel';
+import { emptyDiagnosticSummary, findRejectedPreview } from './poc/candidate-diagnostics';
 import { POC_SCENARIO_FIXTURES } from './poc/fixtures';
 import { RouteMap } from './poc/RouteMap';
 import {
@@ -52,6 +54,8 @@ export function App() {
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [recenterRequest, setRecenterRequest] = useState<MapRecenterRequest | null>(null);
+  const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false);
+  const [previewAttemptNumber, setPreviewAttemptNumber] = useState<number | null>(null);
   const generationSessionRef = useRef(new GenerationSession());
   const locationSessionRef = useRef(new LocationSession());
 
@@ -75,7 +79,15 @@ export function App() {
     setStatus('idle');
     setErrorMessage(null);
     setSaveMessage(null);
+    setDiagnosticsExpanded(false);
+    setPreviewAttemptNumber(null);
   }
+
+  const targetDistanceMeters = milesToMeters(Number(targetMiles) || 0);
+  const rejectedPreview = useMemo(
+    () => findRejectedPreview(result, previewAttemptNumber),
+    [result, previewAttemptNumber],
+  );
 
   const alternatives = result?.alternatives ?? [];
   const selected: PocAlternative | null =
@@ -99,6 +111,7 @@ export function App() {
     setStatus('loading');
     setErrorMessage(null);
     setSaveMessage(null);
+    setPreviewAttemptNumber(null);
 
     const { token, abortController, signal } = generationSessionRef.current.begin();
 
@@ -119,10 +132,9 @@ export function App() {
       setSeed(response.seed);
       setResult(response);
       setSelectedId(response.alternatives[0]?.id ?? null);
+      setDiagnosticsExpanded(response.alternatives.length === 0);
       setStatus(response.alternatives.length > 0 ? 'success' : 'error');
-      if (response.alternatives.length === 0) {
-        setErrorMessage(response.warnings[0] ?? 'No valid routes were returned.');
-      }
+      setErrorMessage(null);
     } catch (error) {
       if (!shouldApplyGenerationResponse(generationSessionRef.current, token, signal)) {
         return;
@@ -200,8 +212,12 @@ export function App() {
         duplicate_candidate: 0,
       },
       warnings: ['Opened from local saved routes.'],
+      candidateDiagnostics: [],
+      diagnosticSummary: emptyDiagnosticSummary(),
     });
     setSelectedId(route.alternative.id);
+    setDiagnosticsExpanded(false);
+    setPreviewAttemptNumber(null);
     setWouldRide(route.feedback?.wouldRide ?? 'maybe');
     setFeedbackReason(route.feedback?.reason ?? '');
     setStatus('success');
@@ -297,6 +313,7 @@ export function App() {
             alternatives={alternatives}
             selectedId={selected?.id ?? null}
             recenterRequest={recenterRequest}
+            rejectedPreview={rejectedPreview}
             onSelectStart={(coordinate) => {
               invalidateInFlightLocation();
               setStart(coordinate);
@@ -432,8 +449,19 @@ export function App() {
 
           {status === 'loading' ? (
             <p className="status" role="status">
-              Requesting loop candidates from the local Worker…
+              Trying up to 10 directionally varied loops…
             </p>
+          ) : null}
+
+          {result ? (
+            <CandidateDiagnosticsPanel
+              result={result}
+              targetDistanceMeters={targetDistanceMeters}
+              expanded={diagnosticsExpanded}
+              onToggleExpanded={() => setDiagnosticsExpanded((value) => !value)}
+              previewAttemptNumber={previewAttemptNumber}
+              onPreviewAttempt={setPreviewAttemptNumber}
+            />
           ) : null}
 
           {result && selected ? (

@@ -22,6 +22,17 @@ describe('generatePocRoutes client', () => {
             duplicate_candidate: 0,
           },
           warnings: [],
+          candidateDiagnostics: [],
+          diagnosticSummary: {
+            attemptedCount: 6,
+            acceptedCount: 0,
+            rejectionCounts: {
+              upstream_failure: 0,
+              malformed_geometry: 0,
+              outside_tolerance: 0,
+              duplicate_candidate: 0,
+            },
+          },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
@@ -36,6 +47,8 @@ describe('generatePocRoutes client', () => {
     });
 
     expect(result.seed).toBe(2);
+    expect(result.candidateDiagnostics).toEqual([]);
+    expect(JSON.stringify(result)).not.toContain('valhalla');
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('/api/poc/routes/generate');

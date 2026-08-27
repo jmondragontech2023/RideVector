@@ -90,6 +90,9 @@ describe('generatePocRoutes with mocked provider', () => {
     expect(result.alternatives[0]?.name).toBe('Route A');
     expect(result.alternatives[0]?.geometry.type).toBe('LineString');
     expect(result.durationMs).toBeGreaterThan(0);
+    expect(result.candidateDiagnostics.length).toBeGreaterThan(0);
+    expect(result.diagnosticSummary.acceptedCount).toBe(result.acceptedCount);
+    expect(JSON.stringify(result)).not.toContain('timeout');
   });
 
   it('is deterministic for identical input and seed', async () => {
@@ -137,6 +140,14 @@ describe('generatePocRoutes with mocked provider', () => {
     expect(result.rejections.upstream_failure).toBeGreaterThanOrEqual(1);
     expect(result.rejections.outside_tolerance).toBeGreaterThanOrEqual(1);
     expect(result.warnings.length).toBeGreaterThan(0);
+    const outside = result.candidateDiagnostics.find(
+      (item) => item.rejectionReason === 'outside_tolerance',
+    );
+    expect(outside?.geometry).toBeDefined();
+    const upstream = result.candidateDiagnostics.find(
+      (item) => item.rejectionReason === 'upstream_failure',
+    );
+    expect(upstream?.geometry).toBeUndefined();
   });
 
   it('filters near-duplicate midpoints', async () => {
@@ -153,6 +164,26 @@ describe('generatePocRoutes with mocked provider', () => {
     const result = await generatePocRoutes(request, { provider, candidateCount: 6 });
     expect(result.acceptedCount).toBe(1);
     expect(result.rejections.duplicate_candidate).toBeGreaterThanOrEqual(1);
+    const duplicate = result.candidateDiagnostics.find(
+      (item) => item.rejectionReason === 'duplicate_candidate',
+    );
+    expect(duplicate?.geometry).toBeDefined();
+  });
+
+  it('returns at most ten candidate diagnostics', async () => {
+    const provider = new MockRoutingProvider(() => ({
+      ok: true,
+      geometry: {
+        type: 'LineString',
+        coordinates: squareLoop(37.78, -122.41, 0.02),
+      },
+      distanceMeters: 50_000,
+      durationSeconds: 3000,
+    }));
+
+    const result = await generatePocRoutes(request, { provider });
+    expect(result.candidateDiagnostics.length).toBeLessThanOrEqual(10);
+    expect(result.attemptedCount).toBeLessThanOrEqual(10);
   });
 });
 
