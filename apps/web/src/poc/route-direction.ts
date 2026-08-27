@@ -17,6 +17,8 @@ export const ROUTE_DIRECTION_DEFAULTS = {
   maxMarkers: 8,
   /** Exclude the first/last fraction of route length from arrow placement. */
   endpointExclusionFraction: 0.08,
+  /** Minimum distance from departure before placing marker 1. */
+  startExclusionMeters: 150,
   /** Minimum route length required before placing any arrow. */
   minRouteLengthMeters: 400,
 } as const;
@@ -162,6 +164,7 @@ export type SampleDirectionMarkersOptions = {
   minMarkers?: number;
   maxMarkers?: number;
   endpointExclusionFraction?: number;
+  startExclusionMeters?: number;
   minRouteLengthMeters?: number;
 };
 
@@ -177,6 +180,8 @@ export function sampleDirectionMarkers(
   const maxMarkers = options.maxMarkers ?? ROUTE_DIRECTION_DEFAULTS.maxMarkers;
   const endpointExclusionFraction =
     options.endpointExclusionFraction ?? ROUTE_DIRECTION_DEFAULTS.endpointExclusionFraction;
+  const startExclusionMeters =
+    options.startExclusionMeters ?? ROUTE_DIRECTION_DEFAULTS.startExclusionMeters;
   const minRouteLengthMeters =
     options.minRouteLengthMeters ?? ROUTE_DIRECTION_DEFAULTS.minRouteLengthMeters;
 
@@ -201,7 +206,7 @@ export function sampleDirectionMarkers(
   }
 
   const exclusion = totalLength * endpointExclusionFraction;
-  const placementStart = exclusion;
+  const placementStart = Math.max(exclusion, startExclusionMeters);
   const placementEnd = totalLength - exclusion;
   const placementSpan = placementEnd - placementStart;
 

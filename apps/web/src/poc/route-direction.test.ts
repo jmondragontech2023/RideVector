@@ -152,6 +152,22 @@ describe('route-direction geometry', () => {
     }
   });
 
+  it('places marker 1 after the configured start exclusion distance', () => {
+    const route: Array<[number, number]> = Array.from({ length: 21 }, (_, index) => [
+      0,
+      index * 0.01,
+    ]);
+    const total = cumulativeRouteLengthMeters(route);
+    const markers = sampleDirectionMarkers(route, {
+      minRouteLengthMeters: 100,
+      startExclusionMeters: 150,
+    });
+
+    expect(markers[0]?.sequence).toBe(1);
+    expect(markers[0]!.distanceMeters).toBeGreaterThanOrEqual(150);
+    expect(markers[0]!.distanceMeters).toBeGreaterThan(total * 0.04);
+  });
+
   it('computes cardinal bearings', () => {
     const origin: [number, number] = [0, 0];
     expect(bearingDegrees(origin, [0, 1])).toBeCloseTo(0, 0);

@@ -1,33 +1,16 @@
 import { useEffect, useMemo } from 'react';
-import {
-  MapContainer,
-  Marker,
-  Polyline,
-  TileLayer,
-  Tooltip,
-  useMap,
-  useMapEvents,
-} from 'react-leaflet';
+import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L, { type LatLngExpression } from 'leaflet';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { directionBadgeHtml, sampleDirectionMarkers } from './route-direction';
 import type { DirectionMarker } from './route-direction';
 import type { MapRecenterRequest } from './map-recenter';
+import { createStartMarkerIcon } from './start-marker';
 import type { PocAlternative, PocCoordinate } from './types';
 
 const DEFAULT_CENTER: LatLngExpression = [37.7749, -122.4194];
 const DEFAULT_ZOOM = 12;
 const SELECTED_ROUTE_COLOR = '#0b6e4f';
 const UNSELECTED_ROUTE_COLOR = '#7a8f84';
-
-// Vite bundles Leaflet images; keep default marker icons working.
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
 
 function numberedDirectionMarkerIcon(marker: DirectionMarker): L.DivIcon {
   return L.divIcon({
@@ -136,6 +119,7 @@ export function RouteMap({
   const selectedPositions = selectedAlternative
     ? toPositions(selectedAlternative.geometry.coordinates)
     : [];
+  const startMarkerIcon = useMemo(() => createStartMarkerIcon(), []);
 
   return (
     <div className="route-map-wrap">
@@ -197,17 +181,14 @@ export function RouteMap({
         {start ? (
           <Marker
             position={[start.latitude, start.longitude]}
-            title="Start — follow 1"
-            zIndexOffset={1500}
-          >
-            <Tooltip permanent direction="top" offset={[0, -30]} className="route-start-tooltip">
-              Start — follow 1
-            </Tooltip>
-          </Marker>
+            icon={startMarkerIcon}
+            title="Route start"
+            zIndexOffset={1600}
+          />
         ) : null}
       </MapContainer>
       <p className="route-map-legend" aria-label="Map legend">
-        Follow numbered arrows from Start.
+        Start → follow 1 → 2 → 3…
       </p>
     </div>
   );
