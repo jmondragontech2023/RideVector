@@ -1,7 +1,11 @@
 import { useEffect, useMemo } from 'react';
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L, { type LatLngExpression } from 'leaflet';
-import { directionBadgeHtml, sampleDirectionMarkers } from './route-direction';
+import {
+  directionBadgeHtml,
+  directionMarkerAccessibleLabel,
+  sampleDirectionMarkers,
+} from './route-direction';
 import type { DirectionMarker } from './route-direction';
 import type { MapRecenterRequest } from './map-recenter';
 import { createStartMarkerIcon } from './start-marker';
@@ -28,7 +32,7 @@ const MAP_TILES = {
 function numberedDirectionMarkerIcon(marker: DirectionMarker): L.DivIcon {
   return L.divIcon({
     className: 'route-direction-badge-marker',
-    html: directionBadgeHtml(marker.sequence, marker.bearing),
+    html: directionBadgeHtml(marker.sequence, marker.bearing, marker.kind),
     iconSize: [34, 42],
     iconAnchor: [17, 17],
   });
@@ -241,6 +245,7 @@ export function RouteMap({
             key={`${selectedAlternative?.id ?? 'selected'}-direction-${marker.sequence}`}
             position={[marker.lat, marker.lon]}
             icon={numberedDirectionMarkerIcon(marker)}
+            title={directionMarkerAccessibleLabel(marker)}
             interactive={false}
             keyboard={false}
             bubblingMouseEvents={false}
@@ -258,8 +263,8 @@ export function RouteMap({
       </MapContainer>
       <p className="route-map-legend" aria-label="Map legend">
         {rejectedPreview
-          ? `${rejectedPreview.label} (dashed orange) · Start → follow 1 → 2 → 3… on accepted routes`
-          : 'Start → follow 1 → 2 → 3…'}
+          ? `${rejectedPreview.label} (dashed orange) · Start → follow numbered arrows in order. Paired outlined arrows show where the route doubles back or crosses itself.`
+          : 'Start → follow numbered arrows in order. Paired outlined arrows show where the route doubles back or crosses itself.'}
       </p>
     </div>
   );
