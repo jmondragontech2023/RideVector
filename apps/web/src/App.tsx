@@ -29,6 +29,7 @@ import {
   unsupportedGeolocationFailure,
 } from './poc/geolocation';
 import { GenerationSession, shouldApplyGenerationResponse } from './poc/generation-session';
+import { LocationSession, shouldApplyLocationResult } from './poc/location-session';
 import { createMapRecenterRequest, type MapRecenterRequest } from './poc/map-recenter';
 import { smokeContractTitle } from './smokeContract';
 
@@ -52,6 +53,7 @@ export function App() {
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [recenterRequest, setRecenterRequest] = useState<MapRecenterRequest | null>(null);
   const generationSessionRef = useRef(new GenerationSession());
+  const locationSessionRef = useRef(new LocationSession());
 
   useEffect(() => {
     setSavedRoutes(loadPocStore().routes);
@@ -59,6 +61,11 @@ export function App() {
 
   function invalidateInFlightGeneration() {
     generationSessionRef.current.invalidate();
+  }
+
+  function invalidateInFlightLocation() {
+    locationSessionRef.current.invalidate();
+    setLocating(false);
   }
 
   function clearGenerationResults() {
@@ -137,6 +144,7 @@ export function App() {
       return;
     }
     invalidateInFlightGeneration();
+    invalidateInFlightLocation();
     setStart(fixture.start);
     setTargetMiles(String(fixture.targetDistanceMiles));
     setCosting(fixture.costing);
@@ -174,6 +182,7 @@ export function App() {
 
   function handleOpenSaved(route: SavedPocRoute) {
     invalidateInFlightGeneration();
+    invalidateInFlightLocation();
     setStart(route.start);
     setTargetMiles(String(route.targetDistanceMeters / METERS_PER_MILE));
     setCosting(route.costing);
@@ -219,12 +228,16 @@ export function App() {
       return;
     }
 
+    const locationToken = locationSessionRef.current.begin();
     setLocating(true);
     setLocationMessage(null);
     setLocationWarning(null);
 
     try {
       const result = await requestCurrentPosition(navigator.geolocation);
+      if (!shouldApplyLocationResult(locationSessionRef.current, locationToken)) {
+        return;
+      }
       clearGenerationResults();
       setStart(result.coordinate);
       setRecenterRequest(createMapRecenterRequest(result.coordinate, 14));
@@ -235,6 +248,9 @@ export function App() {
           : null,
       );
     } catch (error) {
+      if (!shouldApplyLocationResult(locationSessionRef.current, locationToken)) {
+        return;
+      }
       if (
         typeof error === 'object' &&
         error !== null &&
@@ -252,7 +268,9 @@ export function App() {
       }
       setLocationWarning(null);
     } finally {
-      setLocating(false);
+      if (shouldApplyLocationResult(locationSessionRef.current, locationToken)) {
+        setLocating(false);
+      }
     }
   }
 
@@ -280,6 +298,7 @@ export function App() {
             selectedId={selected?.id ?? null}
             recenterRequest={recenterRequest}
             onSelectStart={(coordinate) => {
+              invalidateInFlightLocation();
               setStart(coordinate);
               clearGenerationResults();
               setLocationMessage(null);
