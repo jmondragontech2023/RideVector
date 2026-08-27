@@ -477,16 +477,16 @@ button:focus-visible,
   width: 1.55rem;
   height: 1.55rem;
   border-radius: 999px;
-  background: var(--rv-accent-strong);
+  background: var(--rv-direction-fill, var(--rv-accent-strong));
   border: 2px solid var(--rv-marker-ring);
   box-shadow:
-    0 0 0 1px var(--rv-shadow-marker),
+    0 0 0 1px color-mix(in srgb, var(--rv-direction-fill, var(--rv-accent-strong)) 45%, transparent),
     0 2px 5px var(--rv-shadow-soft);
 }
 
 .route-direction-badge__arrow {
   display: block;
-  color: var(--rv-accent-contrast);
+  color: var(--rv-direction-ink, var(--rv-accent-contrast));
   font-size: 0.84rem;
   line-height: 1;
   transform-origin: center center;
@@ -497,8 +497,9 @@ button:focus-visible,
   padding: 0.05rem 0.25rem;
   border-radius: 0.35rem;
   background: var(--rv-surface-elevated);
-  border: 1px solid var(--rv-shadow-marker);
-  color: var(--rv-accent-strong);
+  border: 1px solid
+    color-mix(in srgb, var(--rv-direction-fill, var(--rv-accent-strong)) 40%, transparent);
+  color: var(--rv-direction-fill, var(--rv-accent-strong));
   font-size: 0.58rem;
   font-weight: 700;
   line-height: 1.1;
@@ -510,7 +511,7 @@ button:focus-visible,
 .route-direction-badge--ambiguity-after .route-direction-badge__disc {
   box-shadow:
     0 0 0 2px var(--rv-marker-ring),
-    0 0 0 4px var(--rv-accent-strong),
+    0 0 0 4px var(--rv-direction-fill, var(--rv-accent-strong)),
     0 2px 6px var(--rv-shadow-soft);
 }
 
@@ -519,15 +520,25 @@ button:focus-visible,
   content: '';
   position: absolute;
   inset: -3px;
-  border: 1px solid var(--rv-accent-strong);
+  border: 1px solid var(--rv-direction-fill, var(--rv-accent-strong));
   border-radius: 999px;
   opacity: 0.85;
   pointer-events: none;
 }
 
 .route-direction-badge--ambiguity-before .route-direction-badge__disc,
-.route-direction-badge--ambiguity-after .route-direction-badge__disc {
+.route-direction-badge--ambiguity-after .route-direction-badge__disc,
+.route-direction-badge--turn-before .route-direction-badge__disc,
+.route-direction-badge--turn-after .route-direction-badge__disc {
   position: relative;
+}
+
+.route-direction-badge--turn-before .route-direction-badge__disc,
+.route-direction-badge--turn-after .route-direction-badge__disc {
+  box-shadow:
+    0 0 0 2px var(--rv-marker-ring),
+    0 0 0 3px var(--rv-direction-fill, var(--rv-accent-strong)),
+    0 2px 5px var(--rv-shadow-soft);
 }
 
 .route-start-marker-wrap {
@@ -610,6 +621,95 @@ button:focus-visible,
   color: var(--rv-text-legend);
   font-size: 0.82rem;
   line-height: 1.3;
+}
+
+.direction-marker-controls {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--rv-border);
+  border-radius: 0.45rem;
+  background: var(--rv-surface-muted);
+}
+
+.direction-marker-controls > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.88rem;
+  font-weight: 650;
+  color: var(--rv-text-strong);
+  list-style: none;
+}
+
+.direction-marker-controls > summary::-webkit-details-marker {
+  display: none;
+}
+
+.direction-marker-controls__count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--rv-text-muted);
+}
+
+.direction-marker-controls__hint {
+  margin: 0.45rem 0 0.65rem;
+  font-size: 0.78rem;
+  color: var(--rv-text-muted);
+  line-height: 1.35;
+}
+
+.direction-marker-controls__grid {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.direction-marker-controls__field {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.direction-marker-controls__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--rv-text-body);
+}
+
+.direction-marker-controls__label-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.direction-marker-controls__label strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--rv-text-strong);
+}
+
+.direction-marker-controls__hint-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--rv-border-input);
+  font-size: 0.65rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.direction-marker-controls__field input[type='range'] {
+  width: 100%;
+  accent-color: var(--rv-accent);
+}
+
+.direction-marker-controls__reset {
+  margin-top: 0.65rem;
+  width: 100%;
 }
 
 .map-hint {

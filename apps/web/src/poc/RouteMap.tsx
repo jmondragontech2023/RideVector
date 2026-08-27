@@ -1,6 +1,14 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L, { type LatLngExpression } from 'leaflet';
+import { DirectionMarkerControls } from './DirectionMarkerControls';
+import {
+  defaultDirectionMarkerSettings,
+  loadDirectionMarkerSettings,
+  saveDirectionMarkerSettings,
+  toSampleDirectionMarkerOptions,
+  type DirectionMarkerSettingsV1,
+} from './direction-marker-settings';
 import {
   directionBadgeHtml,
   directionMarkerAccessibleLabel,
@@ -32,7 +40,10 @@ const MAP_TILES = {
 function numberedDirectionMarkerIcon(marker: DirectionMarker): L.DivIcon {
   return L.divIcon({
     className: 'route-direction-badge-marker',
-    html: directionBadgeHtml(marker.sequence, marker.bearing, marker.kind),
+    html: directionBadgeHtml(marker.sequence, marker.bearing, {
+      kind: marker.kind,
+      progress: marker.progress,
+    }),
     iconSize: [34, 42],
     iconAnchor: [17, 17],
   });
@@ -153,6 +164,23 @@ export function RouteMap({
   mapTheme,
 }: RouteMapProps) {
   const tiles = MAP_TILES[mapTheme];
+  const [markerSettings, setMarkerSettings] = useState<DirectionMarkerSettingsV1>(() =>
+    defaultDirectionMarkerSettings(),
+  );
+  const [markerSettingsHydrated, setMarkerSettingsHydrated] = useState(false);
+
+  useEffect(() => {
+    setMarkerSettings(loadDirectionMarkerSettings());
+    setMarkerSettingsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!markerSettingsHydrated) {
+      return;
+    }
+    saveDirectionMarkerSettings(markerSettings);
+  }, [markerSettings, markerSettingsHydrated]);
+
   const routeColors = {
     selected: readCssColor('--rv-route-selected', '#0b6e4f'),
     unselected: readCssColor('--rv-route-unselected', '#7a8f84'),
@@ -165,10 +193,16 @@ export function RouteMap({
   const unselectedAlternatives = alternatives.filter(
     (alternative) => alternative.id !== selectedId,
   );
+  const directionMarkerOptions = useMemo(
+    () => toSampleDirectionMarkerOptions(markerSettings),
+    [markerSettings],
+  );
   const directionMarkers = useMemo(
     () =>
-      selectedAlternative ? sampleDirectionMarkers(selectedAlternative.geometry.coordinates) : [],
-    [selectedAlternative],
+      selectedAlternative
+        ? sampleDirectionMarkers(selectedAlternative.geometry.coordinates, directionMarkerOptions)
+        : [],
+    [selectedAlternative, directionMarkerOptions],
   );
   const selectedPositions = selectedAlternative
     ? toPositions(selectedAlternative.geometry.coordinates)
@@ -261,10 +295,16 @@ export function RouteMap({
           />
         ) : null}
       </MapContainer>
+      <DirectionMarkerControls
+        settings={markerSettings}
+        markerCount={directionMarkers.length}
+        onChange={setMarkerSettings}
+        onReset={() => setMarkerSettings(defaultDirectionMarkerSettings())}
+      />
       <p className="route-map-legend" aria-label="Map legend">
         {rejectedPreview
-          ? `${rejectedPreview.label} (dashed orange) · Start → follow numbered arrows in order. Paired outlined arrows show where the route doubles back or crosses itself.`
-          : 'Start → follow numbered arrows in order. Paired outlined arrows show where the route doubles back or crosses itself.'}
+          ? `${rejectedPreview.label} (dashed orange) · Start → follow numbered arrows in order (green → yellow → red). Markers tighten at turns; paired outlined arrows mark reversals or crossings.`
+          : 'Start → follow numbered arrows in order (green → yellow → red). Markers tighten at turns; paired outlined arrows mark reversals or crossings.'}
       </p>
     </div>
   );

@@ -6,6 +6,8 @@ import {
   cumulativeRouteLengthMeters,
   directionBadgeHtml,
   directionMarkerAccessibleLabel,
+  directionMarkerProgressColor,
+  directionMarkerProgressInk,
   sampleDirectionMarkers,
   segmentLengthMeters,
 } from './route-direction';
@@ -28,6 +30,25 @@ function ambiguityKinds(markers: DirectionMarker[]) {
     before: markers.filter((marker) => marker.kind === 'ambiguity-before'),
     after: markers.filter((marker) => marker.kind === 'ambiguity-after'),
   };
+}
+
+function turnKinds(markers: DirectionMarker[]) {
+  return {
+    before: markers.filter((marker) => marker.kind === 'turn-before'),
+    after: markers.filter((marker) => marker.kind === 'turn-after'),
+  };
+}
+
+function isIntentionalPairKinds(
+  left: DirectionMarker['kind'],
+  right: DirectionMarker['kind'],
+): boolean {
+  return (
+    (left === 'ambiguity-before' && right === 'ambiguity-after') ||
+    (left === 'ambiguity-after' && right === 'ambiguity-before') ||
+    (left === 'turn-before' && right === 'turn-after') ||
+    (left === 'turn-after' && right === 'turn-before')
+  );
 }
 
 /** ~1.1 km rectangular loop with 90° corners. */
@@ -174,8 +195,8 @@ describe('route-direction geometry', () => {
     const route: LonLat[] = Array.from({ length: 21 }, (_, index) => [0, index * 0.01]);
     const markers = sampleDirectionMarkers(route, SHORT_ROUTE_OPTIONS);
     assertTravelOrder(markers);
-    expect(markers.length).toBeGreaterThanOrEqual(6);
-    expect(markers.length).toBeLessThanOrEqual(8);
+    expect(markers.length).toBeGreaterThanOrEqual(12);
+    expect(markers.length).toBeLessThanOrEqual(40);
   });
 
   it('places marker 1 shortly after departure on straight routes', () => {
@@ -184,14 +205,15 @@ describe('route-direction geometry', () => {
     const markers = sampleDirectionMarkers(route, SHORT_ROUTE_OPTIONS);
 
     expect(markers[0]!.distanceMeters).toBeGreaterThan(total * 0.04);
-    expect(markers[0]!.distanceMeters).toBeLessThan(total * 0.25);
+    const firstHalf = total * 0.3;
+    expect(markers[0]!.distanceMeters).toBeLessThan(firstHalf);
     expect(total - markers[markers.length - 1]!.distanceMeters).toBeGreaterThan(total * 0.04);
   });
 
-  it('caps marker count between 6 and 8', () => {
+  it('caps marker count within the configured density budget', () => {
     const markers = sampleDirectionMarkers(rectangularLoop());
     expect(markers.length).toBeGreaterThanOrEqual(6);
-    expect(markers.length).toBeLessThanOrEqual(8);
+    expect(markers.length).toBeLessThanOrEqual(40);
   });
 
   it('places marker 1 after the configured start exclusion distance', () => {
@@ -234,6 +256,7 @@ describe('route-direction geometry', () => {
       bearing: 90,
       sequence: 4,
       distanceMeters: 100,
+      progress: 0.4,
       kind: 'ambiguity-before',
     };
     const after: DirectionMarker = {
@@ -242,6 +265,7 @@ describe('route-direction geometry', () => {
       bearing: 270,
       sequence: 5,
       distanceMeters: 160,
+      progress: 0.6,
       kind: 'ambiguity-after',
     };
 
@@ -257,6 +281,21 @@ describe('route-direction geometry', () => {
       'Direction 2.',
     );
   });
+
+  it('tints badges green near the start and red near the finish', () => {
+    expect(directionMarkerProgressColor(0)).toContain('120');
+    expect(directionMarkerProgressColor(0.5)).toContain('60');
+    expect(directionMarkerProgressColor(1)).toContain('0.0');
+    expect(directionMarkerProgressInk(0)).toBe('#f5fff9');
+    expect(directionMarkerProgressInk(0.5)).toBe('#0a1510');
+    expect(directionMarkerProgressInk(1)).toBe('#f5fff9');
+
+    const early = directionBadgeHtml(1, 90, { kind: 'regular', progress: 0.05 });
+    const late = directionBadgeHtml(8, 90, { kind: 'regular', progress: 0.95 });
+    expect(early).toContain('--rv-direction-fill:');
+    expect(early).toContain(directionMarkerProgressColor(0.05));
+    expect(late).toContain(directionMarkerProgressColor(0.95));
+  });
 });
 
 describe('route-direction ambiguity scenarios', () => {
@@ -265,6 +304,34 @@ describe('route-direction ambiguity scenarios', () => {
     assertTravelOrder(markers);
     expect(ambiguityKinds(markers).before).toHaveLength(0);
     expect(ambiguityKinds(markers).after).toHaveLength(0);
+  });
+
+  it('places before/after markers around a significant corner turn', () => {
+    const markers = sampleDirectionMarkers(rectangularLoop());
+    assertTravelOrder(markers);
+    const turns = turnKinds(markers);
+    expect(turns.before.length).toBeGreaterThanOrEqual(1);
+    expect(turns.after.length).toBe(turns.before.length);
+
+    const firstBefore = turns.before[0]!;
+    const matchingAfter = turns.after.find((marker) => marker.sequence > firstBefore.sequence);
+    expect(matchingAfter).toBeDefined();
+    expect(bearingDifferenceDegrees(firstBefore.bearing, matchingAfter!.bearing)).toBeGreaterThan(
+      45,
+    );
+  });
+
+  it('keeps consecutive markers from leaving large empty stretches', () => {
+    // ~12 km straight corridor — dense enough that maxGap can be satisfied.
+    const route: LonLat[] = Array.from({ length: 12 }, (_, index) => [0, index * 0.01]);
+    const markers = sampleDirectionMarkers(route, SHORT_ROUTE_OPTIONS);
+    assertTravelOrder(markers);
+    expect(markers.length).toBeGreaterThanOrEqual(12);
+    for (let index = 1; index < markers.length; index += 1) {
+      expect(
+        markers[index]!.distanceMeters - markers[index - 1]!.distanceMeters,
+      ).toBeLessThanOrEqual(600);
+    }
   });
 
   it('creates exactly one before/after pair on a hairpin U-turn', () => {
@@ -330,9 +397,91 @@ describe('route-direction ambiguity scenarios', () => {
   it('preserves ordering and enforces maximum markers with multiple reversals', () => {
     const markers = sampleDirectionMarkers(multipleReversalsRoute());
     assertTravelOrder(markers);
-    expect(markers.length).toBeLessThanOrEqual(8);
+    expect(markers.length).toBeLessThanOrEqual(40);
     expect(ambiguityKinds(markers).before.length).toBeGreaterThanOrEqual(2);
     expect(ambiguityKinds(markers).after.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('does not flood markers on a long same-road out-and-back corridor', () => {
+    // ~5.5 km outbound, sharp turnaround, same centerline return.
+    const outbound: LonLat[] = Array.from({ length: 26 }, (_, index) => [0, index * 0.002]);
+    const returnLeg: LonLat[] = Array.from({ length: 25 }, (_, index) => [
+      0.00005,
+      (24 - index) * 0.002,
+    ]);
+    const route: LonLat[] = [...outbound, ...returnLeg];
+    const markers = sampleDirectionMarkers(route);
+
+    assertTravelOrder(markers);
+    expect(markers.length).toBeLessThanOrEqual(40);
+    expect(markers[markers.length - 1]!.sequence).toBe(markers.length);
+
+    const pairs = ambiguityKinds(markers);
+    expect(pairs.before.length).toBeGreaterThanOrEqual(1);
+    expect(pairs.after.length).toBeGreaterThanOrEqual(1);
+    expect(pairs.before.length).toBe(pairs.after.length);
+    expect(pairs.before.length + pairs.after.length).toBeLessThanOrEqual(40);
+
+    for (let index = 0; index < markers.length; index += 1) {
+      for (let other = index + 1; other < markers.length; other += 1) {
+        const left = markers[index]!;
+        const right = markers[other]!;
+        if (isIntentionalPairKinds(left.kind, right.kind)) {
+          continue;
+        }
+        expect(
+          segmentLengthMeters([left.lon, left.lat], [right.lon, right.lat]),
+        ).toBeGreaterThanOrEqual(40);
+      }
+    }
+  });
+
+  it('keeps non-pair markers spatially separated on stacked outbound/return geometry', () => {
+    const outbound: LonLat[] = Array.from({ length: 11 }, (_, index) => [0, index * 0.001]);
+    const inbound: LonLat[] = Array.from({ length: 10 }, (_, index) => [
+      0.00002,
+      (9 - index) * 0.001,
+    ]);
+    const markers = sampleDirectionMarkers([...outbound, ...inbound], {
+      minRouteLengthMeters: 100,
+      minSpatialSeparationMeters: 40,
+    });
+    assertTravelOrder(markers);
+
+    for (let index = 0; index < markers.length; index += 1) {
+      for (let other = index + 1; other < markers.length; other += 1) {
+        const left = markers[index]!;
+        const right = markers[other]!;
+        if (isIntentionalPairKinds(left.kind, right.kind)) {
+          continue;
+        }
+        expect(
+          segmentLengthMeters([left.lon, left.lat], [right.lon, right.lat]),
+        ).toBeGreaterThanOrEqual(40);
+      }
+    }
+  });
+
+  it('assigns increasing progress from start toward finish', () => {
+    const route: LonLat[] = Array.from({ length: 21 }, (_, index) => [0, index * 0.01]);
+    const markers = sampleDirectionMarkers(route, SHORT_ROUTE_OPTIONS);
+    assertTravelOrder(markers);
+    expect(markers[0]!.progress).toBeGreaterThan(0);
+    expect(markers[markers.length - 1]!.progress).toBeLessThan(1);
+    expect(markers[0]!.progress).toBeLessThan(markers[markers.length - 1]!.progress);
+  });
+
+  it('hard-caps markers even when ambiguity candidates exceed the budget', () => {
+    const route: LonLat[] = [];
+    for (let leg = 0; leg < 6; leg += 1) {
+      const base = leg * 0.004;
+      route.push([0, base], [0, base + 0.002], [0.0002, base + 0.0022], [0, base + 0.002]);
+    }
+    route.push([0, 0.028]);
+
+    const markers = sampleDirectionMarkers(route, { maxMarkers: 8, minMarkers: 6 });
+    assertTravelOrder(markers);
+    expect(markers.length).toBeLessThanOrEqual(8);
   });
 
   it('does not add a redundant ambiguity pair at the start on start/finish overlap', () => {
