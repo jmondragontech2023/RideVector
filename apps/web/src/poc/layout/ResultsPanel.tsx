@@ -34,6 +34,7 @@ type Props = {
   onFeedbackReasonChange: (value: string) => void;
   onDeviationAcceptableChange: (value: boolean) => void;
   onSaveSelected: () => void;
+  onDownloadGpx: () => void;
   onOpenSaved: (route: SavedPocRoute) => void;
   onDeleteSaved: (id: string) => void;
 };
@@ -64,6 +65,7 @@ export function ResultsPanel({
   onFeedbackReasonChange,
   onDeviationAcceptableChange,
   onSaveSelected,
+  onDownloadGpx,
   onOpenSaved,
   onDeleteSaved,
 }: Props) {
@@ -172,6 +174,7 @@ export function ResultsPanel({
               onFeedbackReasonChange={onFeedbackReasonChange}
               onDeviationAcceptableChange={onDeviationAcceptableChange}
               onSaveSelected={onSaveSelected}
+              onDownloadGpx={onDownloadGpx}
               onOpenSaved={onOpenSaved}
               onDeleteSaved={onDeleteSaved}
             />

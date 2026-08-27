@@ -16,6 +16,7 @@ type Props = {
   onFeedbackReasonChange: (value: string) => void;
   onDeviationAcceptableChange: (value: boolean) => void;
   onSaveSelected: () => void;
+  onDownloadGpx: () => void;
   onOpenSaved: (route: SavedPocRoute) => void;
   onDeleteSaved: (id: string) => void;
 };
@@ -33,6 +34,7 @@ export function SelectedRoutePanel({
   onFeedbackReasonChange,
   onDeviationAcceptableChange,
   onSaveSelected,
+  onDownloadGpx,
   onOpenSaved,
   onDeleteSaved,
 }: Props) {
@@ -93,9 +95,18 @@ export function SelectedRoutePanel({
             </label>
           </fieldset>
         ) : null}
-        <button type="button" onClick={onSaveSelected}>
-          Save selected locally
-        </button>
+        <div className="actions">
+          <button type="button" onClick={onSaveSelected}>
+            Save selected locally
+          </button>
+          <button type="button" className="secondary" onClick={onDownloadGpx}>
+            Download GPX
+          </button>
+        </div>
+        <p className="subtle location-disclosure">
+          GPX includes this route&apos;s precise location. Import into Garmin Connect under Training
+          &amp; Planning → Courses → Import, then sync to your device.
+        </p>
       </fieldset>
 
       {saveMessage ? <p className="status">{saveMessage}</p> : null}

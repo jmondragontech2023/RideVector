@@ -55,6 +55,8 @@ import {
 import { GenerationSession, shouldApplyGenerationResponse } from './poc/generation-session';
 import { LocationSession, shouldApplyLocationResult } from './poc/location-session';
 import { createMapRecenterRequest, type MapRecenterRequest } from './poc/map-recenter';
+import { buildGpxDocument, GpxExportError } from './poc/gpx';
+import { downloadGpxFile } from './poc/gpx-download';
 import { smokeContractTitle } from './smokeContract';
 import { useAppearance } from './poc/use-appearance';
 
@@ -287,6 +289,31 @@ export function App() {
     setCosting(fixture.costing);
     setSeed(fixture.seed);
     setSaveMessage(`Loaded fixture: ${fixture.label}`);
+  }
+
+  function handleDownloadGpx() {
+    if (!selected || !result) {
+      setSaveMessage('Generate and select a route before downloading GPX.');
+      return;
+    }
+
+    try {
+      const exported = buildGpxDocument({
+        geometry: selected.geometry,
+        routeName: selected.name,
+        costing,
+        seed: result.seed,
+        distanceMeters: selected.distanceMeters,
+      });
+      downloadGpxFile(exported.xml, exported.filename);
+      setSaveMessage(`Downloaded ${exported.filename}.`);
+    } catch (error) {
+      const message =
+        error instanceof GpxExportError
+          ? error.message
+          : 'Unable to download GPX for the selected route.';
+      setSaveMessage(message);
+    }
   }
 
   function handleSaveSelected() {
@@ -594,6 +621,7 @@ export function App() {
             onFeedbackReasonChange={setFeedbackReason}
             onDeviationAcceptableChange={setDeviationAcceptable}
             onSaveSelected={handleSaveSelected}
+            onDownloadGpx={handleDownloadGpx}
             onOpenSaved={handleOpenSaved}
             onDeleteSaved={handleDeleteSaved}
           />
