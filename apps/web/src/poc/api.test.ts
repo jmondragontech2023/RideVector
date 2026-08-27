@@ -33,6 +33,8 @@ describe('generatePocRoutes client', () => {
               duplicate_candidate: 0,
             },
           },
+          distanceFlexibilityMeters: 4828.032,
+          requestedRangeMeters: { min: 5171.968, max: 14828.032 },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
@@ -42,6 +44,7 @@ describe('generatePocRoutes client', () => {
     const result = await generatePocRoutes({
       start: { latitude: 37.77, longitude: -122.42 },
       targetDistanceMeters: 10_000,
+      distanceFlexibilityMeters: 4828.032,
       costing: 'road',
       seed: 2,
     });
@@ -69,6 +72,7 @@ describe('generatePocRoutes client', () => {
       generatePocRoutes({
         start: { latitude: 37.77, longitude: -122.42 },
         targetDistanceMeters: 10_000,
+        distanceFlexibilityMeters: 4828.032,
         costing: 'gravel',
       }),
     ).rejects.toBeInstanceOf(PocApiError);

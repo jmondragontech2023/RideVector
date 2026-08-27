@@ -1,4 +1,5 @@
-import { POC_CONFIG, type PocCostingMode } from './config';
+import { METERS_PER_MILE, POC_CONFIG, type PocCostingMode } from './config';
+import { defaultDistanceFlexibilityMeters } from './distance-range';
 import type { PocGenerateRequest, PocValidationIssue } from './types';
 
 function isFiniteNumber(value: unknown): value is number {
@@ -78,6 +79,26 @@ export function validatePocGenerateRequest(
     details.push({ field: 'costing', reason: 'must be "road" or "gravel"' });
   }
 
+  let flexMeters = defaultDistanceFlexibilityMeters();
+  if (record.distanceFlexibilityMeters !== undefined) {
+    if (!isFiniteNumber(record.distanceFlexibilityMeters)) {
+      details.push({ field: 'distanceFlexibilityMeters', reason: 'must be a finite number' });
+    } else {
+      flexMeters = record.distanceFlexibilityMeters;
+      if (flexMeters <= 0) {
+        details.push({
+          field: 'distanceFlexibilityMeters',
+          reason: 'must be greater than zero',
+        });
+      } else if (flexMeters > POC_CONFIG.maxDistanceFlexibilityMiles * METERS_PER_MILE) {
+        details.push({
+          field: 'distanceFlexibilityMeters',
+          reason: `must be at most ${POC_CONFIG.maxDistanceFlexibilityMiles} miles`,
+        });
+      }
+    }
+  }
+
   if (record.seed !== undefined && !isInteger(record.seed)) {
     details.push({ field: 'seed', reason: 'must be an integer when provided' });
   }
@@ -97,6 +118,7 @@ export function validatePocGenerateRequest(
         longitude: startRecord.longitude,
       },
       targetDistanceMeters: record.targetDistanceMeters as number,
+      distanceFlexibilityMeters: flexMeters,
       costing: record.costing as PocCostingMode,
       seed,
     },

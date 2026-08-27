@@ -1,5 +1,7 @@
 import { METERS_PER_MILE } from './units';
 
+export const DEFAULT_DISTANCE_FLEXIBILITY_MILES = 3;
+
 export type PocCostingMode = 'road' | 'gravel';
 
 export type PocCoordinate = {
@@ -12,6 +14,8 @@ export type PocLineString = {
   coordinates: Array<[number, number]>;
 };
 
+export type PocDistanceClassification = 'within_range' | 'near_match';
+
 export type PocAlternative = {
   id: string;
   name: string;
@@ -21,6 +25,10 @@ export type PocAlternative = {
   distanceFromTargetMeters: number;
   bearingFamily: string;
   warnings: string[];
+  distanceClassification: PocDistanceClassification;
+  requestedRangeMeters: { min: number; max: number };
+  rangeDeviationMeters?: number;
+  targetDifferencePercent?: number;
 };
 
 export type PocRejectionReason =
@@ -68,11 +76,14 @@ export type PocGenerateResponse = {
   warnings: string[];
   candidateDiagnostics: PocCandidateDiagnostic[];
   diagnosticSummary: PocDiagnosticSummary;
+  distanceFlexibilityMeters: number;
+  requestedRangeMeters: { min: number; max: number };
 };
 
 export type PocGenerateRequestBody = {
   start: PocCoordinate;
   targetDistanceMeters: number;
+  distanceFlexibilityMeters: number;
   costing: PocCostingMode;
   seed?: number;
 };
@@ -86,3 +97,21 @@ export type ApiErrorBody = {
 };
 
 export { METERS_PER_MILE };
+
+export function formatAcceptedRangeLabel(requestedRangeMeters: {
+  min: number;
+  max: number;
+}): string {
+  const low = requestedRangeMeters.min / METERS_PER_MILE;
+  const high = requestedRangeMeters.max / METERS_PER_MILE;
+  return `Accepted range: ${low.toFixed(1)}–${high.toFixed(1)} miles.`;
+}
+
+export function formatNearMatchDeviation(alternative: PocAlternative): string | null {
+  if (alternative.distanceClassification !== 'near_match') {
+    return null;
+  }
+  const miles = Math.abs(alternative.rangeDeviationMeters ?? 0) / METERS_PER_MILE;
+  const direction = (alternative.rangeDeviationMeters ?? 0) < 0 ? 'below' : 'above';
+  return `${miles.toFixed(1)} miles ${direction} your requested range.`;
+}

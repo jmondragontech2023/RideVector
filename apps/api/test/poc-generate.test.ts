@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { METERS_PER_MILE } from '../src/poc/config';
 import { generatePocRoutes } from '../src/poc/generate';
 import { isPocGenerationEnabled, handlePocGenerate } from '../src/poc/handler';
 import type {
@@ -53,9 +54,11 @@ class MockRoutingProvider implements RoutingProvider {
 }
 
 describe('generatePocRoutes with mocked provider', () => {
+  const flexMeters = 3 * METERS_PER_MILE;
   const request = {
     start: { latitude: 37.7749, longitude: -122.4194 },
     targetDistanceMeters: 20_000,
+    distanceFlexibilityMeters: flexMeters,
     costing: 'road' as const,
     seed: 3,
   };
@@ -88,7 +91,7 @@ describe('generatePocRoutes with mocked provider', () => {
     expect(result.alternatives.length).toBeGreaterThanOrEqual(1);
     expect(result.alternatives.length).toBeLessThanOrEqual(3);
     expect(result.alternatives[0]?.name).toBe('Route A');
-    expect(result.alternatives[0]?.geometry.type).toBe('LineString');
+    expect(result.alternatives[0]?.distanceClassification).toBe('within_range');
     expect(result.durationMs).toBeGreaterThan(0);
     expect(result.candidateDiagnostics.length).toBeGreaterThan(0);
     expect(result.diagnosticSummary.acceptedCount).toBe(result.acceptedCount);
@@ -184,6 +187,41 @@ describe('generatePocRoutes with mocked provider', () => {
     const result = await generatePocRoutes(request, { provider });
     expect(result.candidateDiagnostics.length).toBeLessThanOrEqual(10);
     expect(result.attemptedCount).toBeLessThanOrEqual(10);
+  });
+
+  it('returns near matches when no within-range routes exist', async () => {
+    let call = 0;
+    const targetMeters = 12 * METERS_PER_MILE;
+    const nearDistance = 15.8 * METERS_PER_MILE;
+    const provider = new MockRoutingProvider(() => {
+      call += 1;
+      const offset = call * 0.02;
+      return {
+        ok: true,
+        geometry: {
+          type: 'LineString',
+          coordinates: squareLoop(37.77 + offset, -122.42 - offset, 0.03),
+        },
+        distanceMeters: nearDistance,
+        durationSeconds: 3000,
+      };
+    });
+
+    const result = await generatePocRoutes(
+      {
+        ...request,
+        targetDistanceMeters: targetMeters,
+        distanceFlexibilityMeters: 3 * METERS_PER_MILE,
+        seed: 1,
+      },
+      { provider, candidateCount: 6 },
+    );
+
+    expect(result.acceptedCount).toBeGreaterThan(0);
+    expect(result.alternatives.every((alt) => alt.distanceClassification === 'near_match')).toBe(
+      true,
+    );
+    expect(result.warnings.some((warning) => warning.includes('exact range'))).toBe(true);
   });
 });
 

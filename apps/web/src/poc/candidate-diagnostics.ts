@@ -44,19 +44,21 @@ export function canPreviewOnMap(diagnostic: PocCandidateDiagnostic): boolean {
   );
 }
 
-function toleranceBandMiles(targetMeters: number): { low: number; high: number } {
-  const targetMiles = metersToMiles(targetMeters);
+function rangeBandMiles(requestedRangeMeters: { min: number; max: number }): {
+  low: number;
+  high: number;
+} {
   return {
-    low: targetMiles * 0.8,
-    high: targetMiles * 1.2,
+    low: metersToMiles(requestedRangeMeters.min),
+    high: metersToMiles(requestedRangeMeters.max),
   };
 }
 
 function formatRejectionBreakdown(
   counts: Record<PocRejectionReason, number>,
-  targetDistanceMeters: number,
+  requestedRangeMeters: { min: number; max: number },
 ): string[] {
-  const band = toleranceBandMiles(targetDistanceMeters);
+  const band = rangeBandMiles(requestedRangeMeters);
   const parts: string[] = [];
   if (counts.outside_tolerance > 0) {
     parts.push(
@@ -96,14 +98,14 @@ function joinEnglishParts(parts: string[]): string {
 
 function closestSummaryText(
   summary: PocDiagnosticSummary,
-  targetDistanceMeters: number,
+  requestedRangeMeters: { min: number; max: number },
 ): string | null {
   const closest = summary.closestRoutableRejected;
   if (!closest) {
     return null;
   }
 
-  const band = toleranceBandMiles(targetDistanceMeters);
+  const band = rangeBandMiles(requestedRangeMeters);
   const distanceText = formatMiles(closest.distanceMeters, 1);
   const missMiles = metersToMiles(closest.toleranceMissMeters).toFixed(1);
   const missPercent = closest.toleranceMissPercent.toFixed(1);
@@ -118,19 +120,27 @@ function closestSummaryText(
   return `Closest: ${distanceText}, within the ${band.low.toFixed(1)}–${band.high.toFixed(1)} mile range but rejected as a near duplicate.`;
 }
 
-export function buildGenerationSummary(
-  response: PocGenerateResponse,
-  targetDistanceMeters: number,
-): string {
-  const { diagnosticSummary, acceptedCount } = response;
+export function buildGenerationSummary(response: PocGenerateResponse): string {
+  const { diagnosticSummary, acceptedCount, requestedRangeMeters, alternatives, warnings } =
+    response;
   const attempted = diagnosticSummary.attemptedCount;
-  const band = toleranceBandMiles(targetDistanceMeters);
+  const band = rangeBandMiles(requestedRangeMeters);
+  const withinCount = alternatives.filter(
+    (item) => item.distanceClassification === 'within_range',
+  ).length;
+
+  if (acceptedCount > 0 && withinCount === 0) {
+    return (
+      warnings.find((warning) => warning.includes('exact range')) ??
+      'No routes met your exact range. Showing the closest near matches.'
+    );
+  }
 
   if (acceptedCount === 0) {
     const breakdown = joinEnglishParts(
-      formatRejectionBreakdown(diagnosticSummary.rejectionCounts, targetDistanceMeters),
+      formatRejectionBreakdown(diagnosticSummary.rejectionCounts, requestedRangeMeters),
     );
-    const closest = closestSummaryText(diagnosticSummary, targetDistanceMeters);
+    const closest = closestSummaryText(diagnosticSummary, requestedRangeMeters);
     const base = breakdown
       ? `Tried ${attempted} candidates. ${breakdown.charAt(0).toUpperCase()}${breakdown.slice(1)}.`
       : `Tried ${attempted} candidates. None passed filtering.`;
@@ -147,7 +157,7 @@ export function buildGenerationSummary(
   }
 
   const breakdown = joinEnglishParts(
-    formatRejectionBreakdown(diagnosticSummary.rejectionCounts, targetDistanceMeters),
+    formatRejectionBreakdown(diagnosticSummary.rejectionCounts, requestedRangeMeters),
   );
   return `Tried ${attempted} candidates. ${acceptedCount} passed; ${breakdown}.${rangeText}`;
 }

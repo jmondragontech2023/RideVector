@@ -1,3 +1,5 @@
+import { DEFAULT_DISTANCE_FLEXIBILITY_MILES } from './types';
+
 /**
  * Five non-sensitive geographic fixtures for the route-generation POC.
  * Uses public landmarks / synthetic downtown points — never a contributor home.
@@ -13,6 +15,7 @@ export type PocScenarioFixture = {
   /** Public landmark or synthetic downtown point. */
   start: { latitude: number; longitude: number };
   targetDistanceMiles: number;
+  distanceFlexibilityMiles?: number;
   costing: 'road' | 'gravel';
   seed: number;
 };
@@ -60,7 +63,12 @@ export const POC_SCENARIO_FIXTURES: readonly PocScenarioFixture[] = [
     description: 'Public park start in Austin, Texas.',
     start: { latitude: 30.2672, longitude: -97.7731 },
     targetDistanceMiles: 18,
+    distanceFlexibilityMiles: 4,
     costing: 'road',
     seed: 5,
   },
 ] as const;
+
+export function fixtureFlexibilityMiles(fixture: PocScenarioFixture): number {
+  return fixture.distanceFlexibilityMiles ?? DEFAULT_DISTANCE_FLEXIBILITY_MILES;
+}

@@ -16,10 +16,14 @@ export type PocGenerateRequest = {
   start: PocCoordinate;
   /** Canonical target distance in meters. */
   targetDistanceMeters: number;
+  /** ± flexibility around target in meters (user-controlled). */
+  distanceFlexibilityMeters: number;
   costing: PocCostingMode;
   /** Optional integer seed for deterministic anchors. */
   seed?: number;
 };
+
+export type PocDistanceClassification = 'within_range' | 'near_match';
 
 export type PocRejectionReason =
   | 'upstream_failure'
@@ -70,6 +74,10 @@ export type PocAlternative = {
   /** Bearing-family label for debugging. */
   bearingFamily: string;
   warnings: string[];
+  distanceClassification: PocDistanceClassification;
+  requestedRangeMeters: { min: number; max: number };
+  rangeDeviationMeters?: number;
+  targetDifferencePercent?: number;
 };
 
 export type PocGenerateResponse = {
@@ -82,6 +90,8 @@ export type PocGenerateResponse = {
   warnings: string[];
   candidateDiagnostics: PocCandidateDiagnostic[];
   diagnosticSummary: PocDiagnosticSummary;
+  distanceFlexibilityMeters: number;
+  requestedRangeMeters: { min: number; max: number };
 };
 
 export type PocValidationIssue = {

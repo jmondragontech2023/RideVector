@@ -6,6 +6,7 @@ export type SavedPocRoute = {
   label: string;
   start: { latitude: number; longitude: number };
   targetDistanceMeters: number;
+  distanceFlexibilityMeters: number;
   costing: 'road' | 'gravel';
   seed: number;
   alternative: {
@@ -17,10 +18,15 @@ export type SavedPocRoute = {
     distanceFromTargetMeters: number;
     bearingFamily: string;
     warnings: string[];
+    distanceClassification: 'within_range' | 'near_match';
+    requestedRangeMeters: { min: number; max: number };
+    rangeDeviationMeters?: number;
+    targetDifferencePercent?: number;
   };
   feedback?: {
     wouldRide: WouldRide;
     reason?: string;
+    deviationAcceptable?: boolean;
   };
 };
 
@@ -97,11 +103,20 @@ function isLineStringGeometry(
   );
 }
 
+function isRequestedRange(value: unknown): value is { min: number; max: number } {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return isFiniteNumber(record.min) && isFiniteNumber(record.max) && record.max >= record.min;
+}
+
 function isAlternative(value: unknown): value is SavedPocRoute['alternative'] {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return false;
   }
   const record = value as Record<string, unknown>;
+  const classification = record.distanceClassification;
   return (
     typeof record.id === 'string' &&
     typeof record.name === 'string' &&
@@ -111,7 +126,11 @@ function isAlternative(value: unknown): value is SavedPocRoute['alternative'] {
     isFiniteNumber(record.distanceFromTargetMeters) &&
     typeof record.bearingFamily === 'string' &&
     Array.isArray(record.warnings) &&
-    record.warnings.every((item) => typeof item === 'string')
+    record.warnings.every((item) => typeof item === 'string') &&
+    (classification === 'within_range' || classification === 'near_match') &&
+    isRequestedRange(record.requestedRangeMeters) &&
+    (record.rangeDeviationMeters === undefined || isFiniteNumber(record.rangeDeviationMeters)) &&
+    (record.targetDifferencePercent === undefined || isFiniteNumber(record.targetDifferencePercent))
   );
 }
 
@@ -124,9 +143,14 @@ function isFeedback(value: unknown): value is NonNullable<SavedPocRoute['feedbac
     return false;
   }
   if (record.reason === undefined) {
-    return true;
+    return (
+      record.deviationAcceptable === undefined || typeof record.deviationAcceptable === 'boolean'
+    );
   }
-  return typeof record.reason === 'string';
+  return (
+    typeof record.reason === 'string' &&
+    (record.deviationAcceptable === undefined || typeof record.deviationAcceptable === 'boolean')
+  );
 }
 
 function isSavedRoute(value: unknown): value is SavedPocRoute {
@@ -141,6 +165,8 @@ function isSavedRoute(value: unknown): value is SavedPocRoute {
     !isCoordinate(record.start) ||
     !isFiniteNumber(record.targetDistanceMeters) ||
     record.targetDistanceMeters <= 0 ||
+    !isFiniteNumber(record.distanceFlexibilityMeters) ||
+    record.distanceFlexibilityMeters <= 0 ||
     (record.costing !== 'road' && record.costing !== 'gravel') ||
     !isFiniteNumber(record.seed) ||
     !isAlternative(record.alternative)

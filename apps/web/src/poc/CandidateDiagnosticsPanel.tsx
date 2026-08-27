@@ -100,7 +100,7 @@ export function CandidateDiagnosticsPanel({
   previewAttemptNumber,
   onPreviewAttempt,
 }: CandidateDiagnosticsPanelProps) {
-  const summary = buildGenerationSummary(result, targetDistanceMeters);
+  const summary = buildGenerationSummary(result);
 
   return (
     <section className="candidate-diagnostics-block" aria-label="Candidate diagnostics">

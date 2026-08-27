@@ -17,6 +17,28 @@ describe('validatePocGenerateRequest', () => {
     }
   });
 
+  it('defaults distance flexibility to three miles', () => {
+    const result = validatePocGenerateRequest(valid);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.request.distanceFlexibilityMeters).toBeCloseTo(3 * 1609.344);
+    }
+  });
+
+  it('rejects invalid distance flexibility values', () => {
+    const negative = validatePocGenerateRequest({
+      ...valid,
+      distanceFlexibilityMeters: -1,
+    });
+    expect(negative.ok).toBe(false);
+
+    const excessive = validatePocGenerateRequest({
+      ...valid,
+      distanceFlexibilityMeters: 30 * 1609.344,
+    });
+    expect(excessive.ok).toBe(false);
+  });
+
   it('rejects out-of-bounds coordinates', () => {
     const result = validatePocGenerateRequest({
       ...valid,

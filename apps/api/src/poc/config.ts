@@ -7,8 +7,19 @@
 export const METERS_PER_MILE = 1609.344;
 
 export const POC_CONFIG = {
-  /** ±20% of target distance (provisional). */
+  /**
+   * Historical POC default (±20% of target). Superseded by user-controlled
+   * `distanceFlexibilityMeters`; retained for documented context only.
+   */
   toleranceFraction: 0.2,
+  /** Default distance flexibility for new POC sessions (miles). */
+  defaultDistanceFlexibilityMiles: 3,
+  /** Maximum allowed distance flexibility input (miles). */
+  maxDistanceFlexibilityMiles: 25,
+  /** Near-match fallback: max miles beyond the requested min/max range. */
+  nearMatchExtraMiles: 2,
+  /** Near-match fallback: max absolute difference as a fraction of target. */
+  nearMatchMaxTargetFraction: 0.35,
   /** Attempt this many candidates first. */
   initialCandidateCount: 6,
   /** Cap upstream attempts when more alternatives are needed. */

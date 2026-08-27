@@ -1,11 +1,21 @@
-import { buildAnchorPatterns, geometryMidpoint } from './anchors';
+import { buildAnchorPatterns } from './anchors';
 import { POC_CONFIG } from './config';
+import {
+  acceptedRangeMeters,
+  buildNearMatchWarning,
+  classifyRouteDistance,
+  targetDifferencePercent,
+} from './distance-range';
 import {
   buildCandidateDiagnostic,
   buildDiagnosticSummary,
   sanitizeDiagnosticsForResponse,
 } from './diagnostics';
-import { isNearDuplicateMidpoint } from './diversity';
+import {
+  geometryMidpointForCandidate,
+  selectRouteAlternatives,
+  type RoutableCandidate,
+} from './selection';
 import type { RoutingProvider } from './routing/provider';
 import type {
   PocAlternative,
@@ -29,11 +39,6 @@ function emptyRejections(): Record<PocRejectionReason, number> {
     outside_tolerance: 0,
     duplicate_candidate: 0,
   };
-}
-
-function withinTolerance(distanceMeters: number, targetMeters: number): boolean {
-  const delta = Math.abs(distanceMeters - targetMeters);
-  return delta <= targetMeters * POC_CONFIG.toleranceFraction;
 }
 
 function alternativeName(index: number): string {
@@ -67,6 +72,52 @@ type RoutedCandidate = {
   result: Awaited<ReturnType<RoutingProvider['routeLoop']>>;
 };
 
+function toAlternative(
+  candidate: RoutableCandidate,
+  index: number,
+  seed: number,
+  targetDistanceMeters: number,
+  distanceFlexibilityMeters: number,
+): PocAlternative {
+  const requestedRangeMeters = acceptedRangeMeters(targetDistanceMeters, distanceFlexibilityMeters);
+  const warnings =
+    candidate.classification === 'near_match'
+      ? [
+          buildNearMatchWarning(
+            candidate.distanceMeters,
+            targetDistanceMeters,
+            distanceFlexibilityMeters,
+          ),
+        ]
+      : [];
+
+  return {
+    id: `poc-${seed}-${index}-${candidate.bearingFamily}`,
+    name: alternativeName(index),
+    geometry: candidate.geometry,
+    distanceMeters: candidate.distanceMeters,
+    durationSeconds: candidate.durationSeconds,
+    distanceFromTargetMeters: candidate.distanceFromTargetMeters,
+    bearingFamily: candidate.bearingFamily,
+    warnings,
+    distanceClassification:
+      candidate.classification === 'near_match' ? 'near_match' : 'within_range',
+    requestedRangeMeters,
+    ...(candidate.classification === 'near_match'
+      ? {
+          rangeDeviationMeters:
+            candidate.distanceMeters < requestedRangeMeters.min
+              ? candidate.distanceMeters - requestedRangeMeters.min
+              : candidate.distanceMeters - requestedRangeMeters.max,
+          targetDifferencePercent: targetDifferencePercent(
+            candidate.distanceMeters,
+            targetDistanceMeters,
+          ),
+        }
+      : {}),
+  };
+}
+
 /**
  * Generates up to three factual loop alternatives via seeded anchors.
  * Deterministic for identical normalized input and seed (given deterministic provider).
@@ -80,20 +131,14 @@ export async function generatePocRoutes(
   const warnings: string[] = [];
   const seed = request.seed;
   const candidateDiagnostics: PocCandidateDiagnostic[] = [];
+  const routableCandidates: RoutableCandidate[] = [];
+  const requestedRangeMeters = acceptedRangeMeters(
+    request.targetDistanceMeters,
+    request.distanceFlexibilityMeters,
+  );
 
   const initialCount = deps.candidateCount ?? POC_CONFIG.initialCandidateCount;
   let attemptCount = Math.min(initialCount, POC_CONFIG.maxCandidateCount);
-
-  const accepted: Array<{
-    id: string;
-    geometry: PocAlternative['geometry'];
-    distanceMeters: number;
-    durationSeconds: number;
-    distanceFromTargetMeters: number;
-    bearingFamily: string;
-    warnings: string[];
-    midpoint: ReturnType<typeof geometryMidpoint>;
-  }> = [];
 
   const runBatch = async (from: number, to: number): Promise<void> => {
     const patterns = buildAnchorPatterns(
@@ -128,6 +173,7 @@ export async function generatePocRoutes(
             outcome: 'rejected',
             rejectionReason: result.reason,
             targetDistanceMeters: request.targetDistanceMeters,
+            distanceFlexibilityMeters: request.distanceFlexibilityMeters,
           }),
         );
         continue;
@@ -142,14 +188,20 @@ export async function generatePocRoutes(
             outcome: 'rejected',
             rejectionReason: 'malformed_geometry',
             targetDistanceMeters: request.targetDistanceMeters,
+            distanceFlexibilityMeters: request.distanceFlexibilityMeters,
           }),
         );
         continue;
       }
 
       const distanceFromTargetMeters = result.distanceMeters - request.targetDistanceMeters;
+      const classification = classifyRouteDistance(
+        result.distanceMeters,
+        request.targetDistanceMeters,
+        request.distanceFlexibilityMeters,
+      );
 
-      if (!withinTolerance(result.distanceMeters, request.targetDistanceMeters)) {
+      if (classification === 'outside') {
         rejections.outside_tolerance += 1;
         candidateDiagnostics.push(
           buildCandidateDiagnostic({
@@ -162,84 +214,29 @@ export async function generatePocRoutes(
             distanceFromTargetMeters,
             geometry: result.geometry,
             targetDistanceMeters: request.targetDistanceMeters,
+            distanceFlexibilityMeters: request.distanceFlexibilityMeters,
           }),
         );
         continue;
       }
 
-      const midpoint = geometryMidpoint(result.geometry.coordinates);
-      const isDuplicate = isNearDuplicateMidpoint(
-        midpoint,
-        accepted.map((item) => item.midpoint),
-        request.targetDistanceMeters,
-      );
-
-      if (isDuplicate) {
-        rejections.duplicate_candidate += 1;
-        candidateDiagnostics.push(
-          buildCandidateDiagnostic({
-            attemptNumber,
-            bearingFamily,
-            outcome: 'rejected',
-            rejectionReason: 'duplicate_candidate',
-            distanceMeters: result.distanceMeters,
-            durationSeconds: result.durationSeconds,
-            distanceFromTargetMeters,
-            geometry: result.geometry,
-            targetDistanceMeters: request.targetDistanceMeters,
-          }),
-        );
-        continue;
-      }
-
-      if (accepted.length >= POC_CONFIG.maxAlternatives) {
-        candidateDiagnostics.push(
-          buildCandidateDiagnostic({
-            attemptNumber,
-            bearingFamily,
-            outcome: 'rejected',
-            distanceMeters: result.distanceMeters,
-            durationSeconds: result.durationSeconds,
-            distanceFromTargetMeters,
-            geometry: result.geometry,
-            targetDistanceMeters: request.targetDistanceMeters,
-          }),
-        );
-        continue;
-      }
-
-      const routeName = alternativeName(accepted.length);
-      accepted.push({
+      routableCandidates.push({
+        attemptNumber,
+        bearingFamily,
         geometry: result.geometry,
         distanceMeters: result.distanceMeters,
         durationSeconds: result.durationSeconds,
         distanceFromTargetMeters,
-        bearingFamily,
-        warnings: [],
-        midpoint,
-        id: `poc-${seed}-${accepted.length}-${bearingFamily}`,
+        midpoint: geometryMidpointForCandidate(result.geometry),
+        classification,
       });
-
-      candidateDiagnostics.push(
-        buildCandidateDiagnostic({
-          attemptNumber,
-          bearingFamily,
-          outcome: 'accepted',
-          distanceMeters: result.distanceMeters,
-          durationSeconds: result.durationSeconds,
-          distanceFromTargetMeters,
-          geometry: result.geometry,
-          targetDistanceMeters: request.targetDistanceMeters,
-          acceptedRouteName: routeName,
-        }),
-      );
     }
   };
 
   await runBatch(0, attemptCount);
 
   if (
-    accepted.length < 2 &&
+    routableCandidates.filter((item) => item.classification === 'within_range').length < 2 &&
     attemptCount < POC_CONFIG.maxCandidateCount &&
     deps.candidateCount === undefined
   ) {
@@ -248,26 +245,90 @@ export async function generatePocRoutes(
     attemptCount = expanded;
   }
 
-  const alternatives: PocAlternative[] = accepted
-    .slice(0, POC_CONFIG.maxAlternatives)
-    .map((item, index) => {
-      return {
-        id: item.id,
-        name: alternativeName(index),
-        geometry: item.geometry,
-        distanceMeters: item.distanceMeters,
-        durationSeconds: item.durationSeconds,
-        distanceFromTargetMeters: item.distanceFromTargetMeters,
-        bearingFamily: item.bearingFamily,
-        warnings: item.warnings,
-      };
-    });
+  const selection = selectRouteAlternatives(routableCandidates, request.targetDistanceMeters);
+  const alternatives = selection.selected.map((candidate, index) =>
+    toAlternative(
+      candidate,
+      index,
+      seed,
+      request.targetDistanceMeters,
+      request.distanceFlexibilityMeters,
+    ),
+  );
+
+  for (const [index, candidate] of selection.selected.entries()) {
+    candidateDiagnostics.push(
+      buildCandidateDiagnostic({
+        attemptNumber: candidate.attemptNumber,
+        bearingFamily: candidate.bearingFamily,
+        outcome: 'accepted',
+        distanceMeters: candidate.distanceMeters,
+        durationSeconds: candidate.durationSeconds,
+        distanceFromTargetMeters: candidate.distanceFromTargetMeters,
+        geometry: candidate.geometry,
+        targetDistanceMeters: request.targetDistanceMeters,
+        distanceFlexibilityMeters: request.distanceFlexibilityMeters,
+        acceptedRouteName: alternativeName(index),
+        distanceClassification:
+          candidate.classification === 'near_match' ? 'near_match' : 'within_range',
+      }),
+    );
+  }
+
+  for (const candidate of selection.duplicates) {
+    rejections.duplicate_candidate += 1;
+    candidateDiagnostics.push(
+      buildCandidateDiagnostic({
+        attemptNumber: candidate.attemptNumber,
+        bearingFamily: candidate.bearingFamily,
+        outcome: 'rejected',
+        rejectionReason: 'duplicate_candidate',
+        distanceMeters: candidate.distanceMeters,
+        durationSeconds: candidate.durationSeconds,
+        distanceFromTargetMeters: candidate.distanceFromTargetMeters,
+        geometry: candidate.geometry,
+        targetDistanceMeters: request.targetDistanceMeters,
+        distanceFlexibilityMeters: request.distanceFlexibilityMeters,
+      }),
+    );
+  }
+
+  for (const candidate of selection.notSelected) {
+    candidateDiagnostics.push(
+      buildCandidateDiagnostic({
+        attemptNumber: candidate.attemptNumber,
+        bearingFamily: candidate.bearingFamily,
+        outcome: 'rejected',
+        distanceMeters: candidate.distanceMeters,
+        durationSeconds: candidate.durationSeconds,
+        distanceFromTargetMeters: candidate.distanceFromTargetMeters,
+        geometry: candidate.geometry,
+        targetDistanceMeters: request.targetDistanceMeters,
+        distanceFlexibilityMeters: request.distanceFlexibilityMeters,
+      }),
+    );
+  }
+
+  candidateDiagnostics.sort((left, right) => left.attemptNumber - right.attemptNumber);
+
+  const withinRangeCount = alternatives.filter(
+    (item) => item.distanceClassification === 'within_range',
+  ).length;
+  const nearMatchCount = alternatives.filter(
+    (item) => item.distanceClassification === 'near_match',
+  ).length;
 
   if (alternatives.length === 0) {
     warnings.push('No valid loop candidates remained after filtering.');
-  } else if (alternatives.length < POC_CONFIG.maxAlternatives) {
+  } else if (withinRangeCount === 0 && nearMatchCount > 0) {
     warnings.push(
-      `Only ${alternatives.length} distinct alternative(s) satisfied tolerance and diversity checks.`,
+      nearMatchCount === 1
+        ? 'No routes met your exact range. Showing the closest near match.'
+        : 'No routes met your exact range. Showing the two closest near matches.',
+    );
+  } else if (alternatives.length < POC_CONFIG.maxAlternatives && nearMatchCount === 0) {
+    warnings.push(
+      `Only ${alternatives.length} distinct alternative(s) satisfied range and diversity checks.`,
     );
   }
 
@@ -285,10 +346,13 @@ export async function generatePocRoutes(
     candidateDiagnostics: boundedDiagnostics,
     diagnosticSummary: buildDiagnosticSummary({
       targetDistanceMeters: request.targetDistanceMeters,
+      distanceFlexibilityMeters: request.distanceFlexibilityMeters,
       diagnostics: boundedDiagnostics,
       rejections,
       attemptedCount: attemptCount,
       acceptedCount: alternatives.length,
     }),
+    distanceFlexibilityMeters: request.distanceFlexibilityMeters,
+    requestedRangeMeters,
   };
 }

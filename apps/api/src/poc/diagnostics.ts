@@ -1,8 +1,10 @@
 import { METERS_PER_MILE, POC_CONFIG } from './config';
+import { acceptedRangeMeters, rangeDeviationMeters } from './distance-range';
 import type {
   PocCandidateDiagnostic,
   PocCandidateOutcome,
   PocDiagnosticSummary,
+  PocDistanceClassification,
   PocLineString,
   PocRejectionReason,
 } from './types';
@@ -17,16 +19,10 @@ export type BuildDiagnosticInput = {
   distanceFromTargetMeters?: number;
   geometry?: PocLineString;
   targetDistanceMeters: number;
+  distanceFlexibilityMeters: number;
   acceptedRouteName?: string;
+  distanceClassification?: PocDistanceClassification;
 };
-
-function toleranceBounds(targetMeters: number): { min: number; max: number } {
-  const delta = targetMeters * POC_CONFIG.toleranceFraction;
-  return {
-    min: targetMeters - delta,
-    max: targetMeters + delta,
-  };
-}
 
 function formatDistanceMiles(meters: number, digits = 1): string {
   return `${(meters / METERS_PER_MILE).toFixed(digits)}`;
@@ -36,13 +32,22 @@ function buildExplanation(input: BuildDiagnosticInput): string {
   const miles =
     input.distanceMeters !== undefined ? formatDistanceMiles(input.distanceMeters) : null;
   const targetMiles = formatDistanceMiles(input.targetDistanceMeters);
-  const bandLow = formatDistanceMiles(toleranceBounds(input.targetDistanceMeters).min, 1);
-  const bandHigh = formatDistanceMiles(toleranceBounds(input.targetDistanceMeters).max, 1);
+  const { min, max } = acceptedRangeMeters(
+    input.targetDistanceMeters,
+    input.distanceFlexibilityMeters,
+  );
+  const bandLow = formatDistanceMiles(min, 1);
+  const bandHigh = formatDistanceMiles(max, 1);
 
   if (input.outcome === 'accepted') {
+    if (input.distanceClassification === 'near_match') {
+      return input.acceptedRouteName
+        ? `Accepted as ${input.acceptedRouteName} near match outside the ${bandLow}–${bandHigh} mile requested range.`
+        : `Returned as a near match outside the ${bandLow}–${bandHigh} mile requested range.`;
+    }
     return input.acceptedRouteName
-      ? `Accepted as ${input.acceptedRouteName} within the ${bandLow}–${bandHigh} mile band.`
-      : `Met distance tolerance and diversity checks within the ${bandLow}–${bandHigh} mile band.`;
+      ? `Accepted as ${input.acceptedRouteName} within the ${bandLow}–${bandHigh} mile requested range.`
+      : `Met distance range and diversity checks within the ${bandLow}–${bandHigh} mile requested range.`;
   }
 
   switch (input.rejectionReason) {
@@ -52,11 +57,11 @@ function buildExplanation(input: BuildDiagnosticInput): string {
       return 'The routing service returned geometry that could not be displayed.';
     case 'outside_tolerance':
       return miles
-        ? `Routed ${miles} mi, outside the ${bandLow}–${bandHigh} mile band around the ${targetMiles} mi target.`
-        : `Route distance was outside the ${bandLow}–${bandHigh} mile band around the ${targetMiles} mi target.`;
+        ? `Routed ${miles} mi, outside the ${bandLow}–${bandHigh} mile requested range around the ${targetMiles} mi target.`
+        : `Route distance was outside the ${bandLow}–${bandHigh} mile requested range around the ${targetMiles} mi target.`;
     case 'duplicate_candidate':
       return miles
-        ? `Routed ${miles} mi within tolerance, but the loop shape was too similar to an already accepted candidate.`
+        ? `Routed ${miles} mi within range, but the loop shape was too similar to an already accepted candidate.`
         : 'Loop shape was too similar to an already accepted candidate.';
     default:
       return input.geometry
@@ -90,6 +95,7 @@ export function buildCandidateDiagnostic(input: BuildDiagnosticInput): PocCandid
 
 type SummaryInput = {
   targetDistanceMeters: number;
+  distanceFlexibilityMeters: number;
   diagnostics: readonly PocCandidateDiagnostic[];
   rejections: Record<PocRejectionReason, number>;
   attemptedCount: number;
@@ -99,6 +105,7 @@ type SummaryInput = {
 function closestRoutableRejected(
   diagnostics: readonly PocCandidateDiagnostic[],
   targetDistanceMeters: number,
+  distanceFlexibilityMeters: number,
 ): PocDiagnosticSummary['closestRoutableRejected'] {
   const routableRejected = diagnostics.filter(
     (item) =>
@@ -123,16 +130,20 @@ function closestRoutableRejected(
   });
 
   const distanceMeters = closest.distanceMeters!;
-  const { min, max } = toleranceBounds(targetDistanceMeters);
+  const deviation = rangeDeviationMeters(
+    distanceMeters,
+    targetDistanceMeters,
+    distanceFlexibilityMeters,
+  );
   let direction: 'below' | 'above' | 'within';
   let toleranceMissMeters = 0;
 
-  if (distanceMeters < min) {
+  if (deviation < 0) {
     direction = 'below';
-    toleranceMissMeters = min - distanceMeters;
-  } else if (distanceMeters > max) {
+    toleranceMissMeters = Math.abs(deviation);
+  } else if (deviation > 0) {
     direction = 'above';
-    toleranceMissMeters = distanceMeters - max;
+    toleranceMissMeters = deviation;
   } else {
     direction = 'within';
     toleranceMissMeters = Math.abs(distanceMeters - targetDistanceMeters);
@@ -166,7 +177,11 @@ export function buildDiagnosticSummary(input: SummaryInput): PocDiagnosticSummar
           },
         }
       : {}),
-    closestRoutableRejected: closestRoutableRejected(input.diagnostics, input.targetDistanceMeters),
+    closestRoutableRejected: closestRoutableRejected(
+      input.diagnostics,
+      input.targetDistanceMeters,
+      input.distanceFlexibilityMeters,
+    ),
   };
 }
 

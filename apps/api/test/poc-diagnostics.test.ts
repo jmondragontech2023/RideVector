@@ -15,6 +15,7 @@ function squareLoop(startLat: number, startLon: number): Array<[number, number]>
 
 describe('buildCandidateDiagnostic', () => {
   const targetDistanceMeters = 12 * 1609.344;
+  const distanceFlexibilityMeters = 3 * 1609.344;
   const geometry = { type: 'LineString' as const, coordinates: squareLoop(37.77, -122.42) };
 
   it('preserves geometry for outside_tolerance candidates', () => {
@@ -28,6 +29,7 @@ describe('buildCandidateDiagnostic', () => {
       distanceFromTargetMeters: 9.1 * 1609.344 - targetDistanceMeters,
       geometry,
       targetDistanceMeters,
+      distanceFlexibilityMeters,
     });
 
     expect(diagnostic.geometry).toEqual(geometry);
@@ -46,6 +48,7 @@ describe('buildCandidateDiagnostic', () => {
       distanceFromTargetMeters: 0,
       geometry,
       targetDistanceMeters,
+      distanceFlexibilityMeters,
     });
 
     expect(diagnostic.geometry).toEqual(geometry);
@@ -60,6 +63,7 @@ describe('buildCandidateDiagnostic', () => {
       outcome: 'rejected',
       rejectionReason: 'upstream_failure',
       targetDistanceMeters,
+      distanceFlexibilityMeters,
     });
 
     expect(diagnostic.geometry).toBeUndefined();
@@ -73,6 +77,7 @@ describe('buildCandidateDiagnostic', () => {
       outcome: 'rejected',
       rejectionReason: 'malformed_geometry',
       targetDistanceMeters,
+      distanceFlexibilityMeters,
     });
 
     expect(diagnostic.geometry).toBeUndefined();
@@ -85,6 +90,7 @@ describe('buildCandidateDiagnostic', () => {
       outcome: 'rejected',
       rejectionReason: 'upstream_failure',
       targetDistanceMeters,
+      distanceFlexibilityMeters,
     });
 
     expect(JSON.stringify(diagnostic)).not.toMatch(/valhalla|stack|url|http/i);
@@ -93,6 +99,7 @@ describe('buildCandidateDiagnostic', () => {
 
 describe('buildDiagnosticSummary', () => {
   const targetDistanceMeters = 12 * 1609.344;
+  const distanceFlexibilityMeters = 3 * 1609.344;
   const emptyRejections = {
     upstream_failure: 0,
     malformed_geometry: 0,
@@ -107,11 +114,12 @@ describe('buildDiagnosticSummary', () => {
         bearingFamily: '0°',
         outcome: 'rejected',
         rejectionReason: 'outside_tolerance',
-        distanceMeters: 9.1 * 1609.344,
+        distanceMeters: 8.5 * 1609.344,
         durationSeconds: 1800,
-        distanceFromTargetMeters: 9.1 * 1609.344 - targetDistanceMeters,
+        distanceFromTargetMeters: 8.5 * 1609.344 - targetDistanceMeters,
         geometry: { type: 'LineString', coordinates: squareLoop(37.77, -122.42) },
         targetDistanceMeters,
+        distanceFlexibilityMeters,
       }),
       buildCandidateDiagnostic({
         attemptNumber: 2,
@@ -123,11 +131,13 @@ describe('buildDiagnosticSummary', () => {
         distanceFromTargetMeters: 8 * 1609.344 - targetDistanceMeters,
         geometry: { type: 'LineString', coordinates: squareLoop(37.78, -122.43) },
         targetDistanceMeters,
+        distanceFlexibilityMeters,
       }),
     ];
 
     const summary = buildDiagnosticSummary({
       targetDistanceMeters,
+      distanceFlexibilityMeters,
       diagnostics,
       rejections: { ...emptyRejections, outside_tolerance: 2 },
       attemptedCount: 2,

@@ -52,6 +52,11 @@ function response(overrides: Partial<PocGenerateResponse>): PocGenerateResponse 
         direction: 'below',
       },
     },
+    distanceFlexibilityMeters: 3 * 1609.344,
+    requestedRangeMeters: {
+      min: 9 * 1609.344,
+      max: 15 * 1609.344,
+    },
     ...overrides,
   };
 }
@@ -97,7 +102,7 @@ describe('candidate diagnostics helpers', () => {
   });
 
   it('builds zero-valid-candidate summary with closest below tolerance', () => {
-    const summary = buildGenerationSummary(response({ acceptedCount: 0 }), targetDistanceMeters);
+    const summary = buildGenerationSummary(response({ acceptedCount: 0 }));
     expect(summary).toContain('Tried 10 candidates');
     expect(summary).toContain('outside the');
     expect(summary).toContain('mile range');
@@ -109,6 +114,20 @@ describe('candidate diagnostics helpers', () => {
     const summary = buildGenerationSummary(
       response({
         acceptedCount: 2,
+        alternatives: [
+          {
+            id: 'a',
+            name: 'Route A',
+            geometry: { type: 'LineString', coordinates: [[-122.42, 37.77]] },
+            distanceMeters: 12 * 1609.344,
+            durationSeconds: 3000,
+            distanceFromTargetMeters: 0,
+            bearingFamily: '120°',
+            warnings: [],
+            distanceClassification: 'within_range',
+            requestedRangeMeters: { min: 9 * 1609.344, max: 15 * 1609.344 },
+          },
+        ],
         diagnosticSummary: {
           attemptedCount: 10,
           acceptedCount: 2,
@@ -124,7 +143,6 @@ describe('candidate diagnostics helpers', () => {
           },
         },
       }),
-      targetDistanceMeters,
     );
     expect(summary).toContain('2 passed');
     expect(summary).toContain('Accepted routes span');

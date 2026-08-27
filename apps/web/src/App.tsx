@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { generatePocRoutes, PocApiError } from './poc/api';
 import { CandidateDiagnosticsPanel } from './poc/CandidateDiagnosticsPanel';
 import { emptyDiagnosticSummary, findRejectedPreview } from './poc/candidate-diagnostics';
-import { POC_SCENARIO_FIXTURES } from './poc/fixtures';
+import { POC_SCENARIO_FIXTURES, fixtureFlexibilityMiles } from './poc/fixtures';
 import { RouteMap } from './poc/RouteMap';
 import {
   deleteSavedRoute,
@@ -12,11 +12,14 @@ import {
   type SavedPocRoute,
   type WouldRide,
 } from './poc/storage';
-import type {
-  PocAlternative,
-  PocCoordinate,
-  PocCostingMode,
-  PocGenerateResponse,
+import {
+  DEFAULT_DISTANCE_FLEXIBILITY_MILES,
+  formatAcceptedRangeLabel,
+  formatNearMatchDeviation,
+  type PocAlternative,
+  type PocCoordinate,
+  type PocCostingMode,
+  type PocGenerateResponse,
 } from './poc/types';
 import { formatDuration, formatMiles, METERS_PER_MILE, milesToMeters } from './poc/units';
 import {
@@ -40,6 +43,9 @@ type Status = 'idle' | 'loading' | 'error' | 'success';
 export function App() {
   const [start, setStart] = useState<PocCoordinate | null>(null);
   const [targetMiles, setTargetMiles] = useState('12');
+  const [flexibilityMiles, setFlexibilityMiles] = useState(
+    String(DEFAULT_DISTANCE_FLEXIBILITY_MILES),
+  );
   const [costing, setCosting] = useState<PocCostingMode>('road');
   const [seed, setSeed] = useState(0);
   const [status, setStatus] = useState<Status>('idle');
@@ -49,6 +55,7 @@ export function App() {
   const [savedRoutes, setSavedRoutes] = useState<SavedPocRoute[]>([]);
   const [wouldRide, setWouldRide] = useState<WouldRide>('maybe');
   const [feedbackReason, setFeedbackReason] = useState('');
+  const [deviationAcceptable, setDeviationAcceptable] = useState<boolean | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
@@ -84,6 +91,13 @@ export function App() {
   }
 
   const targetDistanceMeters = milesToMeters(Number(targetMiles) || 0);
+  const flexibilityMeters = milesToMeters(
+    Number(flexibilityMiles) || DEFAULT_DISTANCE_FLEXIBILITY_MILES,
+  );
+  const previewRangeMeters = {
+    min: Math.max(0, targetDistanceMeters - flexibilityMeters),
+    max: targetDistanceMeters + flexibilityMeters,
+  };
   const rejectedPreview = useMemo(
     () => findRejectedPreview(result, previewAttemptNumber),
     [result, previewAttemptNumber],
@@ -102,9 +116,15 @@ export function App() {
     }
 
     const miles = Number(targetMiles);
+    const flexMiles = Number(flexibilityMiles);
     if (!Number.isFinite(miles) || miles <= 0) {
       setStatus('error');
       setErrorMessage('Enter a positive target distance in miles.');
+      return;
+    }
+    if (!Number.isFinite(flexMiles) || flexMiles <= 0) {
+      setStatus('error');
+      setErrorMessage('Enter a positive distance flexibility in miles.');
       return;
     }
 
@@ -120,6 +140,7 @@ export function App() {
         {
           start: effectiveStart,
           targetDistanceMeters: milesToMeters(miles),
+          distanceFlexibilityMeters: milesToMeters(flexMiles),
           costing,
           seed: nextSeed,
         },
@@ -159,6 +180,7 @@ export function App() {
     invalidateInFlightLocation();
     setStart(fixture.start);
     setTargetMiles(String(fixture.targetDistanceMiles));
+    setFlexibilityMiles(String(fixtureFlexibilityMiles(fixture)));
     setCosting(fixture.costing);
     setSeed(fixture.seed);
     setResult(null);
@@ -178,11 +200,15 @@ export function App() {
       label: `${selected.name} · ${formatMiles(selected.distanceMeters)}`,
       start,
       targetDistanceMeters: milesToMeters(Number(targetMiles)),
+      distanceFlexibilityMeters: milesToMeters(Number(flexibilityMiles)),
       costing,
       seed: result.seed,
       alternative: selected,
       feedback: {
         wouldRide,
+        ...(selected.distanceClassification === 'near_match' && deviationAcceptable !== null
+          ? { deviationAcceptable }
+          : {}),
         ...(feedbackReason.trim() ? { reason: feedbackReason.trim().slice(0, 280) } : {}),
       },
     };
@@ -197,6 +223,7 @@ export function App() {
     invalidateInFlightLocation();
     setStart(route.start);
     setTargetMiles(String(route.targetDistanceMeters / METERS_PER_MILE));
+    setFlexibilityMiles(String(route.distanceFlexibilityMeters / METERS_PER_MILE));
     setCosting(route.costing);
     setSeed(route.seed);
     setResult({
@@ -214,10 +241,13 @@ export function App() {
       warnings: ['Opened from local saved routes.'],
       candidateDiagnostics: [],
       diagnosticSummary: emptyDiagnosticSummary(),
+      distanceFlexibilityMeters: route.distanceFlexibilityMeters,
+      requestedRangeMeters: route.alternative.requestedRangeMeters,
     });
     setSelectedId(route.alternative.id);
     setDiagnosticsExpanded(false);
     setPreviewAttemptNumber(null);
+    setDeviationAcceptable(route.feedback?.deviationAcceptable ?? null);
     setWouldRide(route.feedback?.wouldRide ?? 'maybe');
     setFeedbackReason(route.feedback?.reason ?? '');
     setStatus('success');
@@ -388,6 +418,21 @@ export function App() {
             />
           </label>
 
+          <label className="field">
+            <span>Distance flexibility (± miles)</span>
+            <input
+              type="number"
+              min={0.5}
+              step={0.5}
+              value={flexibilityMiles}
+              onChange={(event) => {
+                setFlexibilityMiles(event.target.value);
+                clearGenerationResults();
+              }}
+            />
+            <p className="subtle">{formatAcceptedRangeLabel(previewRangeMeters)}</p>
+          </label>
+
           <fieldset className="field">
             <legend>Costing mode</legend>
             <label className="choice">
@@ -477,21 +522,35 @@ export function App() {
               </p>
 
               <ul className="route-cards">
-                {alternatives.map((alt) => (
-                  <li key={alt.id}>
-                    <button
-                      type="button"
-                      className={alt.id === selected.id ? 'route-card selected' : 'route-card'}
-                      onClick={() => setSelectedId(alt.id)}
-                    >
-                      <strong>{alt.name}</strong>
-                      <span>
-                        {formatMiles(alt.distanceMeters)} · {formatDuration(alt.durationSeconds)}
-                      </span>
-                      <span className="subtle">{alt.bearingFamily}</span>
-                    </button>
-                  </li>
-                ))}
+                {alternatives.map((alt) => {
+                  const nearMatchDeviation = formatNearMatchDeviation(alt);
+                  return (
+                    <li key={alt.id}>
+                      <button
+                        type="button"
+                        className={alt.id === selected.id ? 'route-card selected' : 'route-card'}
+                        onClick={() => {
+                          setSelectedId(alt.id);
+                          setDeviationAcceptable(null);
+                        }}
+                      >
+                        <span className="route-card-title">
+                          <strong>{alt.name}</strong>
+                          {alt.distanceClassification === 'near_match' ? (
+                            <span className="near-match-badge">Near match</span>
+                          ) : null}
+                        </span>
+                        <span>
+                          {formatMiles(alt.distanceMeters)} · {formatDuration(alt.durationSeconds)}
+                        </span>
+                        {nearMatchDeviation ? (
+                          <span className="near-match-deviation">{nearMatchDeviation}</span>
+                        ) : null}
+                        <span className="subtle">{alt.bearingFamily}</span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
 
               {result.warnings.length > 0 ? (
@@ -525,6 +584,29 @@ export function App() {
                     placeholder="Why regenerate or reject?"
                   />
                 </label>
+                {selected.distanceClassification === 'near_match' ? (
+                  <fieldset className="field">
+                    <legend>Was this distance deviation acceptable?</legend>
+                    <label className="choice">
+                      <input
+                        type="radio"
+                        name="deviationAcceptable"
+                        checked={deviationAcceptable === true}
+                        onChange={() => setDeviationAcceptable(true)}
+                      />
+                      Yes, acceptable for this ride
+                    </label>
+                    <label className="choice">
+                      <input
+                        type="radio"
+                        name="deviationAcceptable"
+                        checked={deviationAcceptable === false}
+                        onChange={() => setDeviationAcceptable(false)}
+                      />
+                      No, too far from my requested range
+                    </label>
+                  </fieldset>
+                ) : null}
                 <button type="button" onClick={handleSaveSelected}>
                   Save selected locally
                 </button>

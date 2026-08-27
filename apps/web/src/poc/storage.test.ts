@@ -7,13 +7,15 @@ import {
   upsertSavedRoute,
   type SavedPocRoute,
 } from './storage';
+import { METERS_PER_MILE } from './units';
 
 const sampleRoute: SavedPocRoute = {
   id: 'saved-1',
   savedAt: '2026-08-26T00:00:00.000Z',
   label: 'Test loop',
   start: { latitude: 37.77, longitude: -122.42 },
-  targetDistanceMeters: 16_093.44,
+  targetDistanceMeters: 12 * METERS_PER_MILE,
+  distanceFlexibilityMeters: 3 * METERS_PER_MILE,
   costing: 'road',
   seed: 1,
   alternative: {
@@ -26,11 +28,22 @@ const sampleRoute: SavedPocRoute = {
         [-122.41, 37.78],
       ],
     },
-    distanceMeters: 16_000,
+    distanceMeters: 12.8 * METERS_PER_MILE,
     durationSeconds: 3000,
-    distanceFromTargetMeters: -93.44,
+    distanceFromTargetMeters: 0.8 * METERS_PER_MILE,
     bearingFamily: 'bearing-0',
-    warnings: [],
+    warnings: ['Near match warning'],
+    distanceClassification: 'near_match',
+    requestedRangeMeters: {
+      min: 9 * METERS_PER_MILE,
+      max: 15 * METERS_PER_MILE,
+    },
+    rangeDeviationMeters: 0.8 * METERS_PER_MILE,
+    targetDifferencePercent: 6.7,
+  },
+  feedback: {
+    wouldRide: 'maybe',
+    deviationAcceptable: true,
   },
 };
 
@@ -67,6 +80,15 @@ describe('poc local storage', () => {
     const parsed = parsePocStore(corrupt);
     expect(parsed.routes).toHaveLength(1);
     expect(parsed.routes[0]?.id).toBe('saved-1');
+  });
+
+  it('preserves near-match classification on save and reload', () => {
+    const withOne = upsertSavedRoute(emptyStore(), sampleRoute);
+    const raw = JSON.stringify(withOne);
+    const parsed = parsePocStore(raw);
+    expect(parsed.routes[0]?.alternative.distanceClassification).toBe('near_match');
+    expect(parsed.routes[0]?.distanceFlexibilityMeters).toBeCloseTo(3 * METERS_PER_MILE);
+    expect(parsed.routes[0]?.feedback?.deviationAcceptable).toBe(true);
   });
 
   it('upserts and deletes saved routes', () => {
