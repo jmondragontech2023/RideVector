@@ -1,5 +1,3 @@
-import { DEFAULT_DISTANCE_FLEXIBILITY_MILES, METERS_PER_MILE } from './types';
-
 export type WouldRide = 'yes' | 'maybe' | 'no';
 
 export type SavedPocRoute = {
@@ -44,10 +42,6 @@ const LEGACY_TOLERANCE_FRACTION = 0.2;
 
 export function emptyStore(): PocLocalStoreV1 {
   return { version: 1, routes: [] };
-}
-
-export function defaultFlexibilityMeters(): number {
-  return DEFAULT_DISTANCE_FLEXIBILITY_MILES * METERS_PER_MILE;
 }
 
 export function parsePocStore(raw: string | null): PocLocalStoreV1 {
@@ -164,7 +158,17 @@ function isLegacyAlternative(
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return false;
   }
-  return isCoreAlternativeFields(value as Record<string, unknown>);
+  const record = value as Record<string, unknown>;
+  // Current-format alternatives always include these fields; presence means not legacy.
+  if (
+    record.distanceClassification !== undefined ||
+    record.requestedRangeMeters !== undefined ||
+    record.rangeDeviationMeters !== undefined ||
+    record.targetDifferencePercent !== undefined
+  ) {
+    return false;
+  }
+  return isCoreAlternativeFields(record);
 }
 
 function isFeedback(value: unknown): value is NonNullable<SavedPocRoute['feedback']> {
@@ -217,6 +221,10 @@ function isLegacySavedRoute(value: unknown): boolean {
     return false;
   }
   const record = value as Record<string, unknown>;
+  // Current-format routes always set flexibility; presence means not legacy (even if malformed).
+  if (record.distanceFlexibilityMeters !== undefined) {
+    return false;
+  }
   if (
     typeof record.id !== 'string' ||
     typeof record.savedAt !== 'string' ||
@@ -247,19 +255,12 @@ export function migrateSavedRoute(value: unknown): SavedPocRoute | null {
 
   const record = value as Record<string, unknown>;
   const targetDistanceMeters = record.targetDistanceMeters as number;
-  const flexibilityMeters =
-    isFiniteNumber(record.distanceFlexibilityMeters) && record.distanceFlexibilityMeters > 0
-      ? record.distanceFlexibilityMeters
-      : targetDistanceMeters * LEGACY_TOLERANCE_FRACTION;
+  const flexibilityMeters = targetDistanceMeters * LEGACY_TOLERANCE_FRACTION;
   const alternativeRecord = record.alternative as Record<string, unknown>;
-  const classification =
-    alternativeRecord.distanceClassification === 'near_match' ? 'near_match' : 'within_range';
-  const requestedRangeMeters = isRequestedRange(alternativeRecord.requestedRangeMeters)
-    ? alternativeRecord.requestedRangeMeters
-    : {
-        min: Math.max(0, targetDistanceMeters - flexibilityMeters),
-        max: targetDistanceMeters + flexibilityMeters,
-      };
+  const requestedRangeMeters = {
+    min: Math.max(0, targetDistanceMeters - flexibilityMeters),
+    max: targetDistanceMeters + flexibilityMeters,
+  };
 
   return {
     id: record.id as string,
@@ -279,14 +280,8 @@ export function migrateSavedRoute(value: unknown): SavedPocRoute | null {
       distanceFromTargetMeters: alternativeRecord.distanceFromTargetMeters as number,
       bearingFamily: alternativeRecord.bearingFamily as string,
       warnings: alternativeRecord.warnings as string[],
-      distanceClassification: classification,
+      distanceClassification: 'within_range',
       requestedRangeMeters,
-      ...(isFiniteNumber(alternativeRecord.rangeDeviationMeters)
-        ? { rangeDeviationMeters: alternativeRecord.rangeDeviationMeters }
-        : {}),
-      ...(isFiniteNumber(alternativeRecord.targetDifferencePercent)
-        ? { targetDifferencePercent: alternativeRecord.targetDifferencePercent }
-        : {}),
     },
     ...(record.feedback !== undefined
       ? { feedback: record.feedback as NonNullable<SavedPocRoute['feedback']> }

@@ -83,6 +83,27 @@ describe('poc local storage', () => {
     expect(parsed.routes[0]?.id).toBe('saved-1');
   });
 
+  it('discards malformed current-format routes with invalid distanceClassification', () => {
+    const malformed = JSON.stringify({
+      version: 1,
+      routes: [
+        {
+          ...sampleRoute,
+          id: 'malformed-classification',
+          alternative: {
+            ...sampleRoute.alternative,
+            distanceClassification: 'outside',
+          },
+        },
+        sampleRoute,
+      ],
+    });
+    const parsed = parsePocStore(malformed);
+    expect(parsed.routes).toHaveLength(1);
+    expect(parsed.routes[0]?.id).toBe('saved-1');
+    expect(parsed.routes[0]?.alternative.distanceClassification).toBe('near_match');
+  });
+
   it('preserves near-match classification on save and reload', () => {
     const withOne = upsertSavedRoute(emptyStore(), sampleRoute);
     const raw = JSON.stringify(withOne);
