@@ -2,8 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { generatePocRoutes, PocApiError } from './poc/api';
 import { CandidateDiagnosticsPanel } from './poc/CandidateDiagnosticsPanel';
 import { emptyDiagnosticSummary, findRejectedPreview } from './poc/candidate-diagnostics';
+import { ExperimentalFeaturesPanel } from './poc/ExperimentalFeaturesPanel';
+import {
+  defaultFeatureSettings,
+  loadFeatureSettings,
+  saveFeatureSettings,
+} from './poc/feature-settings';
 import { POC_SCENARIO_FIXTURES, fixtureFlexibilityMiles } from './poc/fixtures';
+import { RouteComparisonPanel } from './poc/RouteComparisonPanel';
 import { RouteMap } from './poc/RouteMap';
+import { RouteScoreBreakdown } from './poc/RouteScoreBreakdown';
 import {
   deleteSavedRoute,
   loadPocStore,
@@ -14,12 +22,16 @@ import {
 } from './poc/storage';
 import {
   DEFAULT_DISTANCE_FLEXIBILITY_MILES,
+  DEFAULT_POC_FEATURES,
   formatAcceptedRangeLabel,
   formatNearMatchDeviation,
   type PocAlternative,
   type PocCoordinate,
   type PocCostingMode,
+  type PocElevationPreference,
+  type PocExperimentalFeatures,
   type PocGenerateResponse,
+  type PocTrafficPreference,
 } from './poc/types';
 import { formatDuration, formatMiles, METERS_PER_MILE, milesToMeters } from './poc/units';
 import {
@@ -63,12 +75,47 @@ export function App() {
   const [recenterRequest, setRecenterRequest] = useState<MapRecenterRequest | null>(null);
   const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false);
   const [previewAttemptNumber, setPreviewAttemptNumber] = useState<number | null>(null);
+  const [features, setFeatures] = useState<PocExperimentalFeatures>({ ...DEFAULT_POC_FEATURES });
+  const [elevationPreference, setElevationPreference] =
+    useState<PocElevationPreference>('none');
+  const [trafficPreference, setTrafficPreference] = useState<PocTrafficPreference>('none');
+  const [departureMode, setDepartureMode] = useState<'now' | 'custom'>('now');
+  const [customLocalDateTime, setCustomLocalDateTime] = useState('');
+  const [featureSettingsHydrated, setFeatureSettingsHydrated] = useState(false);
   const generationSessionRef = useRef(new GenerationSession());
   const locationSessionRef = useRef(new LocationSession());
 
   useEffect(() => {
     setSavedRoutes(loadPocStore().routes);
+    const settings = loadFeatureSettings();
+    setFeatures(settings.features);
+    setElevationPreference(settings.elevationPreference);
+    setTrafficPreference(settings.trafficPreference);
+    setDepartureMode(settings.departureMode);
+    setCustomLocalDateTime(settings.customLocalDateTime);
+    setFeatureSettingsHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!featureSettingsHydrated) {
+      return;
+    }
+    saveFeatureSettings({
+      ...defaultFeatureSettings(),
+      features,
+      elevationPreference,
+      trafficPreference,
+      departureMode,
+      customLocalDateTime,
+    });
+  }, [
+    featureSettingsHydrated,
+    features,
+    elevationPreference,
+    trafficPreference,
+    departureMode,
+    customLocalDateTime,
+  ]);
 
   function invalidateInFlightGeneration() {
     generationSessionRef.current.invalidate();
@@ -88,6 +135,21 @@ export function App() {
     setSaveMessage(null);
     setDiagnosticsExpanded(false);
     setPreviewAttemptNumber(null);
+  }
+
+  function applyExperimentalSettings(next: {
+    features: PocExperimentalFeatures;
+    elevationPreference: PocElevationPreference;
+    trafficPreference: PocTrafficPreference;
+    departureMode: 'now' | 'custom';
+    customLocalDateTime: string;
+  }) {
+    clearGenerationResults();
+    setFeatures(next.features);
+    setElevationPreference(next.elevationPreference);
+    setTrafficPreference(next.trafficPreference);
+    setDepartureMode(next.departureMode);
+    setCustomLocalDateTime(next.customLocalDateTime);
   }
 
   const targetDistanceMeters = milesToMeters(Number(targetMiles) || 0);
@@ -127,6 +189,11 @@ export function App() {
       setErrorMessage('Enter a positive distance flexibility in miles.');
       return;
     }
+    if (departureMode === 'custom' && customLocalDateTime.trim() === '') {
+      setStatus('error');
+      setErrorMessage('Choose a custom departure date and time, or switch to Depart now.');
+      return;
+    }
 
     setStatus('loading');
     setErrorMessage(null);
@@ -143,6 +210,17 @@ export function App() {
           distanceFlexibilityMeters: milesToMeters(flexMiles),
           costing,
           seed: nextSeed,
+          features,
+          elevationPreference,
+          trafficPreference,
+          departure:
+            departureMode === 'custom'
+              ? {
+                  mode: 'custom',
+                  localDateTime: new Date(customLocalDateTime).toISOString(),
+                  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+                }
+              : { mode: 'now' },
         },
         signal,
       );
@@ -201,6 +279,10 @@ export function App() {
       distanceFlexibilityMeters: milesToMeters(Number(flexibilityMiles)),
       costing,
       seed: result.seed,
+      features: result.features ?? features,
+      elevationPreference: result.elevationPreference ?? elevationPreference,
+      trafficPreference: result.trafficPreference ?? trafficPreference,
+      departure: result.departure,
       alternative: selected,
       feedback: {
         wouldRide,
@@ -224,6 +306,15 @@ export function App() {
     setFlexibilityMiles(String(route.distanceFlexibilityMeters / METERS_PER_MILE));
     setCosting(route.costing);
     setSeed(route.seed);
+    if (route.features) {
+      setFeatures(route.features);
+    }
+    if (route.elevationPreference) {
+      setElevationPreference(route.elevationPreference);
+    }
+    if (route.trafficPreference) {
+      setTrafficPreference(route.trafficPreference);
+    }
     setResult({
       seed: route.seed,
       durationMs: 0,
@@ -242,6 +333,13 @@ export function App() {
       diagnosticSummary: emptyDiagnosticSummary(),
       distanceFlexibilityMeters: route.distanceFlexibilityMeters,
       requestedRangeMeters: route.alternative.requestedRangeMeters,
+      features: route.features ?? features,
+      elevationPreference: route.elevationPreference ?? elevationPreference,
+      trafficPreference: route.trafficPreference ?? trafficPreference,
+      departure: route.departure,
+      scoringVersion: route.alternative.scoring?.version,
+      enrichmentWarnings: [],
+      attribution: [],
     });
     setSelectedId(route.alternative.id);
     setDiagnosticsExpanded(false);
@@ -463,6 +561,16 @@ export function App() {
             </p>
           </fieldset>
 
+          <ExperimentalFeaturesPanel
+            features={features}
+            elevationPreference={elevationPreference}
+            trafficPreference={trafficPreference}
+            departureMode={departureMode}
+            customLocalDateTime={customLocalDateTime}
+            disabled={status === 'loading'}
+            onChange={applyExperimentalSettings}
+          />
+
           <div className="actions">
             <button
               type="button"
@@ -535,6 +643,10 @@ export function App() {
                       >
                         <span className="route-card-title">
                           <strong>{alt.name}</strong>
+                          {alt.scoring?.overallScore !== null &&
+                          alt.scoring?.overallScore !== undefined ? (
+                            <span className="poc-fit-badge">POC fit {alt.scoring.overallScore}</span>
+                          ) : null}
                           {alt.distanceClassification === 'near_match' ? (
                             <span className="near-match-badge">Near match</span>
                           ) : null}
@@ -547,10 +659,33 @@ export function App() {
                         ) : null}
                         <span className="subtle">{alt.bearingFamily}</span>
                       </button>
+                      {alt.id === selected.id ? (
+                        <RouteScoreBreakdown
+                          alternative={alt}
+                          features={result.features ?? features}
+                        />
+                      ) : null}
                     </li>
                   );
                 })}
               </ul>
+
+              <RouteComparisonPanel
+                alternatives={alternatives}
+                features={result.features ?? features}
+              />
+
+              {result.enrichmentWarnings && result.enrichmentWarnings.length > 0 ? (
+                <ul className="warnings">
+                  {result.enrichmentWarnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {result.attribution && result.attribution.length > 0 ? (
+                <p className="subtle attribution-line">{result.attribution.join(' · ')}</p>
+              ) : null}
 
               {result.warnings.length > 0 ? (
                 <ul className="warnings">

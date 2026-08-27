@@ -9,6 +9,10 @@ export type SavedPocRoute = {
   distanceFlexibilityMeters: number;
   costing: 'road' | 'gravel';
   seed: number;
+  features?: import('./types').PocExperimentalFeatures;
+  elevationPreference?: import('./types').PocElevationPreference;
+  trafficPreference?: import('./types').PocTrafficPreference;
+  departure?: import('./types').PocNormalizedDeparture;
   alternative: {
     id: string;
     name: string;
@@ -22,6 +26,12 @@ export type SavedPocRoute = {
     requestedRangeMeters: { min: number; max: number };
     rangeDeviationMeters?: number;
     targetDifferencePercent?: number;
+    categories?: import('./types').PocCategoryBadge[];
+    scoring?: import('./types').PocRouteScoring;
+    diversity?: import('./types').PocDiversitySummary;
+    elevation?: import('./types').PocElevationSummary;
+    weather?: import('./types').PocWeatherSummary;
+    traffic?: import('./types').PocTrafficSummary;
   };
   feedback?: {
     wouldRide: WouldRide;

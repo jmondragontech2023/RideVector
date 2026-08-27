@@ -470,6 +470,98 @@ button:disabled {
   border-top: 1px solid rgba(20, 32, 26, 0.08);
 }
 
+.experimental-panel {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border: 1px solid rgba(20, 32, 26, 0.1);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.experimental-panel h2,
+.comparison-panel h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.toggle-grid {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.poc-fit-badge,
+.category-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: #e5f3ec;
+  color: #0b6e4f;
+}
+
+.score-breakdown {
+  margin: 0.45rem 0 0.75rem;
+  padding: 0.55rem 0.65rem;
+  background: #f7faf7;
+  border: 1px solid rgba(20, 32, 26, 0.08);
+}
+
+.fit-line {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+}
+
+.badge-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.score-toggle {
+  margin-top: 0.35rem;
+}
+
+.component-list {
+  margin: 0.4rem 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.comparison-panel {
+  margin: 0.75rem 0;
+  padding: 0.65rem;
+  border: 1px solid rgba(20, 32, 26, 0.08);
+}
+
+.comparison-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.comparison-list li {
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.88rem;
+}
+
+.attribution-line {
+  margin-top: 0.5rem;
+}
+
 @media (max-width: 860px) {
   .poc-header {
     flex-direction: column;
