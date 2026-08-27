@@ -153,7 +153,7 @@ describe('Download GPX UI wiring', () => {
 
   it('keeps GPX export out of rejected-preview wiring', () => {
     const downloadHandler = appSource.match(
-      /function handleDownloadGpx\(\) \{[\s\S]*?\n  \}\n\n  function handleSaveSelected/,
+      /function handleDownloadGpx\(\) \{[\s\S]*?\n {2}\}\n\n {2}function handleSaveSelected/,
     )?.[0];
     expect(downloadHandler).toBeTruthy();
     expect(downloadHandler).toContain('geometry: selected.geometry');
@@ -164,7 +164,7 @@ describe('Download GPX UI wiring', () => {
 
   it('surfaces export failures without clearing the selected route contract', () => {
     const downloadHandler = appSource.match(
-      /function handleDownloadGpx\(\) \{[\s\S]*?\n  \}\n\n  function handleSaveSelected/,
+      /function handleDownloadGpx\(\) \{[\s\S]*?\n {2}\}\n\n {2}function handleSaveSelected/,
     )?.[0];
     expect(downloadHandler).toBeTruthy();
     expect(downloadHandler).toContain('GpxExportError');
