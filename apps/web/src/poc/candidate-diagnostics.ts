@@ -29,6 +29,10 @@ const REJECTION_LABELS: Record<PocRejectionReason, RejectionReasonLabel> = {
     short: 'Invalid geometry',
     description: 'Returned geometry could not be displayed on the map.',
   },
+  selection_limit: {
+    short: 'Not selected',
+    description: 'Eligible but excluded by the bounded alternative limit.',
+  },
 };
 
 export function rejectionReasonLabel(reason: PocRejectionReason): RejectionReasonLabel {
@@ -40,7 +44,8 @@ export function canPreviewOnMap(diagnostic: PocCandidateDiagnostic): boolean {
     diagnostic.geometry !== undefined &&
     diagnostic.geometry.coordinates.length >= 2 &&
     (diagnostic.rejectionReason === 'outside_tolerance' ||
-      diagnostic.rejectionReason === 'duplicate_candidate')
+      diagnostic.rejectionReason === 'duplicate_candidate' ||
+      diagnostic.rejectionReason === 'selection_limit')
   );
 }
 
@@ -78,6 +83,11 @@ function formatRejectionBreakdown(
   if (counts.malformed_geometry > 0) {
     parts.push(
       `${counts.malformed_geometry} ${counts.malformed_geometry === 1 ? 'returned' : 'returned'} invalid geometry`,
+    );
+  }
+  if (counts.selection_limit > 0) {
+    parts.push(
+      `${counts.selection_limit} ${counts.selection_limit === 1 ? 'was' : 'were'} eligible but not selected`,
     );
   }
   return parts;
@@ -216,6 +226,7 @@ export function emptyDiagnosticSummary(): PocGenerateResponse['diagnosticSummary
       malformed_geometry: 0,
       outside_tolerance: 0,
       duplicate_candidate: 0,
+      selection_limit: 0,
     },
   };
 }

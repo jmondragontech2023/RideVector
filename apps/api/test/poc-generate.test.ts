@@ -189,6 +189,37 @@ describe('generatePocRoutes with mocked provider', () => {
     expect(result.attemptedCount).toBeLessThanOrEqual(10);
   });
 
+  it('accounts for routable candidates excluded by the selection bound', async () => {
+    let call = 0;
+    const provider = new MockRoutingProvider((routeRequest) => {
+      call += 1;
+      const wp = routeRequest.waypoints[0]!;
+      const offset = call * 0.03;
+      return {
+        ok: true,
+        geometry: {
+          type: 'LineString',
+          coordinates: squareLoop(wp.latitude + offset, wp.longitude - offset, 0.03),
+        },
+        distanceMeters: 20_000 + call * 20,
+        durationSeconds: 3000,
+      };
+    });
+
+    const result = await generatePocRoutes(request, { provider, candidateCount: 6 });
+    expect(result.acceptedCount).toBe(3);
+    expect(result.rejections.selection_limit).toBeGreaterThanOrEqual(1);
+    const capped = result.candidateDiagnostics.filter(
+      (item) => item.rejectionReason === 'selection_limit',
+    );
+    expect(capped.length).toBe(result.rejections.selection_limit);
+    expect(capped.every((item) => item.geometry !== undefined)).toBe(true);
+    const accounted =
+      result.acceptedCount +
+      Object.values(result.rejections).reduce((sum, count) => sum + count, 0);
+    expect(accounted).toBe(result.candidateDiagnostics.length);
+  });
+
   it('returns near matches when no within-range routes exist', async () => {
     let call = 0;
     const targetMeters = 12 * METERS_PER_MILE;

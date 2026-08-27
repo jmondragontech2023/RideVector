@@ -105,6 +105,7 @@ describe('buildDiagnosticSummary', () => {
     malformed_geometry: 0,
     outside_tolerance: 0,
     duplicate_candidate: 0,
+    selection_limit: 0,
   };
 
   it('calculates closest routable rejected candidate below tolerance', () => {

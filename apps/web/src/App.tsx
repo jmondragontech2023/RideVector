@@ -176,16 +176,14 @@ export function App() {
     if (!fixture) {
       return;
     }
-    invalidateInFlightGeneration();
+    // Clears in-flight generation and resets status so loading cannot stick.
+    clearGenerationResults();
     invalidateInFlightLocation();
     setStart(fixture.start);
     setTargetMiles(String(fixture.targetDistanceMiles));
     setFlexibilityMiles(String(fixtureFlexibilityMiles(fixture)));
     setCosting(fixture.costing);
     setSeed(fixture.seed);
-    setResult(null);
-    setSelectedId(null);
-    setErrorMessage(null);
     setSaveMessage(`Loaded fixture: ${fixture.label}`);
   }
 
@@ -237,6 +235,7 @@ export function App() {
         malformed_geometry: 0,
         outside_tolerance: 0,
         duplicate_candidate: 0,
+        selection_limit: 0,
       },
       warnings: ['Opened from local saved routes.'],
       candidateDiagnostics: [],

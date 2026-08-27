@@ -1,3 +1,5 @@
+import { DEFAULT_DISTANCE_FLEXIBILITY_MILES, METERS_PER_MILE } from './types';
+
 export type WouldRide = 'yes' | 'maybe' | 'no';
 
 export type SavedPocRoute = {
@@ -41,6 +43,10 @@ export function emptyStore(): PocLocalStoreV1 {
   return { version: 1, routes: [] };
 }
 
+export function defaultFlexibilityMeters(): number {
+  return DEFAULT_DISTANCE_FLEXIBILITY_MILES * METERS_PER_MILE;
+}
+
 export function parsePocStore(raw: string | null): PocLocalStoreV1 {
   if (raw === null || raw.trim() === '') {
     return emptyStore();
@@ -56,9 +62,12 @@ export function parsePocStore(raw: string | null): PocLocalStoreV1 {
     ) {
       return emptyStore();
     }
+    const routes = (parsed as { routes: unknown[] }).routes
+      .map((route) => migrateSavedRoute(route))
+      .filter((route): route is SavedPocRoute => route !== null);
     return {
       version: 1,
-      routes: (parsed as PocLocalStoreV1).routes.filter(isSavedRoute),
+      routes,
     };
   } catch {
     return emptyStore();
@@ -111,12 +120,7 @@ function isRequestedRange(value: unknown): value is { min: number; max: number }
   return isFiniteNumber(record.min) && isFiniteNumber(record.max) && record.max >= record.min;
 }
 
-function isAlternative(value: unknown): value is SavedPocRoute['alternative'] {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    return false;
-  }
-  const record = value as Record<string, unknown>;
-  const classification = record.distanceClassification;
+function isCoreAlternativeFields(record: Record<string, unknown>): boolean {
   return (
     typeof record.id === 'string' &&
     typeof record.name === 'string' &&
@@ -126,12 +130,38 @@ function isAlternative(value: unknown): value is SavedPocRoute['alternative'] {
     isFiniteNumber(record.distanceFromTargetMeters) &&
     typeof record.bearingFamily === 'string' &&
     Array.isArray(record.warnings) &&
-    record.warnings.every((item) => typeof item === 'string') &&
+    record.warnings.every((item) => typeof item === 'string')
+  );
+}
+
+function isAlternative(value: unknown): value is SavedPocRoute['alternative'] {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  const classification = record.distanceClassification;
+  return (
+    isCoreAlternativeFields(record) &&
     (classification === 'within_range' || classification === 'near_match') &&
     isRequestedRange(record.requestedRangeMeters) &&
     (record.rangeDeviationMeters === undefined || isFiniteNumber(record.rangeDeviationMeters)) &&
     (record.targetDifferencePercent === undefined || isFiniteNumber(record.targetDifferencePercent))
   );
+}
+
+function isLegacyAlternative(
+  value: unknown,
+): value is Omit<
+  SavedPocRoute['alternative'],
+  | 'distanceClassification'
+  | 'requestedRangeMeters'
+  | 'rangeDeviationMeters'
+  | 'targetDifferencePercent'
+> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  return isCoreAlternativeFields(value as Record<string, unknown>);
 }
 
 function isFeedback(value: unknown): value is NonNullable<SavedPocRoute['feedback']> {
@@ -179,8 +209,113 @@ function isSavedRoute(value: unknown): value is SavedPocRoute {
   return true;
 }
 
-export function loadPocStore(storage: Pick<Storage, 'getItem'> = localStorage): PocLocalStoreV1 {
-  return parsePocStore(storage.getItem(POC_STORAGE_KEY));
+function isLegacySavedRoute(value: unknown): boolean {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.id !== 'string' ||
+    typeof record.savedAt !== 'string' ||
+    typeof record.label !== 'string' ||
+    !isCoordinate(record.start) ||
+    !isFiniteNumber(record.targetDistanceMeters) ||
+    record.targetDistanceMeters <= 0 ||
+    (record.costing !== 'road' && record.costing !== 'gravel') ||
+    !isFiniteNumber(record.seed) ||
+    !isLegacyAlternative(record.alternative)
+  ) {
+    return false;
+  }
+  if (record.feedback !== undefined && !isFeedback(record.feedback)) {
+    return false;
+  }
+  return true;
+}
+
+/** Upgrades earlier POC saves missing flexibility/classification fields. */
+export function migrateSavedRoute(value: unknown): SavedPocRoute | null {
+  if (isSavedRoute(value)) {
+    return value;
+  }
+  if (!isLegacySavedRoute(value)) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const targetDistanceMeters = record.targetDistanceMeters as number;
+  const flexibilityMeters =
+    isFiniteNumber(record.distanceFlexibilityMeters) && record.distanceFlexibilityMeters > 0
+      ? record.distanceFlexibilityMeters
+      : defaultFlexibilityMeters();
+  const alternativeRecord = record.alternative as Record<string, unknown>;
+  const classification =
+    alternativeRecord.distanceClassification === 'near_match' ? 'near_match' : 'within_range';
+  const requestedRangeMeters = isRequestedRange(alternativeRecord.requestedRangeMeters)
+    ? alternativeRecord.requestedRangeMeters
+    : {
+        min: Math.max(0, targetDistanceMeters - flexibilityMeters),
+        max: targetDistanceMeters + flexibilityMeters,
+      };
+
+  return {
+    id: record.id as string,
+    savedAt: record.savedAt as string,
+    label: record.label as string,
+    start: record.start as SavedPocRoute['start'],
+    targetDistanceMeters,
+    distanceFlexibilityMeters: flexibilityMeters,
+    costing: record.costing as 'road' | 'gravel',
+    seed: record.seed as number,
+    alternative: {
+      id: alternativeRecord.id as string,
+      name: alternativeRecord.name as string,
+      geometry: alternativeRecord.geometry as SavedPocRoute['alternative']['geometry'],
+      distanceMeters: alternativeRecord.distanceMeters as number,
+      durationSeconds: alternativeRecord.durationSeconds as number,
+      distanceFromTargetMeters: alternativeRecord.distanceFromTargetMeters as number,
+      bearingFamily: alternativeRecord.bearingFamily as string,
+      warnings: alternativeRecord.warnings as string[],
+      distanceClassification: classification,
+      requestedRangeMeters,
+      ...(isFiniteNumber(alternativeRecord.rangeDeviationMeters)
+        ? { rangeDeviationMeters: alternativeRecord.rangeDeviationMeters }
+        : {}),
+      ...(isFiniteNumber(alternativeRecord.targetDifferencePercent)
+        ? { targetDifferencePercent: alternativeRecord.targetDifferencePercent }
+        : {}),
+    },
+    ...(record.feedback !== undefined
+      ? { feedback: record.feedback as NonNullable<SavedPocRoute['feedback']> }
+      : {}),
+  };
+}
+
+export function loadPocStore(
+  storage: Pick<Storage, 'getItem'> & Partial<Pick<Storage, 'setItem'>> = localStorage,
+): PocLocalStoreV1 {
+  const raw = storage.getItem(POC_STORAGE_KEY);
+  const store = parsePocStore(raw);
+  // Persist migrated legacy records so subsequent loads keep the upgraded shape.
+  if (
+    raw !== null &&
+    raw.trim() !== '' &&
+    store.routes.length > 0 &&
+    typeof storage.setItem === 'function'
+  ) {
+    try {
+      const parsed = JSON.parse(raw) as { routes?: unknown[] };
+      const needsRewrite =
+        Array.isArray(parsed.routes) &&
+        parsed.routes.some((route) => isLegacySavedRoute(route) && !isSavedRoute(route));
+      if (needsRewrite) {
+        storage.setItem(POC_STORAGE_KEY, JSON.stringify(store));
+      }
+    } catch {
+      // Ignore rewrite failures; in-memory migrated store is still usable.
+    }
+  }
+  return store;
 }
 
 export function savePocStore(

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   deleteSavedRoute,
   emptyStore,
+  loadPocStore,
   parsePocStore,
   POC_STORAGE_KEY,
   upsertSavedRoute,
@@ -89,6 +90,97 @@ describe('poc local storage', () => {
     expect(parsed.routes[0]?.alternative.distanceClassification).toBe('near_match');
     expect(parsed.routes[0]?.distanceFlexibilityMeters).toBeCloseTo(3 * METERS_PER_MILE);
     expect(parsed.routes[0]?.feedback?.deviationAcceptable).toBe(true);
+  });
+
+  it('migrates legacy v1 saved routes missing flexibility fields', () => {
+    const legacy = JSON.stringify({
+      version: 1,
+      routes: [
+        {
+          id: 'legacy-1',
+          savedAt: '2026-08-20T00:00:00.000Z',
+          label: 'Legacy loop',
+          start: { latitude: 37.77, longitude: -122.42 },
+          targetDistanceMeters: 12 * METERS_PER_MILE,
+          costing: 'road',
+          seed: 2,
+          alternative: {
+            id: 'alt-legacy',
+            name: 'Route A',
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [-122.42, 37.77],
+                [-122.41, 37.78],
+              ],
+            },
+            distanceMeters: 12 * METERS_PER_MILE,
+            durationSeconds: 2800,
+            distanceFromTargetMeters: 0,
+            bearingFamily: 'bearing-60',
+            warnings: [],
+          },
+          feedback: { wouldRide: 'yes' },
+        },
+      ],
+    });
+
+    const parsed = parsePocStore(legacy);
+    expect(parsed.routes).toHaveLength(1);
+    expect(parsed.routes[0]?.id).toBe('legacy-1');
+    expect(parsed.routes[0]?.distanceFlexibilityMeters).toBeCloseTo(3 * METERS_PER_MILE);
+    expect(parsed.routes[0]?.alternative.distanceClassification).toBe('within_range');
+    expect(parsed.routes[0]?.alternative.requestedRangeMeters.min).toBeCloseTo(9 * METERS_PER_MILE);
+    expect(parsed.routes[0]?.alternative.requestedRangeMeters.max).toBeCloseTo(
+      15 * METERS_PER_MILE,
+    );
+  });
+
+  it('rewrites migrated legacy routes back to storage on load', () => {
+    const legacyRaw = JSON.stringify({
+      version: 1,
+      routes: [
+        {
+          id: 'legacy-2',
+          savedAt: '2026-08-20T00:00:00.000Z',
+          label: 'Legacy rewrite',
+          start: { latitude: 37.77, longitude: -122.42 },
+          targetDistanceMeters: 10 * METERS_PER_MILE,
+          costing: 'gravel',
+          seed: 3,
+          alternative: {
+            id: 'alt-legacy-2',
+            name: 'Route A',
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [-122.42, 37.77],
+                [-122.4, 37.79],
+              ],
+            },
+            distanceMeters: 10 * METERS_PER_MILE,
+            durationSeconds: 2500,
+            distanceFromTargetMeters: 0,
+            bearingFamily: 'bearing-0',
+            warnings: [],
+          },
+        },
+      ],
+    });
+    let stored = legacyRaw;
+    const memory: Pick<Storage, 'getItem' | 'setItem'> = {
+      getItem: () => stored,
+      setItem: (_key, value) => {
+        stored = value;
+      },
+    };
+
+    const loaded = loadPocStore(memory);
+    expect(loaded.routes).toHaveLength(1);
+    const rewritten = JSON.parse(stored) as {
+      routes: Array<{ distanceFlexibilityMeters?: number }>;
+    };
+    expect(rewritten.routes[0]?.distanceFlexibilityMeters).toBeCloseTo(3 * METERS_PER_MILE);
   });
 
   it('upserts and deletes saved routes', () => {

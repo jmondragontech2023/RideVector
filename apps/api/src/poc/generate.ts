@@ -38,6 +38,7 @@ function emptyRejections(): Record<PocRejectionReason, number> {
     malformed_geometry: 0,
     outside_tolerance: 0,
     duplicate_candidate: 0,
+    selection_limit: 0,
   };
 }
 
@@ -294,11 +295,13 @@ export async function generatePocRoutes(
   }
 
   for (const candidate of selection.notSelected) {
+    rejections.selection_limit += 1;
     candidateDiagnostics.push(
       buildCandidateDiagnostic({
         attemptNumber: candidate.attemptNumber,
         bearingFamily: candidate.bearingFamily,
         outcome: 'rejected',
+        rejectionReason: 'selection_limit',
         distanceMeters: candidate.distanceMeters,
         durationSeconds: candidate.durationSeconds,
         distanceFromTargetMeters: candidate.distanceFromTargetMeters,

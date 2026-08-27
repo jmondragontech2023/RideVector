@@ -35,7 +35,8 @@ export type PocRejectionReason =
   | 'upstream_failure'
   | 'malformed_geometry'
   | 'outside_tolerance'
-  | 'duplicate_candidate';
+  | 'duplicate_candidate'
+  | 'selection_limit';
 
 export type PocCandidateOutcome = 'accepted' | 'rejected';
 

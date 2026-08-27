@@ -31,6 +31,7 @@ function response(overrides: Partial<PocGenerateResponse>): PocGenerateResponse 
       malformed_geometry: 0,
       outside_tolerance: 6,
       duplicate_candidate: 2,
+      selection_limit: 0,
     },
     warnings: [],
     candidateDiagnostics: [],
@@ -42,6 +43,7 @@ function response(overrides: Partial<PocGenerateResponse>): PocGenerateResponse 
         malformed_geometry: 0,
         outside_tolerance: 6,
         duplicate_candidate: 2,
+        selection_limit: 0,
       },
       closestRoutableRejected: {
         attemptNumber: 3,
@@ -136,6 +138,7 @@ describe('candidate diagnostics helpers', () => {
             malformed_geometry: 0,
             outside_tolerance: 5,
             duplicate_candidate: 2,
+            selection_limit: 0,
           },
           acceptedDistanceRangeMeters: {
             min: 11.5 * 1609.344,

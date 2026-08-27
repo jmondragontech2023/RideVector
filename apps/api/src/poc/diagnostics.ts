@@ -63,6 +63,10 @@ function buildExplanation(input: BuildDiagnosticInput): string {
       return miles
         ? `Routed ${miles} mi within range, but the loop shape was too similar to an already accepted candidate.`
         : 'Loop shape was too similar to an already accepted candidate.';
+    case 'selection_limit':
+      return miles
+        ? `Routed ${miles} mi and was eligible, but the bounded alternative set was already full.`
+        : 'Eligible loop was not returned because the bounded alternative set was already full.';
     default:
       return input.geometry
         ? 'Routable loop was not returned as an alternative.'
@@ -76,7 +80,8 @@ export function buildCandidateDiagnostic(input: BuildDiagnosticInput): PocCandid
     input.geometry.coordinates.length >= 2 &&
     (input.outcome === 'accepted' ||
       input.rejectionReason === 'outside_tolerance' ||
-      input.rejectionReason === 'duplicate_candidate');
+      input.rejectionReason === 'duplicate_candidate' ||
+      input.rejectionReason === 'selection_limit');
 
   return {
     attemptNumber: input.attemptNumber,
@@ -113,7 +118,8 @@ function closestRoutableRejected(
       item.geometry !== undefined &&
       item.distanceMeters !== undefined &&
       (item.rejectionReason === 'outside_tolerance' ||
-        item.rejectionReason === 'duplicate_candidate'),
+        item.rejectionReason === 'duplicate_candidate' ||
+        item.rejectionReason === 'selection_limit'),
   );
   if (routableRejected.length === 0) {
     return undefined;

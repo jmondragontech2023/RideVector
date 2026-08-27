@@ -85,4 +85,18 @@ describe('selectRouteAlternatives', () => {
       true,
     );
   });
+
+  it('places overflow candidates into notSelected for explicit accounting', () => {
+    const result = selectRouteAlternatives(
+      [
+        candidate(1, 11.5, 'within_range'),
+        candidate(2, 12.0, 'within_range'),
+        candidate(3, 12.5, 'within_range'),
+        candidate(4, 12.8, 'within_range'),
+      ],
+      targetMeters,
+    );
+    expect(result.selected).toHaveLength(3);
+    expect(result.notSelected.length + result.duplicates.length).toBeGreaterThanOrEqual(1);
+  });
 });
