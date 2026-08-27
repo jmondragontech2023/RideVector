@@ -3,9 +3,8 @@ title = "RideVector gitleaks configuration"
 [extend]
 useDefault = true
 
-[[allowlists]]
+[allowlist]
 description = "The POC localStorage namespace is a public browser key, not a credential."
-targetRules = ["generic-api-key"]
 condition = "AND"
 regexTarget = "line"
 regexes = ['''^\s*export const POC_STORAGE_KEY = 'ridevector\.poc\.routes\.v1';\s*$''']
