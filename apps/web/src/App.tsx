@@ -92,12 +92,7 @@ export function App() {
   const [resultsTab, setResultsTab] = useState<ResultsWorkspaceTab>('overview');
   const generationSessionRef = useRef(new GenerationSession());
   const locationSessionRef = useRef(new LocationSession());
-  const {
-    themePreference,
-    mapTheme,
-    setThemePreference,
-    toggleMapTheme,
-  } = useAppearance();
+  const { themePreference, mapTheme, setThemePreference, toggleMapTheme } = useAppearance();
 
   useEffect(() => {
     setSavedRoutes(loadPocStore().routes);
@@ -108,6 +103,10 @@ export function App() {
     setDepartureMode(settings.departureMode);
     setCustomLocalDateTime(settings.customLocalDateTime);
     setFeatureSettingsHydrated(true);
+
+    if (isGeolocationSupported(navigator) && !isSecureGeolocationContext(window)) {
+      setLocationMessage(insecureContextGeolocationFailure().message);
+    }
   }, []);
 
   useEffect(() => {

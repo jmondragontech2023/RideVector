@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "dev:mobile": "wrangler dev",
     "types": "wrangler types",
     "check:types-generated": "node ../../scripts/check-wrangler-types.mjs",
     "deploy:development": "wrangler deploy --env development",

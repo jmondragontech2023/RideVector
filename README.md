@@ -62,6 +62,24 @@ pnpm dev
 
 That starts the local Worker (`http://127.0.0.1:8787`) and web app (`http://localhost:5173`) in parallel.
 
+#### Phone / LAN testing (“Use my location”)
+
+Browsers only allow the Geolocation API on **HTTPS** or **localhost**. Opening the planner as plain `http://192.168.x.x:5173` on a phone will fail with a secure-origin error.
+
+For same-Wi‑Fi phone tests:
+
+```bash
+pnpm run dev:mobile
+```
+
+1. On your computer, note the Vite **Network** URL that starts with `https://` (LAN IP + port).
+2. Open that URL on the phone (same Wi‑Fi as the computer).
+3. Accept the self-signed certificate warning once (Advanced → proceed / visit anyway).
+4. Tap **Use my location** and allow location permission when prompted.
+5. Generate routes as usual; `/api` still proxies to the local Worker.
+
+Desktop testing can stay on `pnpm dev` and `http://localhost:5173` — localhost already counts as a secure context for geolocation.
+
 Smoke the routing spike:
 
 ```bash
