@@ -1,16 +1,22 @@
+import { ValhallaHeightProvider } from './elevation/valhalla-height';
 import { generatePocRoutes } from './generate';
 import {
   errorResponse,
   isPocRoutingEnabled,
   parseJsonBody,
   pocCorsHeaders,
+  readOpenMeteoBaseUrl,
+  readTomTomApiKey,
+  readTomTomBaseUrl,
   readValhallaBaseUrl,
   routingUnavailableResponse,
   jsonResponse,
 } from './poc-http';
 import { ValhallaRoutingProvider } from './routing/valhalla';
+import { TomTomTrafficProvider } from './traffic/tomtom-flow';
 import type { PocGenerateResponse } from './types';
 import { validatePocGenerateRequest } from './validate';
+import { OpenMeteoWeatherProvider } from './weather/open-meteo';
 
 export async function handlePocGenerate(request: Request, env: Env): Promise<Response> {
   if (!isPocRoutingEnabled(env)) {
@@ -49,7 +55,27 @@ export async function handlePocGenerate(request: Request, env: Env): Promise<Res
   }
 
   const provider = new ValhallaRoutingProvider({ baseUrl });
-  const result: PocGenerateResponse = await generatePocRoutes(validated.request, { provider });
+  const elevationProvider = validated.request.features.elevationEnrichment
+    ? new ValhallaHeightProvider({ baseUrl })
+    : null;
+  const weatherProvider = validated.request.features.weatherForecast
+    ? new OpenMeteoWeatherProvider({ baseUrl: readOpenMeteoBaseUrl(env) })
+    : null;
+  const tomtomKey = readTomTomApiKey(env);
+  const trafficProvider =
+    validated.request.features.motorTrafficEnrichment && tomtomKey
+      ? new TomTomTrafficProvider({
+          apiKey: tomtomKey,
+          baseUrl: readTomTomBaseUrl(env),
+        })
+      : null;
+
+  const result: PocGenerateResponse = await generatePocRoutes(validated.request, {
+    provider,
+    elevationProvider,
+    weatherProvider,
+    trafficProvider,
+  });
 
   return jsonResponse(result, 200, { headers: pocCorsHeaders() });
 }

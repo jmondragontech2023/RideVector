@@ -66,4 +66,45 @@ describe('validatePocGenerateRequest', () => {
     const tooShort = validatePocGenerateRequest({ ...valid, targetDistanceMeters: 100 });
     expect(tooShort.ok).toBe(false);
   });
+
+  it('rejects scoring toggles without matching enrichment', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      features: {
+        elevationScoring: true,
+        elevationEnrichment: false,
+      },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.details.some((detail) => detail.field === 'features.elevationScoring')).toBe(
+        true,
+      );
+    }
+  });
+
+  it('normalizes departure now and custom modes', () => {
+    const now = validatePocGenerateRequest(valid, {
+      now: () => new Date('2026-08-26T18:00:00.000Z'),
+    });
+    expect(now.ok).toBe(true);
+    if (now.ok) {
+      expect(now.request.departure.mode).toBe('now');
+      expect(now.request.features.distanceFitScoring).toBe(true);
+    }
+
+    const custom = validatePocGenerateRequest({
+      ...valid,
+      departure: {
+        mode: 'custom',
+        localDateTime: '2026-08-27T09:30:00.000Z',
+        timeZone: 'America/Los_Angeles',
+      },
+    });
+    expect(custom.ok).toBe(true);
+    if (custom.ok) {
+      expect(custom.request.departure.mode).toBe('custom');
+      expect(custom.request.departure.timeZone).toBe('America/Los_Angeles');
+    }
+  });
 });

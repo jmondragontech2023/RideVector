@@ -37,6 +37,23 @@ export function readValhallaBaseUrl(env: Env): string | null {
   return baseUrl ? baseUrl : null;
 }
 
+export function readOpenMeteoBaseUrl(env: Env): string {
+  const configured = env.OPEN_METEO_BASE_URL?.trim();
+  return configured && configured.length > 0 ? configured.replace(/\/+$/, '') : 'https://api.open-meteo.com';
+}
+
+export function readTomTomBaseUrl(env: Env): string {
+  const configured = env.TOMTOM_BASE_URL?.trim();
+  return configured && configured.length > 0 ? configured.replace(/\/+$/, '') : 'https://api.tomtom.com';
+}
+
+/** Optional local secret — never required when traffic enrichment is disabled. */
+export function readTomTomApiKey(env: Env): string | null {
+  const extended = env as Env & { TOMTOM_API_KEY?: string };
+  const key = extended.TOMTOM_API_KEY?.trim();
+  return key && key.length > 0 ? key : null;
+}
+
 export function pocCorsHeaders(): HeadersInit {
   return {
     'access-control-allow-origin': '*',

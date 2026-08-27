@@ -1,6 +1,15 @@
 import { METERS_PER_MILE, POC_CONFIG, type PocCostingMode } from './config';
 import { defaultDistanceFlexibilityMeters } from './distance-range';
-import type { PocGenerateRequest, PocValidationIssue } from './types';
+import {
+  isElevationPreference,
+  isTrafficPreference,
+  normalizePocFeatures,
+} from './features';
+import type {
+  PocGenerateRequest,
+  PocNormalizedDeparture,
+  PocValidationIssue,
+} from './types';
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -14,16 +23,95 @@ function isCostingMode(value: unknown): value is PocCostingMode {
   return value === 'road' || value === 'gravel';
 }
 
+function normalizeDeparture(
+  value: unknown,
+  now: () => Date,
+): { ok: true; departure: PocNormalizedDeparture } | { ok: false; details: PocValidationIssue[] } {
+  if (value === undefined) {
+    const instant = now();
+    return {
+      ok: true,
+      departure: {
+        mode: 'now',
+        departureInstantIso: instant.toISOString(),
+        timeZone: 'UTC',
+      },
+    };
+  }
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return { ok: false, details: [{ field: 'departure', reason: 'must be an object' }] };
+  }
+  const record = value as Record<string, unknown>;
+  if (record.mode === 'now') {
+    const instant = now();
+    return {
+      ok: true,
+      departure: {
+        mode: 'now',
+        departureInstantIso: instant.toISOString(),
+        timeZone: typeof record.timeZone === 'string' ? record.timeZone : 'UTC',
+      },
+    };
+  }
+  if (record.mode === 'custom') {
+    if (typeof record.localDateTime !== 'string' || record.localDateTime.trim() === '') {
+      return {
+        ok: false,
+        details: [{ field: 'departure.localDateTime', reason: 'must be a non-empty ISO-like string' }],
+      };
+    }
+    if (typeof record.timeZone !== 'string' || record.timeZone.trim() === '') {
+      return {
+        ok: false,
+        details: [{ field: 'departure.timeZone', reason: 'must be a non-empty IANA timezone' }],
+      };
+    }
+    const parsed = Date.parse(record.localDateTime);
+    if (!Number.isFinite(parsed)) {
+      return {
+        ok: false,
+        details: [
+          {
+            field: 'departure.localDateTime',
+            reason: 'must parse as a valid date/time',
+          },
+        ],
+      };
+    }
+    return {
+      ok: true,
+      departure: {
+        mode: 'custom',
+        departureInstantIso: new Date(parsed).toISOString(),
+        timeZone: record.timeZone,
+      },
+    };
+  }
+  return {
+    ok: false,
+    details: [{ field: 'departure.mode', reason: 'must be "now" or "custom"' }],
+  };
+}
+
+export type ValidatedPocGenerateRequest = Required<
+  Omit<PocGenerateRequest, 'features' | 'departure'>
+> & {
+  features: ReturnType<typeof normalizePocFeatures>;
+  departure: PocNormalizedDeparture;
+};
+
 /**
  * Validates and normalizes a POC generate request.
  * Returns canonical meters and a concrete integer seed.
  */
 export function validatePocGenerateRequest(
   body: unknown,
+  options?: { now?: () => Date },
 ):
-  | { ok: true; request: Required<PocGenerateRequest> }
+  | { ok: true; request: ValidatedPocGenerateRequest }
   | { ok: false; details: PocValidationIssue[] } {
   const details: PocValidationIssue[] = [];
+  const now = options?.now ?? (() => new Date());
 
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
     return {
@@ -103,6 +191,62 @@ export function validatePocGenerateRequest(
     details.push({ field: 'seed', reason: 'must be an integer when provided' });
   }
 
+  const features = normalizePocFeatures(record.features);
+  if (record.features !== undefined && record.features !== null) {
+    if (typeof record.features !== 'object' || Array.isArray(record.features)) {
+      details.push({ field: 'features', reason: 'must be an object when provided' });
+    } else {
+      const raw = record.features as Record<string, unknown>;
+      if (raw.elevationScoring === true && raw.elevationEnrichment !== true) {
+        details.push({
+          field: 'features.elevationScoring',
+          reason: 'requires elevationEnrichment',
+        });
+      }
+      if (raw.motorTrafficScoring === true && raw.motorTrafficEnrichment !== true) {
+        details.push({
+          field: 'features.motorTrafficScoring',
+          reason: 'requires motorTrafficEnrichment',
+        });
+      }
+      if (raw.weatherScoring === true && raw.weatherForecast !== true) {
+        details.push({
+          field: 'features.weatherScoring',
+          reason: 'requires weatherForecast',
+        });
+      }
+    }
+  }
+
+  let elevationPreference: ValidatedPocGenerateRequest['elevationPreference'] = 'none';
+  if (record.elevationPreference !== undefined) {
+    if (!isElevationPreference(record.elevationPreference)) {
+      details.push({
+        field: 'elevationPreference',
+        reason: 'must be none, flatter, rolling, or climbing',
+      });
+    } else {
+      elevationPreference = record.elevationPreference;
+    }
+  }
+
+  let trafficPreference: ValidatedPocGenerateRequest['trafficPreference'] = 'none';
+  if (record.trafficPreference !== undefined) {
+    if (!isTrafficPreference(record.trafficPreference)) {
+      details.push({
+        field: 'trafficPreference',
+        reason: 'must be none, prefer_lower, or strongly_avoid_heavy',
+      });
+    } else {
+      trafficPreference = record.trafficPreference;
+    }
+  }
+
+  const departureResult = normalizeDeparture(record.departure, now);
+  if (!departureResult.ok) {
+    details.push(...departureResult.details);
+  }
+
   if (details.length > 0) {
     return { ok: false, details };
   }
@@ -121,6 +265,16 @@ export function validatePocGenerateRequest(
       distanceFlexibilityMeters: flexMeters,
       costing: record.costing as PocCostingMode,
       seed,
+      features,
+      elevationPreference,
+      trafficPreference,
+      departure: departureResult.ok
+        ? departureResult.departure
+        : {
+            mode: 'now',
+            departureInstantIso: now().toISOString(),
+            timeZone: 'UTC',
+          },
     },
   };
 }
