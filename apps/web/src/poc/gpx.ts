@@ -1,5 +1,6 @@
-import { formatMiles } from './units';
+import { formatMiles, metersToMiles } from './units';
 import type { PocCostingMode, PocLineString } from './types';
+import { START_AREA_FALLBACK_LABEL } from './start-area';
 
 /** Decimal places for lat/lon attributes — ~1 cm fidelity, deterministic. */
 export const GPX_COORDINATE_DECIMALS = 7;
@@ -11,6 +12,11 @@ export type GpxExportInput = {
   costing: PocCostingMode;
   seed: number;
   distanceMeters: number;
+  /**
+   * Coarse start-area place label for filenames (city/neighborhood).
+   * Must not contain coordinates.
+   */
+  startAreaLabel?: string;
 };
 
 export type GpxExportResult = {
@@ -58,24 +64,45 @@ export function sanitizeGpxFilenameComponent(value: string): string {
   return sanitized.length > 0 ? sanitized.slice(0, 80) : 'route';
 }
 
-export function buildGpxFilename(routeName: string, seed: number): string {
-  const label = sanitizeGpxFilenameComponent(routeName);
-  const seedPart = sanitizeGpxFilenameComponent(String(seed));
-  return `RideVector-${label}-seed-${seedPart}.gpx`;
+export function formatGpxDistanceFilename(distanceMeters: number): string {
+  const miles = metersToMiles(distanceMeters);
+  const rounded = Number.isFinite(miles) ? miles.toFixed(1) : '0.0';
+  return `${rounded}mi`;
 }
 
-export function buildGpxTrackName(routeName: string): string {
-  return `RideVector ${routeName.trim() || 'Route'}`;
+export function buildGpxFilename(input: {
+  startAreaLabel?: string;
+  distanceMeters: number;
+  seed: number;
+}): string {
+  const area = sanitizeGpxFilenameComponent(
+    input.startAreaLabel?.trim() || START_AREA_FALLBACK_LABEL,
+  );
+  const distance = sanitizeGpxFilenameComponent(formatGpxDistanceFilename(input.distanceMeters));
+  const seedPart = sanitizeGpxFilenameComponent(String(input.seed));
+  return `RideVector-${area}-${distance}-seed-${seedPart}.gpx`;
+}
+
+export function buildGpxTrackName(input: {
+  startAreaLabel?: string;
+  routeName: string;
+  distanceMeters: number;
+}): string {
+  const area = input.startAreaLabel?.trim() || START_AREA_FALLBACK_LABEL;
+  const route = input.routeName.trim() || 'Route';
+  return `RideVector ${area} ${route} (${formatMiles(input.distanceMeters)})`;
 }
 
 export function buildGpxDescription(input: {
   routeName: string;
+  startAreaLabel?: string;
   distanceMeters: number;
   costing: PocCostingMode;
   seed: number;
 }): string {
   return [
     input.routeName.trim() || 'Route',
+    input.startAreaLabel?.trim() || START_AREA_FALLBACK_LABEL,
     formatMiles(input.distanceMeters),
     input.costing,
     `seed ${input.seed}`,
@@ -140,14 +167,24 @@ export function buildGpxDocument(input: GpxExportInput): GpxExportResult {
     );
   }
 
-  const trackName = buildGpxTrackName(input.routeName);
+  const startAreaLabel = input.startAreaLabel?.trim() || START_AREA_FALLBACK_LABEL;
+  const trackName = buildGpxTrackName({
+    startAreaLabel,
+    routeName: input.routeName,
+    distanceMeters: input.distanceMeters,
+  });
   const description = buildGpxDescription({
     routeName: input.routeName,
+    startAreaLabel,
     distanceMeters: input.distanceMeters,
     costing: input.costing,
     seed: input.seed,
   });
-  const filename = buildGpxFilename(input.routeName, input.seed);
+  const filename = buildGpxFilename({
+    startAreaLabel,
+    distanceMeters: input.distanceMeters,
+    seed: input.seed,
+  });
 
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',

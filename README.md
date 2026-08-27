@@ -111,7 +111,7 @@ After generating (or reopening a locally saved) route:
 3. In Garmin Connect: **Training & Planning → Courses → Import**, then sync the course to a compatible Garmin device.
 4. Record results in [`poc/EVALUATION.md`](poc/EVALUATION.md).
 
-Current POC GPX limitations: no elevation, timestamps, course points, guaranteed turn prompts, or direct Garmin/Strava account publishing. The file is a planned track of the exact selected geometry.
+Current POC GPX limitations: no elevation, timestamps, course points, guaranteed turn prompts, or direct Garmin/Strava account publishing. The file is a planned track of the exact selected geometry. Filenames use start area + distance + seed (for example `RideVector-Encinitas-12.0mi-seed-42.gpx`); start area comes from reverse geocoding or the loaded fixture label, with `Local` as fallback.
 
 POC docs: [`poc/README.md`](poc/README.md). Owner evaluation worksheet: [`poc/EVALUATION.md`](poc/EVALUATION.md) (results remain pending until the owner fills them). Scoring experiment: [`poc/SCORING_AND_ENRICHMENT.md`](poc/SCORING_AND_ENRICHMENT.md).
 

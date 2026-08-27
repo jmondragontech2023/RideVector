@@ -6,6 +6,7 @@ import {
   buildGpxTrackName,
   escapeXmlText,
   formatGpxCoordinate,
+  formatGpxDistanceFilename,
   GPX_COORDINATE_DECIMALS,
   GpxExportError,
   sanitizeGpxFilenameComponent,
@@ -30,6 +31,7 @@ describe('gpx export', () => {
       costing: 'road',
       seed: 42,
       distanceMeters: 16_093.44,
+      startAreaLabel: 'San Francisco',
     });
 
     expect(result.xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
@@ -73,45 +75,82 @@ describe('gpx export', () => {
       costing: 'road',
       seed: 3,
       distanceMeters: 12_000,
+      startAreaLabel: 'Austin',
     });
 
     expect(result.xml).toContain(
-      `<name>${escapeXmlText(buildGpxTrackName('Route <A> & "B"'))}</name>`,
+      `<name>${escapeXmlText(
+        buildGpxTrackName({
+          startAreaLabel: 'Austin',
+          routeName: 'Route <A> & "B"',
+          distanceMeters: 12_000,
+        }),
+      )}</name>`,
     );
     expect(result.xml).toContain('&lt;');
     expect(result.xml).toContain('&amp;');
     expect(result.xml).toContain('&quot;');
     expect(result.description).toContain('Route <A> & "B"');
+    expect(result.description).toContain('Austin');
     expect(result.description).toContain('road');
     expect(result.description).toContain('seed 3');
     expect(result.description).not.toMatch(/-?\d+\.\d+,\s*-?\d+\.\d+/);
     expect(result.xml).not.toContain('Route <A>');
   });
 
-  it('produces deterministic XML and filenames for identical input', () => {
+  it('names files as start-area + distance + seed for uniqueness', () => {
     const input = {
       geometry: sampleGeometry,
       routeName: 'Route A',
       costing: 'road' as const,
       seed: 123,
       distanceMeters: 19_312.128,
+      startAreaLabel: 'Encinitas',
     };
     const first = buildGpxDocument(input);
     const second = buildGpxDocument(input);
     expect(first.xml).toBe(second.xml);
     expect(first.filename).toBe(second.filename);
-    expect(first.filename).toBe('RideVector-Route-A-seed-123.gpx');
-    expect(buildGpxFilename('Route A', 123)).toBe('RideVector-Route-A-seed-123.gpx');
+    expect(first.filename).toBe('RideVector-Encinitas-12.0mi-seed-123.gpx');
+    expect(
+      buildGpxFilename({
+        startAreaLabel: 'Encinitas',
+        distanceMeters: 19_312.128,
+        seed: 123,
+      }),
+    ).toBe('RideVector-Encinitas-12.0mi-seed-123.gpx');
+    expect(formatGpxDistanceFilename(19_312.128)).toBe('12.0mi');
     expect(buildGpxDescription(input)).toBe(first.description);
     expect(formatGpxCoordinate(37.7694)).toHaveLength(2 + 1 + GPX_COORDINATE_DECIMALS);
+  });
+
+  it('falls back to Local when start area is missing and still includes distance + seed', () => {
+    expect(
+      buildGpxFilename({
+        distanceMeters: 16_093.44,
+        seed: 0,
+      }),
+    ).toBe('RideVector-Local-10.0mi-seed-0.gpx');
   });
 
   it('sanitizes filenames to remove path separators and unsafe characters', () => {
     expect(sanitizeGpxFilenameComponent('../evil/Route A')).toBe('evil-Route-A');
     expect(sanitizeGpxFilenameComponent('Route\\A')).toBe('Route-A');
     expect(sanitizeGpxFilenameComponent('Route/A')).toBe('Route-A');
-    expect(buildGpxFilename('Route A!!', 9)).toBe('RideVector-Route-A-seed-9.gpx');
-    expect(buildGpxFilename('@@@', 1)).toBe('RideVector-route-seed-1.gpx');
+    expect(
+      buildGpxFilename({
+        startAreaLabel: 'San Francisco!!',
+        distanceMeters: 8_046.72,
+        seed: 9,
+      }),
+    ).toBe('RideVector-San-Francisco-5.0mi-seed-9.gpx');
+    expect(
+      buildGpxFilename({
+        startAreaLabel: '@@@',
+        distanceMeters: 1_609.344,
+        seed: 1,
+      }),
+    ).toBe('RideVector-route-1.0mi-seed-1.gpx');
   });
 
   it('fails clearly for invalid geometry instead of dropping points', () => {
@@ -220,7 +259,7 @@ describe('gpx download boundary', () => {
       remove,
     };
 
-    downloadGpxFile('<?xml version="1.0"?><gpx></gpx>', 'RideVector-Route-A-seed-1.gpx', {
+    downloadGpxFile('<?xml version="1.0"?><gpx></gpx>', 'RideVector-Encinitas-12.0mi-seed-1.gpx', {
       document: {
         createElement: vi.fn(() => anchor) as unknown as Document['createElement'],
         body: { appendChild } as unknown as HTMLElement,
@@ -233,7 +272,7 @@ describe('gpx download boundary', () => {
     const calls = createObjectURL.mock.calls as unknown as Array<[Blob]>;
     expect(calls[0]?.[0]).toBeInstanceOf(Blob);
     expect(calls[0]?.[0].type).toContain(GPX_MIME_TYPE);
-    expect(anchor.download).toBe('RideVector-Route-A-seed-1.gpx');
+    expect(anchor.download).toBe('RideVector-Encinitas-12.0mi-seed-1.gpx');
     expect(appendChild).toHaveBeenCalledWith(anchor);
     expect(click).toHaveBeenCalledOnce();
     expect(remove).toHaveBeenCalledOnce();

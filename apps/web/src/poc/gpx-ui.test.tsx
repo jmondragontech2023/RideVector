@@ -75,10 +75,12 @@ describe('Download GPX UI wiring', () => {
     expect(selectedPanelSource).toContain('Garmin Connect');
     expect(resultsPanelSource).toContain('onDownloadGpx={onDownloadGpx}');
     expect(appSource).toContain('handleDownloadGpx');
-    expect(appSource).toContain('onDownloadGpx={handleDownloadGpx}');
+    expect(appSource).toContain('onDownloadGpx={() => void handleDownloadGpx()}');
     expect(appSource).toContain('buildGpxDocument({');
     expect(appSource).toContain('geometry: selected.geometry');
+    expect(appSource).toContain('startAreaLabel: areaLabel');
     expect(appSource).toContain('downloadGpxFile(exported.xml, exported.filename)');
+    expect(appSource).toContain('resolveStartAreaLabel');
   });
 
   it('exports the currently selected alternative geometry, including after a saved reopen path', () => {
@@ -114,9 +116,10 @@ describe('Download GPX UI wiring', () => {
       costing: saved.costing,
       seed: saved.seed,
       distanceMeters: reopenedSelected.distanceMeters,
+      startAreaLabel: 'Central Park',
     });
 
-    expect(exported.filename).toBe('RideVector-Route-B-seed-55.gpx');
+    expect(exported.filename).toBe('RideVector-Central-Park-7.5mi-seed-55.gpx');
     expect(exported.pointCount).toBe(3);
     expect(exported.xml).toContain('lat="40.7800000"');
     expect(exported.xml).toContain('lon="-73.9700000"');
