@@ -128,11 +128,13 @@ describe('poc local storage', () => {
     const parsed = parsePocStore(legacy);
     expect(parsed.routes).toHaveLength(1);
     expect(parsed.routes[0]?.id).toBe('legacy-1');
-    expect(parsed.routes[0]?.distanceFlexibilityMeters).toBeCloseTo(3 * METERS_PER_MILE);
+    expect(parsed.routes[0]?.distanceFlexibilityMeters).toBeCloseTo(12 * 0.2 * METERS_PER_MILE);
     expect(parsed.routes[0]?.alternative.distanceClassification).toBe('within_range');
-    expect(parsed.routes[0]?.alternative.requestedRangeMeters.min).toBeCloseTo(9 * METERS_PER_MILE);
+    expect(parsed.routes[0]?.alternative.requestedRangeMeters.min).toBeCloseTo(
+      12 * 0.8 * METERS_PER_MILE,
+    );
     expect(parsed.routes[0]?.alternative.requestedRangeMeters.max).toBeCloseTo(
-      15 * METERS_PER_MILE,
+      12 * 1.2 * METERS_PER_MILE,
     );
   });
 
@@ -180,7 +182,7 @@ describe('poc local storage', () => {
     const rewritten = JSON.parse(stored) as {
       routes: Array<{ distanceFlexibilityMeters?: number }>;
     };
-    expect(rewritten.routes[0]?.distanceFlexibilityMeters).toBeCloseTo(3 * METERS_PER_MILE);
+    expect(rewritten.routes[0]?.distanceFlexibilityMeters).toBeCloseTo(10 * 0.2 * METERS_PER_MILE);
   });
 
   it('upserts and deletes saved routes', () => {

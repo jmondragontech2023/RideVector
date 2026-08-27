@@ -72,4 +72,14 @@ describe('distance-range', () => {
       -miles(0.8),
     );
   });
+
+  it('clamps the lower bound at zero when flexibility exceeds the target', () => {
+    const smallTarget = miles(2);
+    const largeFlex = miles(5);
+    const range = acceptedRangeMeters(smallTarget, largeFlex);
+    expect(range.min).toBe(0);
+    expect(range.max).toBeCloseTo(smallTarget + largeFlex);
+    expect(classifyRouteDistance(0, smallTarget, largeFlex)).toBe('within_range');
+    expect(classifyRouteDistance(range.min, smallTarget, largeFlex)).toBe('within_range');
+  });
 });

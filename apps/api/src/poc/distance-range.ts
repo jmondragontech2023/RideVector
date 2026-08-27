@@ -7,7 +7,7 @@ export function acceptedRangeMeters(
   distanceFlexibilityMeters: number,
 ): { min: number; max: number } {
   return {
-    min: targetDistanceMeters - distanceFlexibilityMeters,
+    min: Math.max(0, targetDistanceMeters - distanceFlexibilityMeters),
     max: targetDistanceMeters + distanceFlexibilityMeters,
   };
 }

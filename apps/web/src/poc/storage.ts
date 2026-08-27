@@ -39,6 +39,9 @@ export type PocLocalStoreV1 = {
 
 export const POC_STORAGE_KEY = 'ridevector.poc.routes.v1';
 
+/** Historical POC tolerance (±20% of target) used before explicit flexibility fields. */
+const LEGACY_TOLERANCE_FRACTION = 0.2;
+
 export function emptyStore(): PocLocalStoreV1 {
   return { version: 1, routes: [] };
 }
@@ -247,7 +250,7 @@ export function migrateSavedRoute(value: unknown): SavedPocRoute | null {
   const flexibilityMeters =
     isFiniteNumber(record.distanceFlexibilityMeters) && record.distanceFlexibilityMeters > 0
       ? record.distanceFlexibilityMeters
-      : defaultFlexibilityMeters();
+      : targetDistanceMeters * LEGACY_TOLERANCE_FRACTION;
   const alternativeRecord = record.alternative as Record<string, unknown>;
   const classification =
     alternativeRecord.distanceClassification === 'near_match' ? 'near_match' : 'within_range';
