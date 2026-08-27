@@ -102,6 +102,17 @@ cp apps/api/.dev.vars.example apps/api/.dev.vars
 
 Experimental scoring/enrichment (distance fit, loop quality, diversity, elevation, traffic, weather) is documented in [`poc/SCORING_AND_ENRICHMENT.md`](poc/SCORING_AND_ENRICHMENT.md). Provider keys stay Worker-side; the browser never receives provider URLs, payloads, or credentials.
 
+#### Garmin GPX field-test export (POC-4)
+
+After generating (or reopening a locally saved) route:
+
+1. Open the **Details** tab for the selected accepted alternative.
+2. Click **Download GPX** (client-side only — no API endpoint).
+3. In Garmin Connect: **Training & Planning → Courses → Import**, then sync the course to a compatible Garmin device.
+4. Record results in [`poc/EVALUATION.md`](poc/EVALUATION.md).
+
+Current POC GPX limitations: no elevation, timestamps, course points, guaranteed turn prompts, or direct Garmin/Strava account publishing. The file is a planned track of the exact selected geometry.
+
 POC docs: [`poc/README.md`](poc/README.md). Owner evaluation worksheet: [`poc/EVALUATION.md`](poc/EVALUATION.md) (results remain pending until the owner fills them). Scoring experiment: [`poc/SCORING_AND_ENRICHMENT.md`](poc/SCORING_AND_ENRICHMENT.md).
 
 ### Other local commands

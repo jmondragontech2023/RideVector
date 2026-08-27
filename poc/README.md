@@ -8,7 +8,7 @@ This directory documents the experiment. POC implementation belongs in the exist
 
 ## Cursor execution directive
 
-This entire plan is approved for autonomous implementation on `poc/route-generation`. Complete POC-1, POC-2, POC-3, and the scoring/enrichment iteration in order without asking for intermediate review or expanding the scope. Make reasonable implementation decisions within the fixed choices below, run verification after each slice, and continue when checks pass. Commit in coherent slices if repository permissions allow. Return to the owner only after the complete definition of done is met, or when blocked by missing access that has no safe local substitute.
+This entire plan is approved for autonomous implementation on `poc/route-generation` (and narrowly scoped follow-on branches such as `poc/garmin-gpx-export`). Complete POC-1, POC-2, POC-3, POC-4, and the scoring/enrichment iteration in order without asking for intermediate review or expanding the scope. Make reasonable implementation decisions within the fixed choices below, run verification after each slice, and continue when checks pass. Commit in coherent slices if repository permissions allow. Return to the owner only after the complete definition of done is met, or when blocked by missing access that has no safe local substitute.
 
 Do not wait for approval to add the specified dependencies, provisional types, tests, fixtures, or local-only configuration. Do not deploy, create paid resources, create remote data, weaken production guards, or send personal coordinates to committed fixtures.
 
@@ -29,6 +29,7 @@ Use these choices so the POC does not stall on design exploration:
 - Alternatives: return at most 3. Use factual names `Route A`, `Route B`, and `Route C`; do not use production personality names.
 - Scoring/enrichment: independently toggleable experimental features documented in `poc/SCORING_AND_ENRICHMENT.md` (`poc-scoring-v1`). Geometry scores are local; elevation uses Valhalla `/height`; weather uses Open-Meteo; traffic uses TomTom Flow Segment Data with optional `TOMTOM_API_KEY`.
 - Saving and feedback: browser `localStorage` only, with versioned storage keys and graceful handling of corrupt entries. Feature preferences use a separate key from saved routes.
+- GPX field-test export: client-side GPX 1.1 download of the selected accepted alternative (`apps/web/src/poc/gpx.ts`); no Worker export endpoint.
 - Testing: Vitest unit/component tests plus mocked Worker/provider integration tests. Live routing/weather/traffic checks are opt-in and never part of ordinary CI.
 - Styling: extend the existing CSS; do not add a design system.
 
@@ -43,6 +44,7 @@ If a library version must be selected, use the current stable version compatible
 5. Generate bounded, seeded loop candidates.
 6. Compare up to three routes by map geometry, POC fit, category badges, and expandable enrichment details.
 7. Select, regenerate, save locally, and record whether a route looks worth riding.
+8. Optionally download the selected accepted route as GPX and import it into Garmin Connect for an on-device field test.
 
 ## Delivery sequence
 
@@ -57,6 +59,10 @@ Complete.
 ### POC-3 — Personal evaluation
 
 Complete except owner field-test answers in `poc/EVALUATION.md`.
+
+### POC-4 — Garmin GPX field-test export
+
+Download the currently selected accepted alternative (or a route reopened from browser-local saves) as a client-side GPX 1.1 track for manual Garmin Connect course import. No Worker endpoint, OAuth, FIT/TCX, or direct Garmin publishing.
 
 ### POC scoring and enrichment iteration
 
@@ -89,7 +95,9 @@ Each alternative includes geometry, distance, duration, distance classification,
 
 ## Explicitly deferred
 
-Supabase product tables, authentication, authorization, RLS, cross-device saves, iOS, GPX, full OpenAPI resources, final domain package, production personalities, production analytics, and public deployment.
+Supabase product tables, authentication, authorization, RLS, cross-device saves, iOS, production export infrastructure, direct Garmin Courses API / Strava publishing, FIT/TCX generation, full OpenAPI resources, final domain package, production personalities, production analytics, and public deployment.
+
+Manual client-side GPX 1.1 download for Garmin field testing is **in scope** as POC-4 (ADR-019).
 
 ## Exit decision
 
@@ -107,12 +115,12 @@ Do not expand the POC until this decision is made.
 
 Cursor should return the branch for final review only when all of the following are true:
 
-1. POC-1 through POC-3 and the scoring/enrichment iteration are complete, except actual owner field-test answers in `poc/EVALUATION.md`.
+1. POC-1 through POC-4 and the scoring/enrichment iteration are complete, except actual owner field-test answers in `poc/EVALUATION.md` (including Garmin import/device ride checks).
 2. `pnpm run check` passes from the repository root.
 3. Web and Worker production builds pass without exposing the local POC endpoint in non-local environments.
-4. Unit and mocked integration tests cover validation, scoring, enrichment failure isolation, feature-toggle persistence, provider mapping, and corrupt local storage.
+4. Unit and mocked integration tests cover validation, scoring, enrichment failure isolation, feature-toggle persistence, provider mapping, corrupt local storage, and client-side GPX export.
 5. Opt-in live checks against configured providers are run when credentials/network are available; otherwise report them as unverified.
-6. README local-start instructions include `VALHALLA_BASE_URL`, optional `TOMTOM_API_KEY`, and the two-process start sequence.
+6. README local-start instructions include `VALHALLA_BASE_URL`, optional `TOMTOM_API_KEY`, the two-process start sequence, and the manual Garmin GPX import workflow.
 7. The final diff contains no secrets, personal coordinates, provider payload dumps, database product work, deployment changes, or unrelated files.
 8. `TASKS.md` reflects actual completion accurately.
 

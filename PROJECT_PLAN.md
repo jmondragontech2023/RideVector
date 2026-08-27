@@ -38,12 +38,14 @@ Scope:
 - Generate bounded, seeded, directionally varied loop candidates through a provider-neutral routing adapter backed initially by a configurable Valhalla-compatible endpoint.
 - Return and display up to three alternatives with geometry, distance, estimated duration, target-distance difference, and factual warnings.
 - Select, regenerate, and save candidates in browser-local storage for personal evaluation.
+- Download the selected accepted alternative as a client-side GPX 1.1 track for manual Garmin Connect course import (field-test export only).
 - Record local generation timing, candidate counts, selection, and a simple “would ride” assessment.
 
 Explicit POC limits:
 
 - Local execution only; no public or production deployment.
-- No Supabase persistence, authentication, user-owned API, RLS, iOS, traffic, weather, exact surface classification, elevation scoring, deadline handling, GPX, or production route personalities.
+- No Supabase persistence, authentication, user-owned API, RLS, iOS, deadline handling, or production route personalities.
+- No production export service, OAuth, direct Garmin Courses API publishing, FIT/TCX generation, or Strava integration. Manual client-side GPX download for field testing is in scope (POC-4 / ADR-019).
 - No claim that road/gravel costing represents measured surface percentages.
 - No creation of `packages/domain`; provisional contracts stay narrow and are replaced or promoted deliberately in Milestone 1.
 - Public/shared routing endpoints are disposable development dependencies only and must be configurable, policy-compatible, and replaceable.
@@ -54,6 +56,7 @@ Acceptance:
 - Common test locations normally yield at least two visibly different alternatives within a provisional ±20% target tolerance, or return an honest structured explanation.
 - A generation attempt is bounded to 10 provider calls and records its seed and aggregate timing.
 - Routes can be selected, regenerated, and saved locally without Supabase.
+- A selected or reopened accepted route can be downloaded as standards-valid GPX 1.1 for manual Garmin Connect import.
 - At least five synthetic or non-sensitive start/distance scenarios are evaluated, and findings determine whether to continue, revise candidate generation, or stop.
 - POC limitations are visible in the UI and documentation; the POC is not deployable to staging or production.
 
@@ -109,7 +112,7 @@ Build the equivalent supported SwiftUI flow against the same API semantics.
 
 ### Milestone 10 — Saved routes and GPX
 
-Add secured saved-route history and standards-valid GPX export.
+Add secured saved-route history and production-grade, standards-valid GPX export for authenticated clients. The local POC already supports a client-side GPX 1.1 download for manual Garmin field testing (ADR-019); Milestone 10 hardens contracts, persistence, security, supported-client behavior, and any remaining export semantics required for private beta.
 
 ### Milestone 11 — Private beta
 

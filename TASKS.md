@@ -2,7 +2,7 @@
 
 ## Active status
 
-**POC scoring/enrichment iteration implemented on branch `poc/route-generation`**, except owner field-test answers in `poc/EVALUATION.md` (must remain pending). Milestone 0 remains merged. ADR-017 and `poc/README.md` govern the temporary POC exceptions; all prior production decisions and the Milestones 1–11 roadmap remain preserved.
+**POC scoring/enrichment + POC-4 GPX field-test export implemented on branch `poc/garmin-gpx-export`**, except owner field-test answers in `poc/EVALUATION.md` (must remain pending). Milestone 0 remains merged. ADR-017 / ADR-019 and `poc/README.md` govern the temporary POC exceptions; all prior production decisions and the Milestones 1–11 roadmap remain preserved.
 
 ## POC-0 — Pivot and baseline
 
@@ -44,6 +44,15 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 - [x] Add at least five non-sensitive geographic fixtures and record evaluation findings. _(Fixtures + `poc/EVALUATION.md` template committed; owner field-test answers remain pending.)_
 - [ ] Decide to continue, revise the generator, or stop before resuming the production milestones. _(Owner decision after filling `poc/EVALUATION.md`.)_
 
+## POC-4 — Garmin GPX field-test export
+
+- [x] Add client-side GPX 1.1 serialization from the selected accepted alternative’s provider-neutral GeoJSON LineString (`apps/web/src/poc/gpx.ts`).
+- [x] Add a browser download boundary with sanitized `.gpx` filenames and reliable object-URL cleanup.
+- [x] Wire **Download GPX** into selected-route actions (generated selection and reopened local saves); never export rejected-preview geometry.
+- [x] Cover serialization, sanitization, invalid-geometry failure, download cleanup, and UI wiring with focused Vitest coverage.
+- [x] Document the manual Garmin Connect import path and amend deferred-scope language (ADR-019).
+- [ ] Owner imports an exported course into Garmin Connect, syncs to a compatible device, rides it, and records results in `poc/EVALUATION.md`.
+
 ## POC scoring and enrichment iteration
 
 - [x] Create `poc/SCORING_AND_ENRICHMENT.md` (`poc-scoring-v1` weights, thresholds, provider limits).
@@ -59,7 +68,8 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 
 ## POC guardrails
 
-- No Supabase product schema, authentication, RLS, remote deployment, iOS, GPX, or production analytics.
+- No Supabase product schema, authentication, RLS, remote deployment, iOS, production export infrastructure, direct Garmin/Strava publishing, or production analytics.
+- Manual client-side GPX download for field testing is allowed (POC-4); do not add Worker export endpoints or OAuth.
 - No `packages/domain` during the POC.
 - No “Best Overall,” “Quietest,” or “Adventure” labels. Use **POC fit** and “lowest estimated motor-traffic exposure.”
 - Maximum 10 routing-provider calls per generation attempt; traffic enrichment ≤15 TomTom calls.

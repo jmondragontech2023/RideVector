@@ -9,7 +9,8 @@ Owner field-test record for the local route-generation POC. **Do not invent resu
 3. Set the target distance and distance flexibility (± miles). Confirm the displayed accepted range before generating.
 4. Optionally set departure time and experimental feature presets (see matrix below).
 5. Generate, compare up to three alternatives (including any amber **Near match** routes), regenerate if needed, and optionally save with feedback in browser `localStorage` only.
-6. Fill the tables below with your judgment.
+6. Optionally open **Details**, tap **Download GPX**, and import the file into Garmin Connect for an on-device ride (see Garmin field-test checklist below).
+7. Fill the tables below with your judgment.
 
 ## Base scenario results
 
@@ -28,6 +29,22 @@ Owner field-test record for the local route-generation POC. **Do not invent resu
 **Deviation acceptable values (near matches only):** `yes` / `no` / `n/a`
 
 **Dominant issue values:** `candidate quality` / `comparison UX` / `missing constraints` / `other` (specify in notes)
+
+## Garmin GPX field-test checklist
+
+Use **Download GPX** on a selected accepted route (or a reopened local save). Do **not** invent results. Leave fields `pending` until you complete each step.
+
+Manual import path (Garmin Connect): **Training & Planning → Courses → Import**, then send/sync the course to a compatible Garmin device.
+
+| # | Fixture / route | GPX download OK? | Garmin Connect import OK? | Course synced / opened on device? | Navigation / geometry issues | Would ride? | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | pending | pending | pending | pending | pending | pending | pending |
+| 2 | pending | pending | pending | pending | pending | pending | pending |
+| 3 | pending | pending | pending | pending | pending | pending | pending |
+| 4 | pending | pending | pending | pending | pending | pending | pending |
+| 5 | pending | pending | pending | pending | pending | pending | pending |
+
+POC GPX limitations (do not treat as bugs unless the geometry itself is wrong): no elevation profile, no timestamps, no course points / guaranteed turn prompts, no direct Garmin account publishing. Device turn-by-turn behavior depends on the Garmin unit and Connect course processing.
 
 ## Scoring / enrichment mode matrix
 
@@ -75,7 +92,9 @@ Answer after at least five scenarios:
    - pending
 5. Did POC fit scores, traffic exposure proxies, weather, or elevation change which route you would ride?
    - pending
-6. Decision: **continue** into production milestones, **revise** candidate generation, or **stop**?
+6. Did GPX import into Garmin Connect and on-device course following work well enough for evaluation?
+   - pending
+7. Decision: **continue** into production milestones, **revise** candidate generation, or **stop**?
    - pending
 
 ## Guardrails reminder
