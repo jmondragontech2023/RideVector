@@ -22,15 +22,9 @@ export type GpxExportResult = {
 };
 
 export class GpxExportError extends Error {
-  readonly code:
-    | 'invalid_geometry'
-    | 'insufficient_points'
-    | 'invalid_coordinate';
+  readonly code: 'invalid_geometry' | 'insufficient_points' | 'invalid_coordinate';
 
-  constructor(
-    code: GpxExportError['code'],
-    message: string,
-  ) {
+  constructor(code: GpxExportError['code'], message: string) {
     super(message);
     this.name = 'GpxExportError';
     this.code = code;
@@ -88,11 +82,7 @@ export function buildGpxDescription(input: {
   ].join(' · ');
 }
 
-function assertValidCoordinate(
-  longitude: number,
-  latitude: number,
-  index: number,
-): void {
+function assertValidCoordinate(longitude: number, latitude: number, index: number): void {
   if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
     throw new GpxExportError(
       'invalid_coordinate',

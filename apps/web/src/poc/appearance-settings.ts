@@ -19,10 +19,7 @@ export function defaultAppearanceSettings(): AppearanceSettingsV1 {
   };
 }
 
-export function resolveTheme(
-  preference: ThemePreference,
-  systemTheme: ColorScheme,
-): ColorScheme {
+export function resolveTheme(preference: ThemePreference, systemTheme: ColorScheme): ColorScheme {
   return preference === 'system' ? systemTheme : preference;
 }
 

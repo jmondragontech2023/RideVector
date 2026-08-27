@@ -33,7 +33,9 @@ describe('gpx export', () => {
     });
 
     expect(result.xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
-    expect(result.xml).toContain('<gpx version="1.1" creator="RideVector" xmlns="http://www.topografix.com/GPX/1/1">');
+    expect(result.xml).toContain(
+      '<gpx version="1.1" creator="RideVector" xmlns="http://www.topografix.com/GPX/1/1">',
+    );
     expect(result.xml).toContain('<trk>');
     expect(result.xml).toContain('<trkseg>');
     expect(result.xml).toContain('</trkseg>');
@@ -73,7 +75,9 @@ describe('gpx export', () => {
       distanceMeters: 12_000,
     });
 
-    expect(result.xml).toContain(`<name>${escapeXmlText(buildGpxTrackName('Route <A> & "B"'))}</name>`);
+    expect(result.xml).toContain(
+      `<name>${escapeXmlText(buildGpxTrackName('Route <A> & "B"'))}</name>`,
+    );
     expect(result.xml).toContain('&lt;');
     expect(result.xml).toContain('&amp;');
     expect(result.xml).toContain('&quot;');

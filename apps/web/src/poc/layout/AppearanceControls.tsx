@@ -19,9 +19,7 @@ export function AppearanceControls({ themePreference, onThemePreferenceChange }:
         <select
           value={themePreference}
           aria-label="Theme preference"
-          onChange={(event) =>
-            onThemePreferenceChange(event.target.value as ThemePreference)
-          }
+          onChange={(event) => onThemePreferenceChange(event.target.value as ThemePreference)}
         >
           {OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>

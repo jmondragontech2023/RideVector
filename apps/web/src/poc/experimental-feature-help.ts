@@ -35,7 +35,8 @@ export const ELEVATION_PREFERENCE_HELP: Record<PocElevationPreference, string> =
 
 export const TRAFFIC_PREFERENCE_HELP: Record<PocTrafficPreference, string> = {
   none: 'Show traffic exposure without using it to rank routes. TomTom may still be called when enrichment is on.',
-  prefer_lower: 'Prefer routes with lower estimated motor-traffic exposure when traffic scoring and coverage allow.',
+  prefer_lower:
+    'Prefer routes with lower estimated motor-traffic exposure when traffic scoring and coverage allow.',
   strongly_avoid_heavy:
     'Strongly penalize higher estimated motor-traffic exposure when traffic scoring and coverage allow.',
 };
@@ -44,7 +45,8 @@ export const DEPARTURE_HELP =
   'Departure time drives weather forecast sampling. “Depart now” uses the current time; custom departure uses your local date and time.';
 
 export const PRESET_HELP: Record<PocFeaturePreset, string> = {
-  basic: 'Distance-fit scoring only—closest geometry comparison without loop, diversity, or enrichment.',
+  basic:
+    'Distance-fit scoring only—closest geometry comparison without loop, diversity, or enrichment.',
   geometry: 'Distance, loop quality, and diversity scoring without elevation, traffic, or weather.',
   traffic: 'Geometry scoring plus motor-traffic enrichment and scoring.',
   weather: 'Geometry scoring plus weather forecast (scoring off by default).',
