@@ -25,6 +25,38 @@ Acceptance:
 - A new contributor can follow verified environment/setup documentation, including the environment-name mapping.
 - No application feature behavior is introduced.
 
+### POC — Local route-generation experiment
+
+Time-box a local-only vertical slice before Milestone 1 to test the central product hypothesis: can RideVector generate bicycle loops that the owner would consider riding?
+
+This is an evidence-gathering detour, not a replacement for Milestones 1–11. It reuses `apps/web` and `apps/api` and deliberately implements only the minimum provisional types and behavior needed for personal testing. Production architecture, security, persistence, and deployment decisions remain recorded and resume after the POC is evaluated.
+
+Scope:
+
+- Select a start point on a web map.
+- Enter a target distance and choose a broad road or gravel bicycle profile.
+- Generate bounded, seeded, directionally varied loop candidates through a provider-neutral routing adapter backed initially by a configurable Valhalla-compatible endpoint.
+- Return and display up to three alternatives with geometry, distance, estimated duration, target-distance difference, and factual warnings.
+- Select, regenerate, and save candidates in browser-local storage for personal evaluation.
+- Record local generation timing, candidate counts, selection, and a simple “would ride” assessment.
+
+Explicit POC limits:
+
+- Local execution only; no public or production deployment.
+- No Supabase persistence, authentication, user-owned API, RLS, iOS, traffic, weather, exact surface classification, elevation scoring, deadline handling, GPX, or production route personalities.
+- No claim that road/gravel costing represents measured surface percentages.
+- No creation of `packages/domain`; provisional contracts stay narrow and are replaced or promoted deliberately in Milestone 1.
+- Public/shared routing endpoints are disposable development dependencies only and must be configurable, policy-compatible, and replaceable.
+
+Acceptance:
+
+- From a clean local checkout, a rider can select a start, request a distance-based loop, and see at least one real routed bicycle loop on the map.
+- Common test locations normally yield at least two visibly different alternatives within a provisional ±20% target tolerance, or return an honest structured explanation.
+- A generation attempt is bounded to 10 provider calls and records its seed and aggregate timing.
+- Routes can be selected, regenerated, and saved locally without Supabase.
+- At least five synthetic or non-sensitive start/distance scenarios are evaluated, and findings determine whether to continue, revise candidate generation, or stop.
+- POC limitations are visible in the UI and documentation; the POC is not deployable to staging or production.
+
 ### Milestone 1 — Core domain model
 
 Implement and document provider-neutral route request, constraints, waypoints, candidates, results, preferences, validation, and normalization. Finalize product API resource schemas, validation-library usage, and the full error taxonomy. Resolve whether `GET /api/routes/:id` identifies a route request or a generated alternative.

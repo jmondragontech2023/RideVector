@@ -1,16 +1,485 @@
 :root {
   color: #14201a;
-  background: #f3f6f2;
+  background:
+    radial-gradient(circle at top left, rgba(34, 102, 68, 0.12), transparent 32%),
+    linear-gradient(180deg, #eef3ef 0%, #f7f8f5 45%, #e8eee8 100%);
   font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  line-height: 1.45;
 }
 
-main {
-  max-width: 40rem;
-  margin: 4rem auto;
-  padding: 0 1.25rem;
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.poc-shell {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.poc-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: #3d5a4a;
 }
 
 h1 {
-  font-size: 2.5rem;
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 2.75rem);
   letter-spacing: -0.03em;
+}
+
+.lede {
+  margin: 0.6rem 0 0;
+  max-width: 40rem;
+  color: #33443a;
+}
+
+.contract-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #5b6b61;
+  text-align: right;
+}
+
+.poc-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(16rem, 0.9fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.map-panel,
+.control-panel {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(20, 32, 26, 0.08);
+  padding: 0.75rem;
+}
+
+.route-map-wrap {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.route-map {
+  width: 100%;
+  height: min(70vh, 36rem);
+  min-height: 22rem;
+}
+
+.route-direction-badge-marker {
+  background: transparent;
+  border: none;
+}
+
+.route-direction-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  pointer-events: none;
+}
+
+.route-direction-badge__disc {
+  display: grid;
+  place-items: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  background: #084a35;
+  border: 2px solid #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(8, 74, 53, 0.35),
+    0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.route-direction-badge__arrow {
+  display: block;
+  color: #ffffff;
+  font-size: 0.72rem;
+  line-height: 1;
+  transform-origin: center center;
+}
+
+.route-direction-badge__number {
+  min-width: 1rem;
+  padding: 0.05rem 0.25rem;
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(8, 74, 53, 0.35);
+  color: #084a35;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.route-start-marker-wrap {
+  background: transparent;
+  border: none;
+}
+
+.route-start-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12rem;
+  pointer-events: none;
+}
+
+.route-start-marker__pin {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: #084a35;
+  border: 2px solid #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(8, 74, 53, 0.35),
+    0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.route-start-marker__letter {
+  transform: rotate(45deg);
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+}
+
+.route-start-marker__label {
+  padding: 0.08rem 0.35rem;
+  border-radius: 0.25rem;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(8, 74, 53, 0.35);
+  color: #084a35;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+}
+
+.route-selected-solid {
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.35));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .route-flow-overlay {
+    animation: route-flow 1.35s linear infinite;
+  }
+}
+
+@keyframes route-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: -48;
+  }
+}
+
+.route-map-legend {
+  margin: 0;
+  color: #2f4638;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.map-hint {
+  margin: 0.65rem 0 0;
+  font-size: 0.9rem;
+  color: #3d5a4a;
+}
+
+.start-controls {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.location-disclosure {
+  margin: 0;
+}
+
+.status.warning {
+  color: #8a5a00;
+}
+
+.control-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.field span,
+.field legend {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.field input[type='number'],
+.field input[type='text'],
+.field textarea,
+.field select {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #b7c4bb;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+
+.choice {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+button {
+  appearance: none;
+  border: 1px solid #0b6e4f;
+  background: #0b6e4f;
+  color: #f5fff9;
+  font: inherit;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: transparent;
+  color: #0b6e4f;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.seed-line {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.status {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.status.error {
+  color: #8a1f11;
+}
+
+.metrics {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+}
+
+.subtle {
+  color: #5b6b61;
+  font-size: 0.85rem;
+}
+
+.route-cards {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.route-card {
+  width: 100%;
+  text-align: left;
+  display: grid;
+  gap: 0.15rem;
+  background: #f4f7f4;
+  border-color: #c5d2c8;
+  color: inherit;
+}
+
+.route-card.selected {
+  border-color: #0b6e4f;
+  background: #e5f3ec;
+}
+
+.route-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.near-match-badge {
+  font-size: 0.72rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: #fff1db;
+  color: #9a5b00;
+  font-weight: 600;
+}
+
+.near-match-deviation {
+  color: #9a5b00;
+  font-size: 0.85rem;
+}
+
+.warnings {
+  margin: 0.75rem 0 0;
+  padding-left: 1.1rem;
+  color: #5b6b61;
+  font-size: 0.88rem;
+}
+
+.feedback-block {
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(20, 32, 26, 0.08);
+}
+
+.generation-summary {
+  margin: 0.75rem 0 0;
+  font-size: 0.92rem;
+  color: #24352b;
+}
+
+.candidate-diagnostics-block {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.diagnostics-toggle {
+  justify-self: start;
+}
+
+.candidate-diagnostics-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.candidate-diagnostic {
+  border: 1px solid rgba(20, 32, 26, 0.1);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  background: #fafcfa;
+}
+
+.candidate-diagnostic.rejected {
+  border-color: rgba(217, 119, 6, 0.35);
+}
+
+.candidate-diagnostic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.candidate-diagnostic-badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #e5ece7;
+  color: #24352b;
+}
+
+.candidate-diagnostic-badge.rejected {
+  background: #fff1db;
+  color: #9a5b00;
+}
+
+.candidate-diagnostic-badge.accepted {
+  background: #e5f3ec;
+  color: #0b6e4f;
+}
+
+.candidate-diagnostic-metrics {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.65rem;
+  margin: 0.45rem 0 0;
+  font-size: 0.85rem;
+}
+
+.candidate-diagnostic-metrics dt {
+  color: #5b6b61;
+}
+
+.candidate-diagnostic-metrics dd {
+  margin: 0;
+}
+
+.route-rejected-preview {
+  pointer-events: none;
+}
+
+.saved-block h2 {
+  margin: 0.4rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.saved-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.saved-list li {
+  display: grid;
+  gap: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(20, 32, 26, 0.08);
+}
+
+@media (max-width: 860px) {
+  .poc-header {
+    flex-direction: column;
+  }
+
+  .contract-meta {
+    text-align: left;
+  }
+
+  .poc-layout {
+    grid-template-columns: 1fr;
+  }
 }

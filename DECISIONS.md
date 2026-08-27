@@ -115,6 +115,30 @@ Accepted decisions are binding until superseded by a dated entry. Proposed decis
 - Decision: The first commit is documentation-only (permanent docs, Cursor rules, and Milestone 0 decision/environment docs). After that commit exists on `main`, enable protected `main` and pull-request workflow before scaffold commits land through PRs.
 - Consequence: Scaffold and environment work proceeds via reviewed pull requests after the docs commit and protection setup.
 
+### ADR-017 — Time-boxed local route-generation POC
+
+- Status: Accepted — 2026-08-26
+- Context: Milestone 0 is merged, but the production sequence postpones a testable route-generation experience until after several foundational milestones. The next product risk is route usefulness, not infrastructure readiness.
+- Decision:
+  - Run a local-only route-generation experiment on branch `poc/route-generation` before Milestone 1.
+  - Reuse `apps/web` and `apps/api`; `poc/` contains experiment documentation only, not a duplicate application.
+  - Limit the experience to map-selected start, target distance, broad road/gravel costing, seeded anchor-based loops, up to three alternatives, basic metrics, regeneration, browser-local saving, and local feedback.
+  - Keep a thin provider-neutral routing boundary and canonical meters/seconds, but defer the complete domain model, product OpenAPI contract, persistence, authentication, iOS, enrichment, and production ranking.
+  - Permit an unauthenticated generation endpoint only in local execution. It must fail closed outside the local environment and must not be deployed through staging or production workflows.
+  - Bound each generation attempt to at most 10 provider calls. Keep the routing endpoint configurable and do not commit provider secrets or precise personal-location fixtures.
+- Consequence: The POC may knowingly fall short of production acceptance requirements, but those requirements and all earlier ADRs remain preserved. Any POC type or algorithm promoted into Milestone 1 must be reviewed rather than treated as an accidental final contract. The experiment ends with an explicit continue/revise/stop decision.
+
+### ADR-018 — Public hosted Valhalla for POC development
+
+- Status: Accepted — 2026-08-26
+- Context: Local Valhalla via Docker requires substantial RAM and tile-build time, blocking POC validation on low-memory developer machines. ADR-017 required a configurable routing endpoint but did not mandate self-hosted Valhalla for the POC.
+- Decision:
+  - During the route-generation POC, local development may use the public hosted Valhalla demo (`https://valhalla1.openstreetmap.de`) via Worker env `VALHALLA_BASE_URL`.
+  - All Valhalla-specific request/response handling remains behind the `RoutingProvider` / Valhalla adapter in `apps/api`. The React app calls RideVector API only.
+  - Send `X-Client-Id: RideVector` on upstream POC requests; do not implement aggressive retries or high concurrency against the public demo.
+  - Post-POC intent: migrate to a RideVector-controlled Valhalla deployment after product validation and workload/cost benchmarking. Cloudflare Containers or a conventional Linux VM remain options; do not preselect production hosting here.
+- Consequence: POC developers can run `pnpm dev` without Docker Valhalla. Production/staging Workers still must not expose POC routing endpoints until Milestone 2+ hosting decisions are made.
+
 ## Proposed; validate during later milestones
 
 ### ADR-P01 — Initial platform stack

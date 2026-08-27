@@ -15,6 +15,14 @@ Prefer permanent documents named in `README.md` over `RIDEVECTOR_HANDOFF.md`.
 
 Final types belong to Milestone 1. No map SDK or routing-provider type may appear in these domain models.
 
+## Local POC algorithm
+
+ADR-017 authorizes a deliberately reduced local experiment before the production pipeline below is implemented. The POC estimates an anchor radius from target distance, creates 6–10 reproducible bearing-family waypoint patterns, asks a configurable Valhalla-compatible adapter to route each bicycle loop, rejects failures and routes outside a centralized provisional ±20% tolerance, applies a lightweight diversity check, and returns up to three factual alternatives.
+
+During the POC phase, development may use a **public hosted Valhalla demo** via `VALHALLA_BASE_URL` so local hardware does not block validation (ADR-018). The adapter boundary is preserved so the same application code can later target RideVector-controlled Valhalla without changing route-generation logic.
+
+The POC does not claim exact surface composition, traffic quality, elevation preference, deadline compliance, or the production Best Overall/Quietest/Adventure personalities. Its algorithm, types, tolerance, and explanations are provisional evidence-gathering tools. The complete normalize → generate → enrich → reject → score → deduplicate/select → explain pipeline remains the production direction.
+
 ## Pipeline
 
 ### 1. Normalize constraints
