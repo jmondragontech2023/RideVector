@@ -76,6 +76,17 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 - Do not send precise personal locations to logs, fixtures, or committed files.
 - Do not deploy POC feature behavior through staging or production workflows.
 
+## Verification log (POC-4 GPX field-test export)
+
+| Check | Command / action | Outcome |
+| --- | --- | --- |
+| Branch | `poc/garmin-gpx-export` from `poc/route-generation` | Pass |
+| Unit / UI tests | `pnpm --filter @ridevector/web exec vitest run src/poc/gpx.test.ts src/poc/gpx-ui.test.tsx` | Pass (14) |
+| Full gate | `pnpm run check` | Pass (api 83, web 126) |
+| Env isolation / client secrets / wrangler types | via `pnpm run check` | Pass |
+| Garmin Connect / device import | owner manual | Pending owner |
+| Merge / deploy | — | Not done (owner review) |
+
 ## Verification log (scoring/enrichment iteration)
 
 | Check | Command / action | Outcome |
