@@ -92,11 +92,15 @@ describe('Download GPX UI wiring', () => {
 
   it('invalidates in-flight GPX export when the selected plan changes', () => {
     expect(appSource).toContain('function invalidateInFlightGpxExport()');
+    expect(appSource).toContain("current === 'Preparing GPX…' ? null : current");
     expect(appSource).toMatch(
       /function clearGenerationResults\(\)[\s\S]*invalidateInFlightGpxExport\(\)/,
     );
     expect(appSource).toMatch(
       /function handleOpenSaved\([\s\S]*invalidateInFlightGpxExport\(\)/,
+    );
+    expect(appSource).toMatch(
+      /async function runGenerate\([\s\S]*invalidateInFlightGpxExport\(\)/,
     );
     expect(appSource).toMatch(
       /onSelectAlternative=\{\(id\) => \{\s*invalidateInFlightGpxExport\(\);/,

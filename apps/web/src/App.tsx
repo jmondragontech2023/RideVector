@@ -183,6 +183,7 @@ export function App() {
   function invalidateInFlightGpxExport() {
     gpxExportSessionRef.current += 1;
     startAreaResolverRef.current.cancelExport();
+    setSaveMessage((current) => (current === 'Preparing GPX…' ? null : current));
   }
 
   function clearGenerationResults() {
@@ -271,6 +272,7 @@ export function App() {
     setErrorMessage(null);
     setSaveMessage(null);
     setPreviewAttemptNumber(null);
+    invalidateInFlightGpxExport();
 
     const { token, abortController, signal } = generationSessionRef.current.begin();
 
@@ -385,6 +387,7 @@ export function App() {
           error.name === 'AbortError') ||
         (error instanceof Error && error.name === 'AbortError')
       ) {
+        setSaveMessage((current) => (current === 'Preparing GPX…' ? null : current));
         return;
       }
       const message =
