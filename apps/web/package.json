@@ -3,8 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:mobile": "RIDEVECTOR_MOBILE_LAN=1 vite",
+    "dev": "vite --port 5173 --strictPort",
+    "dev:mobile": "RIDEVECTOR_MOBILE_LAN=1 vite --port 5173 --strictPort",
+    "dev:mobile:side": "RIDEVECTOR_MOBILE_LAN=1 vite --port 5174 --strictPort",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
