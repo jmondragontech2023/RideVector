@@ -66,19 +66,30 @@ That starts the local Worker (`http://127.0.0.1:8787`) and web app (`http://loca
 
 Browsers only allow the Geolocation API on **HTTPS** or **localhost**. Opening the planner as plain `http://192.168.x.x:5173` on a phone will fail with a secure-origin error.
 
-For same-Wi‑Fi phone tests:
+For same-Wi‑Fi / Tailscale phone tests (HTTPS only):
 
 ```bash
 pnpm run dev:mobile
 ```
 
 1. On your computer, note the Vite **Network** URL that starts with `https://` (LAN IP + port).
-2. Open that URL on the phone (same Wi‑Fi as the computer).
+2. Open that URL on the phone (same Wi‑Fi / Tailscale as the computer).
 3. Accept the self-signed certificate warning once (Advanced → proceed / visit anyway).
 4. Tap **Use my location** and allow location permission when prompted.
 5. Generate routes as usual; `/api` still proxies to the local Worker.
 
 Desktop testing can stay on `pnpm dev` and `http://localhost:5173` — localhost already counts as a secure context for geolocation.
+
+To run **HTTP and HTTPS at the same time** (one Worker, two Vite processes):
+
+```bash
+pnpm run dev:both
+```
+
+- Desktop: `http://localhost:5173`
+- Phone / Tailscale: `https://<lan-or-tailscale-ip>:5174` (accept the self-signed cert once)
+
+A single Vite process cannot serve both protocols; `dev:both` starts HTTP on **5173** and HTTPS on **5174**, both proxying `/api` to the Worker on **8787**.
 
 Smoke the routing spike:
 

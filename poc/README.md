@@ -37,7 +37,7 @@ If a library version must be selected, use the current stable version compatible
 
 ## Experience
 
-1. Start the local web app and Worker (`pnpm dev`). For phone LAN testing of **Use my location**, use `pnpm run dev:mobile` and open the Vite `https://` Network URL (see root `README.md`).
+1. Start the local web app and Worker (`pnpm dev`). For phone LAN/Tailscale testing of **Use my location**, use `pnpm run dev:mobile` (HTTPS) or `pnpm run dev:both` (HTTP :5173 + HTTPS :5174) and open the Vite `https://` Network URL (see root `README.md`).
 2. Select a start point on a map.
 3. Enter a target distance, flexibility, and Road/Gravel costing.
 4. Optionally configure experimental scoring/enrichment presets and departure time.
