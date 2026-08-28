@@ -243,13 +243,20 @@ describe('gpx download boundary', () => {
     vi.restoreAllMocks();
   });
 
-  it('downloads with the expected filename and revokes the object URL', async () => {
-    const { downloadGpxFile, GPX_MIME_TYPE } = await import('./gpx-download');
+  it('downloads with the expected filename and revokes the object URL after a delay', async () => {
+    const { downloadGpxFile, GPX_MIME_TYPE, GPX_OBJECT_URL_REVOKE_DELAY_MS } =
+      await import('./gpx-download');
     const click = vi.fn();
     const remove = vi.fn();
     const appendChild = vi.fn();
     const createObjectURL = vi.fn(() => 'blob:ridevector-gpx');
     const revokeObjectURL = vi.fn();
+    const setTimeoutFn = vi.fn((handler: TimerHandler) => {
+      if (typeof handler === 'function') {
+        handler();
+      }
+      return 0 as unknown as ReturnType<typeof setTimeout>;
+    }) as unknown as typeof setTimeout;
     const anchor = {
       href: '',
       download: '',
@@ -266,6 +273,7 @@ describe('gpx download boundary', () => {
       },
       URL: { createObjectURL, revokeObjectURL },
       Blob,
+      setTimeoutFn,
     });
 
     expect(createObjectURL).toHaveBeenCalledOnce();
@@ -276,6 +284,7 @@ describe('gpx download boundary', () => {
     expect(appendChild).toHaveBeenCalledWith(anchor);
     expect(click).toHaveBeenCalledOnce();
     expect(remove).toHaveBeenCalledOnce();
+    expect(setTimeoutFn).toHaveBeenCalledWith(expect.any(Function), GPX_OBJECT_URL_REVOKE_DELAY_MS);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:ridevector-gpx');
   });
 });
