@@ -340,12 +340,18 @@ export function App() {
 
     setSaveMessage('Preparing GPX…');
     try {
+      // Do not treat the Local fallback as final — transient Nominatim failures
+      // intentionally leave the resolver cache empty so export can retry.
+      const knownPlace =
+        startAreaLabel && startAreaLabel !== START_AREA_FALLBACK_LABEL
+          ? startAreaLabel.trim()
+          : null;
       const areaLabel =
-        startAreaLabel?.trim() ||
+        knownPlace ||
         (await startAreaResolverRef.current.resolveForExport(start)) ||
         START_AREA_FALLBACK_LABEL;
-      if (!startAreaLabel) {
-        rememberStartAreaLabel(areaLabel);
+      if (areaLabel !== startAreaLabel) {
+        rememberStartAreaLabel(areaLabel === START_AREA_FALLBACK_LABEL ? null : areaLabel);
       }
       const exported = buildGpxDocument({
         geometry: selected.geometry,
