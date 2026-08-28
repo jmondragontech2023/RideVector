@@ -282,4 +282,40 @@ describe('StartAreaResolver', () => {
     resolver.remember(coordinate, START_AREA_FALLBACK_LABEL);
     expect(resolver.getCached(coordinate)).toBeUndefined();
   });
+
+  it('keeps an in-flight export lookup alive when map requests bump generation', async () => {
+    vi.useFakeTimers();
+    let releaseExport: ((value: unknown) => void) | undefined;
+    const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
+      return new Promise((resolve, reject) => {
+        releaseExport = resolve;
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        });
+      });
+    }) as unknown as typeof fetch;
+
+    const resolver = new StartAreaResolver({
+      fetch: fetchImpl,
+      debounceMs: 0,
+      minIntervalMs: 0,
+    });
+    const coordinate = { latitude: 33.037, longitude: -117.292 };
+
+    const exportPromise = resolver.resolveForExport(coordinate);
+    await Promise.resolve();
+    expect(fetchImpl).toHaveBeenCalledOnce();
+
+    // Map click / cancel must not force the export filename to Local.
+    resolver.request({ latitude: 33.1, longitude: -117.3 }, vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+
+    releaseExport?.({
+      ok: true,
+      json: async () => ({ address: { city: 'Encinitas' } }),
+    });
+    await expect(exportPromise).resolves.toBe('Encinitas');
+    expect(resolver.getCached(coordinate)).toBe('Encinitas');
+  });
 });

@@ -167,6 +167,7 @@ export class StartAreaResolver {
 
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private abortController: AbortController | null = null;
+  private exportAbortController: AbortController | null = null;
   private generation = 0;
   private lastRequestStartedAt = Number.NEGATIVE_INFINITY;
   private queue: Promise<unknown> = Promise.resolve();
@@ -240,16 +241,64 @@ export class StartAreaResolver {
       return cached;
     }
 
+    // Stop pending UI lookups so they do not race the export fetch, but do not
+    // tie export success to the UI generation counter (map clicks must not force Local).
     if (this.debounceTimer !== null) {
       this.clearTimeoutFn(this.debounceTimer);
       this.debounceTimer = null;
     }
-
-    const generation = ++this.generation;
+    this.generation += 1;
     this.abortController?.abort();
     this.abortController = null;
 
-    const label = await this.runSerialized(coordinate, generation, () => undefined);
+    this.exportAbortController?.abort();
+    const exportController = new AbortController();
+    this.exportAbortController = exportController;
+
+    const label = await this.enqueueLookup(async () => {
+      if (exportController.signal.aborted) {
+        return undefined;
+      }
+
+      const cachedAgain = this.getCached(coordinate);
+      if (cachedAgain) {
+        return cachedAgain;
+      }
+
+      const waitMs = Math.max(0, this.minIntervalMs - (this.now() - this.lastRequestStartedAt));
+      if (waitMs > 0) {
+        await new Promise<void>((resolve) => {
+          this.setTimeoutFn(resolve, waitMs);
+        });
+      }
+      if (exportController.signal.aborted) {
+        return undefined;
+      }
+
+      this.lastRequestStartedAt = this.now();
+      try {
+        const result = await resolveStartAreaLabel(coordinate, {
+          fetch: this.fetchImpl,
+          signal: exportController.signal,
+        });
+        if (exportController.signal.aborted) {
+          return undefined;
+        }
+        if (result.status === 'resolved' && result.label !== START_AREA_FALLBACK_LABEL) {
+          this.remember(coordinate, result.label);
+        }
+        return result.label;
+      } catch (error) {
+        if (isAbortError(error) || exportController.signal.aborted) {
+          return undefined;
+        }
+        return START_AREA_FALLBACK_LABEL;
+      }
+    });
+
+    if (this.exportAbortController === exportController) {
+      this.exportAbortController = null;
+    }
     return label ?? START_AREA_FALLBACK_LABEL;
   }
 
@@ -258,7 +307,7 @@ export class StartAreaResolver {
     generation: number,
     onResolved: (label: string) => void,
   ): Promise<string | undefined> {
-    const run = async (): Promise<string | undefined> => {
+    return this.enqueueLookup(async () => {
       if (generation !== this.generation) {
         return undefined;
       }
@@ -291,11 +340,8 @@ export class StartAreaResolver {
         if (generation !== this.generation || controller.signal.aborted) {
           return undefined;
         }
-        if (result.status === 'resolved') {
-          // Cache only successful lookups. Skip Local so empty/unparsed places can retry.
-          if (result.label !== START_AREA_FALLBACK_LABEL) {
-            this.remember(coordinate, result.label);
-          }
+        if (result.status === 'resolved' && result.label !== START_AREA_FALLBACK_LABEL) {
+          this.remember(coordinate, result.label);
         }
         onResolved(result.label);
         return result.label;
@@ -310,8 +356,10 @@ export class StartAreaResolver {
           this.abortController = null;
         }
       }
-    };
+    });
+  }
 
+  private enqueueLookup<T>(run: () => Promise<T>): Promise<T> {
     const next = this.queue.then(run, run);
     this.queue = next.then(
       () => undefined,
