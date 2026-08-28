@@ -85,7 +85,22 @@ describe('Download GPX UI wiring', () => {
     expect(appSource).toContain('START_AREA_FALLBACK_LABEL');
     expect(appSource).toContain('startAreaLabel && startAreaLabel !== START_AREA_FALLBACK_LABEL');
     expect(appSource).toContain('gpxExportSessionRef');
+    expect(appSource).toContain('invalidateInFlightGpxExport');
+    expect(appSource).toContain('cancelExport');
     expect(appSource).toContain('AbortError');
+  });
+
+  it('invalidates in-flight GPX export when the selected plan changes', () => {
+    expect(appSource).toContain('function invalidateInFlightGpxExport()');
+    expect(appSource).toMatch(
+      /function clearGenerationResults\(\)[\s\S]*invalidateInFlightGpxExport\(\)/,
+    );
+    expect(appSource).toMatch(
+      /function handleOpenSaved\([\s\S]*invalidateInFlightGpxExport\(\)/,
+    );
+    expect(appSource).toMatch(
+      /onSelectAlternative=\{\(id\) => \{\s*invalidateInFlightGpxExport\(\);/,
+    );
   });
 
   it('exports the currently selected alternative geometry, including after a saved reopen path', () => {

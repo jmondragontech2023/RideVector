@@ -358,4 +358,38 @@ describe('StartAreaResolver', () => {
     await expect(first).rejects.toMatchObject({ name: 'AbortError' });
     await expect(second).resolves.toBe('Encinitas');
   });
+
+  it('cancelExport aborts an in-flight export lookup without caching Local', async () => {
+    let release: ((value: unknown) => void) | undefined;
+    const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
+      return new Promise((resolve, reject) => {
+        release = resolve;
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        });
+      });
+    }) as unknown as typeof fetch;
+
+    const resolver = new StartAreaResolver({
+      fetch: fetchImpl,
+      debounceMs: 0,
+      minIntervalMs: 0,
+    });
+    const coordinate = { latitude: 33.037, longitude: -117.292 };
+
+    const exportPromise = resolver.resolveForExport(coordinate);
+    await Promise.resolve();
+    expect(fetchImpl).toHaveBeenCalledOnce();
+
+    resolver.cancelExport();
+    await expect(exportPromise).rejects.toMatchObject({ name: 'AbortError' });
+    expect(resolver.getCached(coordinate)).toBeUndefined();
+
+    // Plan-change cancel must not leave a poisoned Local cache entry.
+    release?.({
+      ok: true,
+      json: async () => ({ address: { city: 'ShouldNotCache' } }),
+    });
+    expect(resolver.getCached(coordinate)).toBeUndefined();
+  });
 });

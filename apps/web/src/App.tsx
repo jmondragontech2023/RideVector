@@ -179,8 +179,15 @@ export function App() {
     setLocating(false);
   }
 
+  /** Drop an in-flight Download GPX when the selected plan is no longer current. */
+  function invalidateInFlightGpxExport() {
+    gpxExportSessionRef.current += 1;
+    startAreaResolverRef.current.cancelExport();
+  }
+
   function clearGenerationResults() {
     invalidateInFlightGeneration();
+    invalidateInFlightGpxExport();
     setResult(null);
     setSelectedId(null);
     setStatus('idle');
@@ -424,6 +431,7 @@ export function App() {
   function handleOpenSaved(route: SavedPocRoute) {
     invalidateInFlightGeneration();
     invalidateInFlightLocation();
+    invalidateInFlightGpxExport();
     updateStartPoint(route.start);
     setTargetMiles(String(route.targetDistanceMeters / METERS_PER_MILE));
     setFlexibilityMiles(String(route.distanceFlexibilityMeters / METERS_PER_MILE));
@@ -683,6 +691,7 @@ export function App() {
             savedRoutes={savedRoutes}
             onResultsTabChange={setResultsTab}
             onSelectAlternative={(id) => {
+              invalidateInFlightGpxExport();
               setSelectedId(id);
               setDeviationAcceptable(null);
             }}

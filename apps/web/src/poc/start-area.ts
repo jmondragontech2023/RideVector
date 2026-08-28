@@ -205,6 +205,12 @@ export class StartAreaResolver {
     this.abortController = null;
   }
 
+  /** Abort an in-flight Download GPX place lookup without affecting UI debounce. */
+  cancelExport(): void {
+    this.exportAbortController?.abort();
+    this.exportAbortController = null;
+  }
+
   /**
    * Schedules a debounced reverse lookup. Cache hits resolve immediately.
    * Superseded callbacks are not invoked.
