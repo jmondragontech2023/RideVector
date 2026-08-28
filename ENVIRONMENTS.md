@@ -34,7 +34,7 @@ Milestone 0 (ADR-016) requires verified local Supabase, one live remote Supabase
   - staging: `https://ridevector-api-staging.jmondragontech.workers.dev`
   - production: `https://ridevector-api-production.jmondragontech.workers.dev`
 - Smoke health path: `GET /api/health`
-- Binding types: generated with `pnpm --filter @ridevector/api run types` → `apps/api/worker-configuration.d.ts` (CI checks freshness).
+- Binding types: generated with `pnpm --filter @ridevector/api run types` → `apps/api/worker-configuration.d.ts` (CI checks freshness). Generation and the CI freshness check intentionally ignore gitignored `apps/api/.dev.vars` so optional local secrets (for example `TOMTOM_API_KEY`) do not change the committed Env hash.
 
 ### Supabase
 
