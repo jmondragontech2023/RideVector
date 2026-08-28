@@ -57,7 +57,7 @@ import { LocationSession, shouldApplyLocationResult } from './poc/location-sessi
 import { createMapRecenterRequest, type MapRecenterRequest } from './poc/map-recenter';
 import { buildGpxDocument, GpxExportError } from './poc/gpx';
 import { downloadGpxFile } from './poc/gpx-download';
-import { resolveStartAreaLabel, START_AREA_FALLBACK_LABEL } from './poc/start-area';
+import { StartAreaResolver, START_AREA_FALLBACK_LABEL } from './poc/start-area';
 import { smokeContractTitle } from './smokeContract';
 import { useAppearance } from './poc/use-appearance';
 
@@ -96,7 +96,7 @@ export function App() {
   const [resultsTab, setResultsTab] = useState<ResultsWorkspaceTab>('overview');
   const generationSessionRef = useRef(new GenerationSession());
   const locationSessionRef = useRef(new LocationSession());
-  const startAreaRequestRef = useRef(0);
+  const startAreaResolverRef = useRef(new StartAreaResolver());
   const { themePreference, mapTheme, setThemePreference, toggleMapTheme } = useAppearance();
 
   function rememberStartAreaLabel(label: string | null) {
@@ -109,19 +109,26 @@ export function App() {
   ) {
     setStart(coordinate);
     if (options.areaLabel !== undefined) {
-      startAreaRequestRef.current += 1;
+      startAreaResolverRef.current.cancelPending();
+      if (options.areaLabel) {
+        startAreaResolverRef.current.remember(coordinate, options.areaLabel);
+      }
       rememberStartAreaLabel(options.areaLabel);
       return;
     }
     if (options.resolveArea === false) {
       return;
     }
-    const requestId = ++startAreaRequestRef.current;
+
+    const cached = startAreaResolverRef.current.getCached(coordinate);
+    if (cached) {
+      startAreaResolverRef.current.cancelPending();
+      rememberStartAreaLabel(cached);
+      return;
+    }
+
     rememberStartAreaLabel(null);
-    void resolveStartAreaLabel(coordinate).then((label) => {
-      if (requestId !== startAreaRequestRef.current) {
-        return;
-      }
+    startAreaResolverRef.current.request(coordinate, (label) => {
       rememberStartAreaLabel(label);
     });
   }
@@ -334,7 +341,9 @@ export function App() {
     setSaveMessage('Preparing GPX…');
     try {
       const areaLabel =
-        startAreaLabel?.trim() || (await resolveStartAreaLabel(start)) || START_AREA_FALLBACK_LABEL;
+        startAreaLabel?.trim() ||
+        (await startAreaResolverRef.current.resolveForExport(start)) ||
+        START_AREA_FALLBACK_LABEL;
       if (!startAreaLabel) {
         rememberStartAreaLabel(areaLabel);
       }

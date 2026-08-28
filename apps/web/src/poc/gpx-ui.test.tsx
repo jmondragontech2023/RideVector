@@ -80,7 +80,8 @@ describe('Download GPX UI wiring', () => {
     expect(appSource).toContain('geometry: selected.geometry');
     expect(appSource).toContain('startAreaLabel: areaLabel');
     expect(appSource).toContain('downloadGpxFile(exported.xml, exported.filename)');
-    expect(appSource).toContain('resolveStartAreaLabel');
+    expect(appSource).toContain('StartAreaResolver');
+    expect(appSource).toContain('resolveForExport');
   });
 
   it('exports the currently selected alternative geometry, including after a saved reopen path', () => {
