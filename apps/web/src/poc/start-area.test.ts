@@ -1,0 +1,395 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  buildNominatimReverseUrl,
+  NOMINATIM_MIN_INTERVAL_MS,
+  pickStartAreaLabel,
+  resolveStartAreaLabel,
+  START_AREA_FALLBACK_LABEL,
+  START_AREA_RESOLVE_DEBOUNCE_MS,
+  StartAreaResolver,
+  startAreaCacheKey,
+} from './start-area';
+
+describe('start area label', () => {
+  it('prefers city/town over coarser address fields and never returns coordinates', () => {
+    expect(
+      pickStartAreaLabel({
+        neighbourhood: 'Leucadia',
+        city: 'Encinitas',
+        county: 'San Diego County',
+        state: 'California',
+      }),
+    ).toBe('Encinitas');
+
+    expect(
+      pickStartAreaLabel({
+        town: 'Boulder',
+        state: 'Colorado',
+      }),
+    ).toBe('Boulder');
+
+    expect(pickStartAreaLabel({ state: 'California' })).toBe('California');
+    expect(pickStartAreaLabel(undefined, 'Golden Gate Park')).toBe('Golden Gate Park');
+    expect(pickStartAreaLabel(undefined)).toBe(START_AREA_FALLBACK_LABEL);
+    expect(pickStartAreaLabel({ city: '  Austin  ' })).toBe('Austin');
+  });
+
+  it('builds a same-origin Nominatim reverse URL for the Vite proxy', () => {
+    const url = buildNominatimReverseUrl({ latitude: 37.7694, longitude: -122.4862 });
+    expect(url.startsWith('/nominatim/reverse?')).toBe(true);
+    expect(url).toContain('lat=37.7694');
+    expect(url).toContain('lon=-122.4862');
+    expect(url).toContain('addressdetails=1');
+  });
+
+  it('resolves a start-area label from Nominatim JSON and falls back safely', async () => {
+    const fetchOk = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        address: { city: 'San Francisco', state: 'California' },
+      }),
+    })) as unknown as typeof fetch;
+
+    await expect(
+      resolveStartAreaLabel({ latitude: 37.77, longitude: -122.42 }, { fetch: fetchOk }),
+    ).resolves.toEqual({ status: 'resolved', label: 'San Francisco' });
+
+    const fetchFail = vi.fn(async () => {
+      throw new Error('network');
+    }) as unknown as typeof fetch;
+
+    await expect(
+      resolveStartAreaLabel({ latitude: 37.77, longitude: -122.42 }, { fetch: fetchFail }),
+    ).resolves.toEqual({ status: 'unavailable', label: START_AREA_FALLBACK_LABEL });
+
+    const fetchBad = vi.fn(async () => ({
+      ok: false,
+      status: 429,
+      json: async () => ({}),
+    })) as unknown as typeof fetch;
+
+    await expect(
+      resolveStartAreaLabel({ latitude: 37.77, longitude: -122.42 }, { fetch: fetchBad }),
+    ).resolves.toEqual({ status: 'unavailable', label: START_AREA_FALLBACK_LABEL });
+  });
+
+  it('rethrows abort errors instead of degrading to Local', async () => {
+    const fetchAbort = vi.fn(async (_url: string, init?: RequestInit) => {
+      const error = new DOMException('Aborted', 'AbortError');
+      if (init?.signal) {
+        Object.defineProperty(init.signal, 'aborted', { value: true });
+      }
+      throw error;
+    }) as unknown as typeof fetch;
+
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      resolveStartAreaLabel(
+        { latitude: 37.77, longitude: -122.42 },
+        { fetch: fetchAbort, signal: controller.signal },
+      ),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+});
+
+describe('StartAreaResolver', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  function createFetch(city: string) {
+    return vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ address: { city } }),
+    })) as unknown as typeof fetch;
+  }
+
+  it('serves cache hits immediately without fetching', () => {
+    const fetchImpl = createFetch('Encinitas');
+    const resolver = new StartAreaResolver({ fetch: fetchImpl, debounceMs: 0, minIntervalMs: 0 });
+    const coordinate = { latitude: 33.037, longitude: -117.292 };
+    resolver.remember(coordinate, 'Encinitas');
+
+    const onResolved = vi.fn();
+    resolver.request(coordinate, onResolved);
+
+    expect(onResolved).toHaveBeenCalledWith('Encinitas');
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(startAreaCacheKey(coordinate)).toBe('33.037,-117.292');
+  });
+
+  it('debounces rapid requests and only fetches the latest coordinate', async () => {
+    vi.useFakeTimers();
+    const fetchImpl = createFetch('Austin');
+    const now = 0;
+    const resolver = new StartAreaResolver({
+      fetch: fetchImpl,
+      now: () => now,
+      debounceMs: START_AREA_RESOLVE_DEBOUNCE_MS,
+      minIntervalMs: 0,
+    });
+
+    const first = vi.fn();
+    const second = vi.fn();
+    resolver.request({ latitude: 30.0, longitude: -97.0 }, first);
+    resolver.request({ latitude: 30.2672, longitude: -97.7431 }, second);
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(START_AREA_RESOLVE_DEBOUNCE_MS);
+    await Promise.resolve();
+
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledWith('Austin');
+  });
+
+  it('aborts an in-flight lookup when a newer request is scheduled', async () => {
+    vi.useFakeTimers();
+    let now = 0;
+    let callCount = 0;
+    let releaseFirst: ((value: unknown) => void) | undefined;
+    const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
+      callCount += 1;
+      if (callCount === 1) {
+        return new Promise((resolve, reject) => {
+          releaseFirst = resolve;
+          init?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('Aborted', 'AbortError'));
+          });
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ address: { city: 'Boulder' } }),
+      });
+    }) as unknown as typeof fetch;
+
+    const resolver = new StartAreaResolver({
+      fetch: fetchImpl,
+      now: () => now,
+      debounceMs: 0,
+      minIntervalMs: 0,
+    });
+
+    const first = vi.fn();
+    const second = vi.fn();
+    resolver.request({ latitude: 40.0, longitude: -105.0 }, first);
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+
+    resolver.request({ latitude: 40.015, longitude: -105.271 }, second);
+    await vi.advanceTimersByTimeAsync(0);
+    now += NOMINATIM_MIN_INTERVAL_MS;
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    releaseFirst?.({
+      ok: true,
+      json: async () => ({ address: { city: 'Stale' } }),
+    });
+    await Promise.resolve();
+
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledWith('Boulder');
+  });
+
+  it('serializes lookups with at least the Nominatim minimum interval', async () => {
+    vi.useFakeTimers();
+    let now = 1_000;
+    const fetchImpl = createFetch('San Diego');
+    const resolver = new StartAreaResolver({
+      fetch: fetchImpl,
+      now: () => now,
+      debounceMs: 0,
+      minIntervalMs: NOMINATIM_MIN_INTERVAL_MS,
+    });
+
+    const first = vi.fn();
+    const second = vi.fn();
+    resolver.request({ latitude: 32.7, longitude: -117.1 }, first);
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(first).toHaveBeenCalledWith('San Diego');
+
+    resolver.request({ latitude: 32.8, longitude: -117.2 }, second);
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    expect(fetchImpl).toHaveBeenCalledOnce();
+
+    now += NOMINATIM_MIN_INTERVAL_MS;
+    await vi.advanceTimersByTimeAsync(NOMINATIM_MIN_INTERVAL_MS);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(second).toHaveBeenCalledWith('San Diego');
+  });
+
+  it('resolveForExport uses cache and avoids an extra network call', async () => {
+    const fetchImpl = createFetch('Encinitas');
+    const resolver = new StartAreaResolver({ fetch: fetchImpl, debounceMs: 0, minIntervalMs: 0 });
+    const coordinate = { latitude: 33.037, longitude: -117.292 };
+    resolver.remember(coordinate, 'Encinitas');
+
+    await expect(resolver.resolveForExport(coordinate)).resolves.toBe('Encinitas');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('does not cache Local after HTTP 429 so a later lookup can succeed', async () => {
+    vi.useFakeTimers();
+    let callCount = 0;
+    const fetchImpl = vi.fn(async () => {
+      callCount += 1;
+      if (callCount === 1) {
+        return { ok: false, status: 429, json: async () => ({}) };
+      }
+      return {
+        ok: true,
+        json: async () => ({ address: { city: 'Encinitas' } }),
+      };
+    }) as unknown as typeof fetch;
+
+    const resolver = new StartAreaResolver({
+      fetch: fetchImpl,
+      debounceMs: 0,
+      minIntervalMs: 0,
+    });
+    const coordinate = { latitude: 33.037, longitude: -117.292 };
+
+    const first = vi.fn();
+    resolver.request(coordinate, first);
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    expect(first).toHaveBeenCalledWith(START_AREA_FALLBACK_LABEL);
+    expect(resolver.getCached(coordinate)).toBeUndefined();
+
+    const second = vi.fn();
+    resolver.request(coordinate, second);
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    expect(second).toHaveBeenCalledWith('Encinitas');
+    expect(resolver.getCached(coordinate)).toBe('Encinitas');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not remember the Local fallback label into the cache', () => {
+    const resolver = new StartAreaResolver({ debounceMs: 0, minIntervalMs: 0 });
+    const coordinate = { latitude: 33.037, longitude: -117.292 };
+    resolver.remember(coordinate, START_AREA_FALLBACK_LABEL);
+    expect(resolver.getCached(coordinate)).toBeUndefined();
+  });
+
+  it('keeps an in-flight export lookup alive when map requests bump generation', async () => {
+    vi.useFakeTimers();
+    let releaseExport: ((value: unknown) => void) | undefined;
+    const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
+      return new Promise((resolve, reject) => {
+        releaseExport = resolve;
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        });
+      });
+    }) as unknown as typeof fetch;
+
+    const resolver = new StartAreaResolver({
+      fetch: fetchImpl,
+      debounceMs: 0,
+      minIntervalMs: 0,
+    });
+    const coordinate = { latitude: 33.037, longitude: -117.292 };
+
+    const exportPromise = resolver.resolveForExport(coordinate);
+    await Promise.resolve();
+    expect(fetchImpl).toHaveBeenCalledOnce();
+
+    // Map click / cancel must not force the export filename to Local.
+    resolver.request({ latitude: 33.1, longitude: -117.3 }, vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+
+    releaseExport?.({
+      ok: true,
+      json: async () => ({ address: { city: 'Encinitas' } }),
+    });
+    await expect(exportPromise).resolves.toBe('Encinitas');
+    expect(resolver.getCached(coordinate)).toBe('Encinitas');
+  });
+
+  it('aborts a superseded export lookup instead of resolving Local', async () => {
+    let releaseFirst: ((value: unknown) => void) | undefined;
+    let callCount = 0;
+    const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
+      callCount += 1;
+      if (callCount === 1) {
+        return new Promise((resolve, reject) => {
+          releaseFirst = resolve;
+          init?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('Aborted', 'AbortError'));
+          });
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ address: { city: 'Encinitas' } }),
+      });
+    }) as unknown as typeof fetch;
+
+    const resolver = new StartAreaResolver({
+      fetch: fetchImpl,
+      debounceMs: 0,
+      minIntervalMs: 0,
+    });
+    const coordinate = { latitude: 33.037, longitude: -117.292 };
+
+    const first = resolver.resolveForExport(coordinate);
+    await Promise.resolve();
+    const second = resolver.resolveForExport(coordinate);
+    await Promise.resolve();
+
+    releaseFirst?.({
+      ok: true,
+      json: async () => ({ address: { city: 'Stale' } }),
+    });
+
+    await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(second).resolves.toBe('Encinitas');
+  });
+
+  it('cancelExport aborts an in-flight export lookup without caching Local', async () => {
+    let release: ((value: unknown) => void) | undefined;
+    const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
+      return new Promise((resolve, reject) => {
+        release = resolve;
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        });
+      });
+    }) as unknown as typeof fetch;
+
+    const resolver = new StartAreaResolver({
+      fetch: fetchImpl,
+      debounceMs: 0,
+      minIntervalMs: 0,
+    });
+    const coordinate = { latitude: 33.037, longitude: -117.292 };
+
+    const exportPromise = resolver.resolveForExport(coordinate);
+    await Promise.resolve();
+    expect(fetchImpl).toHaveBeenCalledOnce();
+
+    resolver.cancelExport();
+    await expect(exportPromise).rejects.toMatchObject({ name: 'AbortError' });
+    expect(resolver.getCached(coordinate)).toBeUndefined();
+
+    // Plan-change cancel must not leave a poisoned Local cache entry.
+    release?.({
+      ok: true,
+      json: async () => ({ address: { city: 'ShouldNotCache' } }),
+    });
+    expect(resolver.getCached(coordinate)).toBeUndefined();
+  });
+});

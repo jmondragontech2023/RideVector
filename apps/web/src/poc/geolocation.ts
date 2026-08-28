@@ -53,6 +53,9 @@ export function isPoorAccuracy(accuracyMeters: number): boolean {
   return Number.isFinite(accuracyMeters) && accuracyMeters > POOR_ACCURACY_THRESHOLD_METERS;
 }
 
+export const INSECURE_GEOLOCATION_MESSAGE =
+  'Location needs HTTPS or localhost. For phone testing: on your computer run `pnpm run dev:mobile`, open the https:// Network URL from the terminal on this phone, accept the certificate warning, then try again. Or click the map to set a start manually.';
+
 export function geolocationErrorMessage(
   error: GeolocationPositionError,
   secureContext: boolean,
@@ -62,8 +65,7 @@ export function geolocationErrorMessage(
       if (!secureContext) {
         return {
           reason: 'insecure_context',
-          message:
-            'Browser location requires HTTPS or localhost. Open the planner on a secure origin, then try again.',
+          message: INSECURE_GEOLOCATION_MESSAGE,
         };
       }
       return {
@@ -101,8 +103,7 @@ export function unsupportedGeolocationFailure(): GeolocationFailure {
 export function insecureContextGeolocationFailure(): GeolocationFailure {
   return {
     reason: 'insecure_context',
-    message:
-      'Browser location requires HTTPS or localhost. Open the planner on a secure origin, then try again.',
+    message: INSECURE_GEOLOCATION_MESSAGE,
   };
 }
 

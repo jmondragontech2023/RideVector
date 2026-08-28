@@ -7,11 +7,7 @@ type Props = {
   onThemePreferenceChange: (preference: ThemePreference) => void;
 };
 
-export function PlannerHeader({
-  contractTitle,
-  themePreference,
-  onThemePreferenceChange,
-}: Props) {
+export function PlannerHeader({ contractTitle, themePreference, onThemePreferenceChange }: Props) {
   return (
     <header className="poc-header">
       <div>

@@ -1,7 +1,4 @@
-import {
-  loadAppearanceSettings,
-  resolveTheme,
-} from './poc/appearance-settings';
+import { loadAppearanceSettings, resolveTheme } from './poc/appearance-settings';
 import { getPrefersColorScheme } from './poc/use-prefers-color-scheme';
 
 /** Apply stored/system UI theme before first paint when possible. */

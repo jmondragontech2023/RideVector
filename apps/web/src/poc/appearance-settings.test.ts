@@ -41,10 +41,7 @@ describe('appearance settings', () => {
       },
     } as Storage;
 
-    saveAppearanceSettings(
-      { version: 1, themePreference: 'dark', mapTheme: 'light' },
-      storage,
-    );
+    saveAppearanceSettings({ version: 1, themePreference: 'dark', mapTheme: 'light' }, storage);
     expect(loadAppearanceSettings(storage)).toEqual({
       version: 1,
       themePreference: 'dark',

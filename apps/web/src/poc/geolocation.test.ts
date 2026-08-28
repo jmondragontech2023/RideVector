@@ -59,6 +59,7 @@ describe('geolocation helper', () => {
   it('requires a secure context before requesting location', () => {
     expect(isSecureGeolocationContext({ isSecureContext: false })).toBe(false);
     expect(insecureContextGeolocationFailure().message).toContain('HTTPS or localhost');
+    expect(insecureContextGeolocationFailure().message).toContain('pnpm run dev:mobile');
   });
 
   it('resolves a successful current position with accuracy', async () => {
@@ -85,6 +86,7 @@ describe('geolocation helper', () => {
     const failure = geolocationErrorMessage(mockGeolocationPositionError(1, 'denied'), false);
     expect(failure.reason).toBe('insecure_context');
     expect(failure.message).toContain('HTTPS or localhost');
+    expect(failure.message).toContain('pnpm run dev:mobile');
   });
 
   it('maps timeout and unavailable errors', async () => {

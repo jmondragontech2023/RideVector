@@ -55,6 +55,9 @@ import {
 import { GenerationSession, shouldApplyGenerationResponse } from './poc/generation-session';
 import { LocationSession, shouldApplyLocationResult } from './poc/location-session';
 import { createMapRecenterRequest, type MapRecenterRequest } from './poc/map-recenter';
+import { buildGpxDocument, GpxExportError } from './poc/gpx';
+import { downloadGpxFile } from './poc/gpx-download';
+import { StartAreaResolver, START_AREA_FALLBACK_LABEL } from './poc/start-area';
 import { smokeContractTitle } from './smokeContract';
 import { useAppearance } from './poc/use-appearance';
 
@@ -77,6 +80,7 @@ export function App() {
   const [feedbackReason, setFeedbackReason] = useState('');
   const [deviationAcceptable, setDeviationAcceptable] = useState<boolean | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [startAreaLabel, setStartAreaLabel] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
@@ -92,12 +96,43 @@ export function App() {
   const [resultsTab, setResultsTab] = useState<ResultsWorkspaceTab>('overview');
   const generationSessionRef = useRef(new GenerationSession());
   const locationSessionRef = useRef(new LocationSession());
-  const {
-    themePreference,
-    mapTheme,
-    setThemePreference,
-    toggleMapTheme,
-  } = useAppearance();
+  const startAreaResolverRef = useRef(new StartAreaResolver());
+  const gpxExportSessionRef = useRef(0);
+  const { themePreference, mapTheme, setThemePreference, toggleMapTheme } = useAppearance();
+
+  function rememberStartAreaLabel(label: string | null) {
+    setStartAreaLabel(label);
+  }
+
+  function updateStartPoint(
+    coordinate: PocCoordinate,
+    options: { areaLabel?: string | null; resolveArea?: boolean } = {},
+  ) {
+    setStart(coordinate);
+    if (options.areaLabel !== undefined) {
+      startAreaResolverRef.current.cancelPending();
+      if (options.areaLabel) {
+        startAreaResolverRef.current.remember(coordinate, options.areaLabel);
+      }
+      rememberStartAreaLabel(options.areaLabel);
+      return;
+    }
+    if (options.resolveArea === false) {
+      return;
+    }
+
+    const cached = startAreaResolverRef.current.getCached(coordinate);
+    if (cached) {
+      startAreaResolverRef.current.cancelPending();
+      rememberStartAreaLabel(cached);
+      return;
+    }
+
+    rememberStartAreaLabel(null);
+    startAreaResolverRef.current.request(coordinate, (label) => {
+      rememberStartAreaLabel(label);
+    });
+  }
 
   useEffect(() => {
     setSavedRoutes(loadPocStore().routes);
@@ -108,6 +143,10 @@ export function App() {
     setDepartureMode(settings.departureMode);
     setCustomLocalDateTime(settings.customLocalDateTime);
     setFeatureSettingsHydrated(true);
+
+    if (isGeolocationSupported(navigator) && !isSecureGeolocationContext(window)) {
+      setLocationMessage(insecureContextGeolocationFailure().message);
+    }
   }, []);
 
   useEffect(() => {
@@ -140,8 +179,15 @@ export function App() {
     setLocating(false);
   }
 
+  /** Drop an in-flight start-area warm lookup when the selected plan changes. */
+  function invalidateInFlightGpxExport() {
+    gpxExportSessionRef.current += 1;
+    startAreaResolverRef.current.cancelExport();
+  }
+
   function clearGenerationResults() {
     invalidateInFlightGeneration();
+    invalidateInFlightGpxExport();
     setResult(null);
     setSelectedId(null);
     setStatus('idle');
@@ -225,6 +271,7 @@ export function App() {
     setErrorMessage(null);
     setSaveMessage(null);
     setPreviewAttemptNumber(null);
+    invalidateInFlightGpxExport();
 
     const { token, abortController, signal } = generationSessionRef.current.begin();
 
@@ -253,7 +300,9 @@ export function App() {
       if (!shouldApplyGenerationResponse(generationSessionRef.current, token, signal)) {
         return;
       }
-      setStart(effectiveStart);
+      // Cancel exports started against the previous result while this run was loading.
+      invalidateInFlightGpxExport();
+      updateStartPoint(effectiveStart, { resolveArea: false });
       setSeed(response.seed);
       setResult(response);
       setSelectedId(response.alternatives[0]?.id ?? null);
@@ -264,6 +313,7 @@ export function App() {
       if (!shouldApplyGenerationResponse(generationSessionRef.current, token, signal)) {
         return;
       }
+      invalidateInFlightGpxExport();
       setResult(null);
       setSelectedId(null);
       setStatus('error');
@@ -282,12 +332,77 @@ export function App() {
     }
     clearGenerationResults();
     invalidateInFlightLocation();
-    setStart(fixture.start);
+    updateStartPoint(fixture.start, { areaLabel: fixture.label });
     setTargetMiles(String(fixture.targetDistanceMiles));
     setFlexibilityMiles(String(fixtureFlexibilityMiles(fixture)));
     setCosting(fixture.costing);
     setSeed(fixture.seed);
     setSaveMessage(`Loaded fixture: ${fixture.label}`);
+  }
+
+  function handleDownloadGpx() {
+    if (!selected || !result) {
+      setSaveMessage('Generate and select a route before downloading GPX.');
+      return;
+    }
+    if (!start) {
+      setSaveMessage('Set a start point before downloading GPX.');
+      return;
+    }
+
+    try {
+      // Keep download inside the user-gesture turn. Awaiting Nominatim first can
+      // make Safari/mobile ignore the synthetic <a download> click.
+      const knownPlace =
+        startAreaLabel && startAreaLabel !== START_AREA_FALLBACK_LABEL
+          ? startAreaLabel.trim()
+          : null;
+      const areaLabel =
+        knownPlace || startAreaResolverRef.current.getCached(start) || START_AREA_FALLBACK_LABEL;
+
+      const exported = buildGpxDocument({
+        geometry: selected.geometry,
+        routeName: selected.name,
+        costing,
+        seed: result.seed,
+        distanceMeters: selected.distanceMeters,
+        startAreaLabel: areaLabel,
+      });
+      downloadGpxFile(exported.xml, exported.filename);
+      setSaveMessage(`Downloaded ${exported.filename}.`);
+
+      // If the filename had to use Local, warm Nominatim off the click path so a
+      // later download can pick up a real place label after recovery.
+      if (areaLabel === START_AREA_FALLBACK_LABEL) {
+        const warmToken = ++gpxExportSessionRef.current;
+        void startAreaResolverRef.current
+          .resolveForExport(start)
+          .then((label) => {
+            if (warmToken !== gpxExportSessionRef.current) {
+              return;
+            }
+            if (label && label !== START_AREA_FALLBACK_LABEL) {
+              rememberStartAreaLabel(label);
+            }
+          })
+          .catch((error: unknown) => {
+            if (
+              (typeof DOMException !== 'undefined' &&
+                error instanceof DOMException &&
+                error.name === 'AbortError') ||
+              (error instanceof Error && error.name === 'AbortError')
+            ) {
+              return;
+            }
+          });
+      }
+    } catch (error) {
+      const message =
+        error instanceof GpxExportError
+          ? error.message
+          : 'Unable to download GPX for the selected route.';
+      setSaveMessage(message);
+    }
   }
 
   function handleSaveSelected() {
@@ -326,7 +441,8 @@ export function App() {
   function handleOpenSaved(route: SavedPocRoute) {
     invalidateInFlightGeneration();
     invalidateInFlightLocation();
-    setStart(route.start);
+    invalidateInFlightGpxExport();
+    updateStartPoint(route.start);
     setTargetMiles(String(route.targetDistanceMeters / METERS_PER_MILE));
     setFlexibilityMiles(String(route.distanceFlexibilityMeters / METERS_PER_MILE));
     setCosting(route.costing);
@@ -407,7 +523,7 @@ export function App() {
         return;
       }
       clearGenerationResults();
-      setStart(position.coordinate);
+      updateStartPoint(position.coordinate);
       setRecenterRequest(createMapRecenterRequest(position.coordinate, 14));
       setLocationMessage(buildLocationSuccessMessage(position.accuracyMeters));
       setLocationWarning(
@@ -544,7 +660,7 @@ export function App() {
             mapTheme={mapTheme}
             onSelectStart={(coordinate) => {
               invalidateInFlightLocation();
-              setStart(coordinate);
+              updateStartPoint(coordinate);
               clearGenerationResults();
               setLocationMessage(null);
               setLocationWarning(null);
@@ -585,6 +701,7 @@ export function App() {
             savedRoutes={savedRoutes}
             onResultsTabChange={setResultsTab}
             onSelectAlternative={(id) => {
+              invalidateInFlightGpxExport();
               setSelectedId(id);
               setDeviationAcceptable(null);
             }}
@@ -595,6 +712,7 @@ export function App() {
             onFeedbackReasonChange={setFeedbackReason}
             onDeviationAcceptableChange={setDeviationAcceptable}
             onSaveSelected={handleSaveSelected}
+            onDownloadGpx={handleDownloadGpx}
             onOpenSaved={handleOpenSaved}
             onDeleteSaved={handleDeleteSaved}
           />

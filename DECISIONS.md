@@ -139,6 +139,18 @@ Accepted decisions are binding until superseded by a dated entry. Proposed decis
   - Post-POC intent: migrate to a RideVector-controlled Valhalla deployment after product validation and workload/cost benchmarking. Cloudflare Containers or a conventional Linux VM remain options; do not preselect production hosting here.
 - Consequence: POC developers can run `pnpm dev` without Docker Valhalla. Production/staging Workers still must not expose POC routing endpoints until Milestone 2+ hosting decisions are made.
 
+### ADR-019 — Manual GPX field-test export during the local POC
+
+- Status: Accepted — 2026-08-27
+- Context: Route quality cannot be adequately evaluated without riding generated routes. Garmin Connect’s documented third-party course import flow accepts GPX files, but the POC previously deferred all GPX behavior. Direct Garmin Courses API and Strava integrations remain out of scope until separately reviewed.
+- Decision:
+  - Add POC-4: client-side **Download GPX** for the currently selected accepted alternative (including routes reopened from browser-local saves).
+  - Generate GPX 1.1 entirely in `apps/web` from the existing provider-neutral GeoJSON `LineString`. Do not add a Worker endpoint, cloud storage, secrets, OAuth, FIT/TCX, or deployment changes.
+  - Export one `<trk>` / `<trkseg>` with ordered `<trkpt>` elements. Preserve exact coordinate order and count. Do not invent timestamps, elevation, turn/course points, or force loop closure.
+  - Label the control **Download GPX** (not “Send to Garmin”). Document the manual Garmin Connect import path and device-capability limits.
+  - Keep Milestone 10 responsible for production-grade saved-route/export contracts, security, persistence, hardening, and supported-client behavior. Direct Garmin Courses API and Strava publishing remain later, separately reviewed work.
+- Consequence: Owners can field-test generated courses on compatible Garmin devices without expanding the local POC into an integration platform. Garmin Connect / device import success remains an owner-verified checklist item, not an automated claim.
+
 ## Proposed; validate during later milestones
 
 ### ADR-P01 — Initial platform stack
