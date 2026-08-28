@@ -75,24 +75,31 @@ describe('Download GPX UI wiring', () => {
     expect(selectedPanelSource).toContain('Garmin Connect');
     expect(resultsPanelSource).toContain('onDownloadGpx={onDownloadGpx}');
     expect(appSource).toContain('handleDownloadGpx');
-    expect(appSource).toContain('onDownloadGpx={() => void handleDownloadGpx()}');
+    expect(appSource).toContain('onDownloadGpx={handleDownloadGpx}');
     expect(appSource).toContain('buildGpxDocument({');
     expect(appSource).toContain('geometry: selected.geometry');
     expect(appSource).toContain('startAreaLabel: areaLabel');
     expect(appSource).toContain('downloadGpxFile(exported.xml, exported.filename)');
     expect(appSource).toContain('StartAreaResolver');
     expect(appSource).toContain('resolveForExport');
+    expect(appSource).toContain('getCached(start)');
     expect(appSource).toContain('START_AREA_FALLBACK_LABEL');
     expect(appSource).toContain('startAreaLabel && startAreaLabel !== START_AREA_FALLBACK_LABEL');
     expect(appSource).toContain('gpxExportSessionRef');
     expect(appSource).toContain('invalidateInFlightGpxExport');
     expect(appSource).toContain('cancelExport');
     expect(appSource).toContain('AbortError');
+    // Download must stay synchronous with the click gesture (no await before downloadGpxFile).
+    const downloadHandler = appSource.match(
+      /function handleDownloadGpx\(\) \{[\s\S]*?\n {2}\}\n\n {2}function handleSaveSelected/,
+    )?.[0];
+    expect(downloadHandler).toBeTruthy();
+    expect(downloadHandler).toMatch(/downloadGpxFile\([\s\S]*resolveForExport/);
+    expect(downloadHandler).not.toMatch(/await[\s\S]*downloadGpxFile/);
   });
 
   it('invalidates in-flight GPX export when the selected plan changes', () => {
     expect(appSource).toContain('function invalidateInFlightGpxExport()');
-    expect(appSource).toContain("current === 'Preparing GPX…' ? null : current");
     expect(appSource).toMatch(
       /function clearGenerationResults\(\)[\s\S]*invalidateInFlightGpxExport\(\)/,
     );
@@ -102,9 +109,6 @@ describe('Download GPX UI wiring', () => {
     expect(appSource).toMatch(
       /async function runGenerate\([\s\S]*invalidateInFlightGpxExport\(\)/,
     );
-    expect(appSource).toContain('gpxExportSelectionRef');
-    expect(appSource).toContain('exportedAlternativeId');
-    expect(appSource).toContain('exportedSeed');
     expect(appSource).toMatch(
       /shouldApplyGenerationResponse\([\s\S]*invalidateInFlightGpxExport\(\)/,
     );

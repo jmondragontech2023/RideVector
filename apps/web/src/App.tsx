@@ -98,7 +98,6 @@ export function App() {
   const locationSessionRef = useRef(new LocationSession());
   const startAreaResolverRef = useRef(new StartAreaResolver());
   const gpxExportSessionRef = useRef(0);
-  const gpxExportSelectionRef = useRef<{ alternativeId: string; seed: number } | null>(null);
   const { themePreference, mapTheme, setThemePreference, toggleMapTheme } = useAppearance();
 
   function rememberStartAreaLabel(label: string | null) {
@@ -180,11 +179,10 @@ export function App() {
     setLocating(false);
   }
 
-  /** Drop an in-flight Download GPX when the selected plan is no longer current. */
+  /** Drop an in-flight start-area warm lookup when the selected plan changes. */
   function invalidateInFlightGpxExport() {
     gpxExportSessionRef.current += 1;
     startAreaResolverRef.current.cancelExport();
-    setSaveMessage((current) => (current === 'Preparing GPX…' ? null : current));
   }
 
   function clearGenerationResults() {
@@ -235,8 +233,6 @@ export function App() {
   const alternatives = result?.alternatives ?? [];
   const selected: PocAlternative | null =
     alternatives.find((alt) => alt.id === selectedId) ?? alternatives[0] ?? null;
-  gpxExportSelectionRef.current =
-    selected && result ? { alternativeId: selected.id, seed: result.seed } : null;
   const workspaceMode = derivePlannerWorkspaceMode({ result });
   const planSummary = formatActivePlanSummary({
     targetMiles,
@@ -344,7 +340,7 @@ export function App() {
     setSaveMessage(`Loaded fixture: ${fixture.label}`);
   }
 
-  async function handleDownloadGpx() {
+  function handleDownloadGpx() {
     if (!selected || !result) {
       setSaveMessage('Generate and select a route before downloading GPX.');
       return;
@@ -354,36 +350,18 @@ export function App() {
       return;
     }
 
-    const exportToken = ++gpxExportSessionRef.current;
-    const exportedAlternativeId = selected.id;
-    const exportedSeed = result.seed;
-    setSaveMessage('Preparing GPX…');
     try {
-      // Do not treat the Local fallback as final — transient Nominatim failures
-      // intentionally leave the resolver cache empty so export can retry.
+      // Keep download inside the user-gesture turn. Awaiting Nominatim first can
+      // make Safari/mobile ignore the synthetic <a download> click.
       const knownPlace =
         startAreaLabel && startAreaLabel !== START_AREA_FALLBACK_LABEL
           ? startAreaLabel.trim()
           : null;
       const areaLabel =
         knownPlace ||
-        (await startAreaResolverRef.current.resolveForExport(start)) ||
+        startAreaResolverRef.current.getCached(start) ||
         START_AREA_FALLBACK_LABEL;
-      if (exportToken !== gpxExportSessionRef.current) {
-        return;
-      }
-      const currentSelection = gpxExportSelectionRef.current;
-      if (
-        !currentSelection ||
-        currentSelection.alternativeId !== exportedAlternativeId ||
-        currentSelection.seed !== exportedSeed
-      ) {
-        setSaveMessage((current) => (current === 'Preparing GPX…' ? null : current));
-        return;
-      }
-      if (areaLabel !== startAreaLabel) {
-        rememberStartAreaLabel(areaLabel === START_AREA_FALLBACK_LABEL ? null : areaLabel);
-      }
+
       const exported = buildGpxDocument({
         geometry: selected.geometry,
         routeName: selected.name,
@@ -394,19 +372,33 @@ export function App() {
       });
       downloadGpxFile(exported.xml, exported.filename);
       setSaveMessage(`Downloaded ${exported.filename}.`);
+
+      // If the filename had to use Local, warm Nominatim off the click path so a
+      // later download can pick up a real place label after recovery.
+      if (areaLabel === START_AREA_FALLBACK_LABEL) {
+        const warmToken = ++gpxExportSessionRef.current;
+        void startAreaResolverRef.current
+          .resolveForExport(start)
+          .then((label) => {
+            if (warmToken !== gpxExportSessionRef.current) {
+              return;
+            }
+            if (label && label !== START_AREA_FALLBACK_LABEL) {
+              rememberStartAreaLabel(label);
+            }
+          })
+          .catch((error: unknown) => {
+            if (
+              (typeof DOMException !== 'undefined' &&
+                error instanceof DOMException &&
+                error.name === 'AbortError') ||
+              (error instanceof Error && error.name === 'AbortError')
+            ) {
+              return;
+            }
+          });
+      }
     } catch (error) {
-      if (exportToken !== gpxExportSessionRef.current) {
-        return;
-      }
-      if (
-        (typeof DOMException !== 'undefined' &&
-          error instanceof DOMException &&
-          error.name === 'AbortError') ||
-        (error instanceof Error && error.name === 'AbortError')
-      ) {
-        setSaveMessage((current) => (current === 'Preparing GPX…' ? null : current));
-        return;
-      }
       const message =
         error instanceof GpxExportError
           ? error.message
@@ -722,7 +714,7 @@ export function App() {
             onFeedbackReasonChange={setFeedbackReason}
             onDeviationAcceptableChange={setDeviationAcceptable}
             onSaveSelected={handleSaveSelected}
-            onDownloadGpx={() => void handleDownloadGpx()}
+            onDownloadGpx={handleDownloadGpx}
             onOpenSaved={handleOpenSaved}
             onDeleteSaved={handleDeleteSaved}
           />
