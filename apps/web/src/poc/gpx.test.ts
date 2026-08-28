@@ -244,8 +244,9 @@ describe('gpx download boundary', () => {
   });
 
   it('downloads with the expected filename and revokes the object URL after a delay', async () => {
-    const { downloadGpxFile, GPX_MIME_TYPE, GPX_OBJECT_URL_REVOKE_DELAY_MS } =
-      await import('./gpx-download');
+    const { downloadGpxFile, GPX_MIME_TYPE, GPX_OBJECT_URL_REVOKE_DELAY_MS } = await import(
+      './gpx-download'
+    );
     const click = vi.fn();
     const remove = vi.fn();
     const appendChild = vi.fn();

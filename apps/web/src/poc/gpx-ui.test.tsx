@@ -103,12 +103,8 @@ describe('Download GPX UI wiring', () => {
     expect(appSource).toMatch(
       /function clearGenerationResults\(\)[\s\S]*invalidateInFlightGpxExport\(\)/,
     );
-    expect(appSource).toMatch(
-      /function handleOpenSaved\([\s\S]*invalidateInFlightGpxExport\(\)/,
-    );
-    expect(appSource).toMatch(
-      /async function runGenerate\([\s\S]*invalidateInFlightGpxExport\(\)/,
-    );
+    expect(appSource).toMatch(/function handleOpenSaved\([\s\S]*invalidateInFlightGpxExport\(\)/);
+    expect(appSource).toMatch(/async function runGenerate\([\s\S]*invalidateInFlightGpxExport\(\)/);
     expect(appSource).toMatch(
       /shouldApplyGenerationResponse\([\s\S]*invalidateInFlightGpxExport\(\)/,
     );

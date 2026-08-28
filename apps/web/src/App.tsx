@@ -358,9 +358,7 @@ export function App() {
           ? startAreaLabel.trim()
           : null;
       const areaLabel =
-        knownPlace ||
-        startAreaResolverRef.current.getCached(start) ||
-        START_AREA_FALLBACK_LABEL;
+        knownPlace || startAreaResolverRef.current.getCached(start) || START_AREA_FALLBACK_LABEL;
 
       const exported = buildGpxDocument({
         geometry: selected.geometry,
