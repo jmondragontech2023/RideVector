@@ -102,6 +102,12 @@ describe('Download GPX UI wiring', () => {
     expect(appSource).toMatch(
       /async function runGenerate\([\s\S]*invalidateInFlightGpxExport\(\)/,
     );
+    expect(appSource).toContain('gpxExportSelectionRef');
+    expect(appSource).toContain('exportedAlternativeId');
+    expect(appSource).toContain('exportedSeed');
+    expect(appSource).toMatch(
+      /shouldApplyGenerationResponse\([\s\S]*invalidateInFlightGpxExport\(\)/,
+    );
     expect(appSource).toMatch(
       /onSelectAlternative=\{\(id\) => \{\s*invalidateInFlightGpxExport\(\);/,
     );

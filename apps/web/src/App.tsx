@@ -98,6 +98,7 @@ export function App() {
   const locationSessionRef = useRef(new LocationSession());
   const startAreaResolverRef = useRef(new StartAreaResolver());
   const gpxExportSessionRef = useRef(0);
+  const gpxExportSelectionRef = useRef<{ alternativeId: string; seed: number } | null>(null);
   const { themePreference, mapTheme, setThemePreference, toggleMapTheme } = useAppearance();
 
   function rememberStartAreaLabel(label: string | null) {
@@ -234,6 +235,8 @@ export function App() {
   const alternatives = result?.alternatives ?? [];
   const selected: PocAlternative | null =
     alternatives.find((alt) => alt.id === selectedId) ?? alternatives[0] ?? null;
+  gpxExportSelectionRef.current =
+    selected && result ? { alternativeId: selected.id, seed: result.seed } : null;
   const workspaceMode = derivePlannerWorkspaceMode({ result });
   const planSummary = formatActivePlanSummary({
     targetMiles,
@@ -301,6 +304,8 @@ export function App() {
       if (!shouldApplyGenerationResponse(generationSessionRef.current, token, signal)) {
         return;
       }
+      // Cancel exports started against the previous result while this run was loading.
+      invalidateInFlightGpxExport();
       updateStartPoint(effectiveStart, { resolveArea: false });
       setSeed(response.seed);
       setResult(response);
@@ -312,6 +317,7 @@ export function App() {
       if (!shouldApplyGenerationResponse(generationSessionRef.current, token, signal)) {
         return;
       }
+      invalidateInFlightGpxExport();
       setResult(null);
       setSelectedId(null);
       setStatus('error');
@@ -349,6 +355,8 @@ export function App() {
     }
 
     const exportToken = ++gpxExportSessionRef.current;
+    const exportedAlternativeId = selected.id;
+    const exportedSeed = result.seed;
     setSaveMessage('Preparing GPX…');
     try {
       // Do not treat the Local fallback as final — transient Nominatim failures
@@ -362,6 +370,15 @@ export function App() {
         (await startAreaResolverRef.current.resolveForExport(start)) ||
         START_AREA_FALLBACK_LABEL;
       if (exportToken !== gpxExportSessionRef.current) {
+        return;
+      }
+      const currentSelection = gpxExportSelectionRef.current;
+      if (
+        !currentSelection ||
+        currentSelection.alternativeId !== exportedAlternativeId ||
+        currentSelection.seed !== exportedSeed
+      ) {
+        setSaveMessage((current) => (current === 'Preparing GPX…' ? null : current));
         return;
       }
       if (areaLabel !== startAreaLabel) {
