@@ -97,6 +97,7 @@ export function App() {
   const generationSessionRef = useRef(new GenerationSession());
   const locationSessionRef = useRef(new LocationSession());
   const startAreaResolverRef = useRef(new StartAreaResolver());
+  const gpxExportSessionRef = useRef(0);
   const { themePreference, mapTheme, setThemePreference, toggleMapTheme } = useAppearance();
 
   function rememberStartAreaLabel(label: string | null) {
@@ -338,6 +339,7 @@ export function App() {
       return;
     }
 
+    const exportToken = ++gpxExportSessionRef.current;
     setSaveMessage('Preparing GPX…');
     try {
       // Do not treat the Local fallback as final — transient Nominatim failures
@@ -350,6 +352,9 @@ export function App() {
         knownPlace ||
         (await startAreaResolverRef.current.resolveForExport(start)) ||
         START_AREA_FALLBACK_LABEL;
+      if (exportToken !== gpxExportSessionRef.current) {
+        return;
+      }
       if (areaLabel !== startAreaLabel) {
         rememberStartAreaLabel(areaLabel === START_AREA_FALLBACK_LABEL ? null : areaLabel);
       }
@@ -364,6 +369,17 @@ export function App() {
       downloadGpxFile(exported.xml, exported.filename);
       setSaveMessage(`Downloaded ${exported.filename}.`);
     } catch (error) {
+      if (exportToken !== gpxExportSessionRef.current) {
+        return;
+      }
+      if (
+        (typeof DOMException !== 'undefined' &&
+          error instanceof DOMException &&
+          error.name === 'AbortError') ||
+        (error instanceof Error && error.name === 'AbortError')
+      ) {
+        return;
+      }
       const message =
         error instanceof GpxExportError
           ? error.message

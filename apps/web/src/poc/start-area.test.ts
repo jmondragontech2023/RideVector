@@ -318,4 +318,44 @@ describe('StartAreaResolver', () => {
     await expect(exportPromise).resolves.toBe('Encinitas');
     expect(resolver.getCached(coordinate)).toBe('Encinitas');
   });
+
+  it('aborts a superseded export lookup instead of resolving Local', async () => {
+    let releaseFirst: ((value: unknown) => void) | undefined;
+    let callCount = 0;
+    const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
+      callCount += 1;
+      if (callCount === 1) {
+        return new Promise((resolve, reject) => {
+          releaseFirst = resolve;
+          init?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('Aborted', 'AbortError'));
+          });
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ address: { city: 'Encinitas' } }),
+      });
+    }) as unknown as typeof fetch;
+
+    const resolver = new StartAreaResolver({
+      fetch: fetchImpl,
+      debounceMs: 0,
+      minIntervalMs: 0,
+    });
+    const coordinate = { latitude: 33.037, longitude: -117.292 };
+
+    const first = resolver.resolveForExport(coordinate);
+    await Promise.resolve();
+    const second = resolver.resolveForExport(coordinate);
+    await Promise.resolve();
+
+    releaseFirst?.({
+      ok: true,
+      json: async () => ({ address: { city: 'Stale' } }),
+    });
+
+    await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(second).resolves.toBe('Encinitas');
+  });
 });

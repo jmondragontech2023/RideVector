@@ -299,7 +299,10 @@ export class StartAreaResolver {
     if (this.exportAbortController === exportController) {
       this.exportAbortController = null;
     }
-    return label ?? START_AREA_FALLBACK_LABEL;
+    if (exportController.signal.aborted || label === undefined) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+    return label;
   }
 
   private async runSerialized(
