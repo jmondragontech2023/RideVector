@@ -99,16 +99,23 @@ function isAbortError(error: unknown): boolean {
 
 /**
  * Resolves a coarse start-area place name for GPX filenames.
- * Falls back to Local on network/parse failures; never embeds coordinates.
- * AbortError is rethrown so callers can ignore superseded requests.
+ * Never embeds coordinates. AbortError is rethrown so callers can ignore superseded requests.
+ *
+ * `resolved` means Nominatim returned a usable HTTP/JSON response (label may still be Local
+ * when the place truly has no city-like field). `unavailable` covers transient failures such as
+ * network errors and HTTP 429 — those must not be cached.
  */
+export type StartAreaLookupResult =
+  | { status: 'resolved'; label: string }
+  | { status: 'unavailable'; label: typeof START_AREA_FALLBACK_LABEL };
+
 export async function resolveStartAreaLabel(
   coordinate: PocCoordinate,
   deps: {
     fetch?: typeof fetch;
     signal?: AbortSignal;
   } = {},
-): Promise<string> {
+): Promise<StartAreaLookupResult> {
   const fetchImpl = deps.fetch ?? fetch;
   try {
     const response = await fetchImpl(buildNominatimReverseUrl(coordinate), {
@@ -119,18 +126,21 @@ export async function resolveStartAreaLabel(
       signal: deps.signal,
     });
     if (!response.ok) {
-      return START_AREA_FALLBACK_LABEL;
+      return { status: 'unavailable', label: START_AREA_FALLBACK_LABEL };
     }
     const payload = (await response.json()) as NominatimReverseResponse;
     if (payload.error) {
-      return START_AREA_FALLBACK_LABEL;
+      return { status: 'unavailable', label: START_AREA_FALLBACK_LABEL };
     }
-    return pickStartAreaLabel(payload.address, payload.name);
+    return {
+      status: 'resolved',
+      label: pickStartAreaLabel(payload.address, payload.name),
+    };
   } catch (error) {
     if (deps.signal?.aborted || isAbortError(error)) {
       throw error instanceof Error ? error : new DOMException('Aborted', 'AbortError');
     }
-    return START_AREA_FALLBACK_LABEL;
+    return { status: 'unavailable', label: START_AREA_FALLBACK_LABEL };
   }
 }
 
@@ -177,7 +187,8 @@ export class StartAreaResolver {
   /** Seeds the cache (fixture labels / known places) without calling Nominatim. */
   remember(coordinate: PocCoordinate, label: string): void {
     const trimmed = label.trim();
-    if (!trimmed) {
+    // Never persist the unavailable fallback — that would block later retries.
+    if (!trimmed || trimmed === START_AREA_FALLBACK_LABEL) {
       return;
     }
     this.cache.set(startAreaCacheKey(coordinate), trimmed);
@@ -273,16 +284,21 @@ export class StartAreaResolver {
       this.lastRequestStartedAt = this.now();
 
       try {
-        const label = await resolveStartAreaLabel(coordinate, {
+        const result = await resolveStartAreaLabel(coordinate, {
           fetch: this.fetchImpl,
           signal: controller.signal,
         });
         if (generation !== this.generation || controller.signal.aborted) {
           return undefined;
         }
-        this.remember(coordinate, label);
-        onResolved(label);
-        return label;
+        if (result.status === 'resolved') {
+          // Cache only successful lookups. Skip Local so empty/unparsed places can retry.
+          if (result.label !== START_AREA_FALLBACK_LABEL) {
+            this.remember(coordinate, result.label);
+          }
+        }
+        onResolved(result.label);
+        return result.label;
       } catch (error) {
         if (isAbortError(error) || generation !== this.generation) {
           return undefined;

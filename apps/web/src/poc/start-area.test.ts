@@ -52,7 +52,7 @@ describe('start area label', () => {
 
     await expect(
       resolveStartAreaLabel({ latitude: 37.77, longitude: -122.42 }, { fetch: fetchOk }),
-    ).resolves.toBe('San Francisco');
+    ).resolves.toEqual({ status: 'resolved', label: 'San Francisco' });
 
     const fetchFail = vi.fn(async () => {
       throw new Error('network');
@@ -60,16 +60,17 @@ describe('start area label', () => {
 
     await expect(
       resolveStartAreaLabel({ latitude: 37.77, longitude: -122.42 }, { fetch: fetchFail }),
-    ).resolves.toBe(START_AREA_FALLBACK_LABEL);
+    ).resolves.toEqual({ status: 'unavailable', label: START_AREA_FALLBACK_LABEL });
 
     const fetchBad = vi.fn(async () => ({
       ok: false,
+      status: 429,
       json: async () => ({}),
     })) as unknown as typeof fetch;
 
     await expect(
       resolveStartAreaLabel({ latitude: 37.77, longitude: -122.42 }, { fetch: fetchBad }),
-    ).resolves.toBe(START_AREA_FALLBACK_LABEL);
+    ).resolves.toEqual({ status: 'unavailable', label: START_AREA_FALLBACK_LABEL });
   });
 
   it('rethrows abort errors instead of degrading to Local', async () => {
@@ -236,5 +237,49 @@ describe('StartAreaResolver', () => {
 
     await expect(resolver.resolveForExport(coordinate)).resolves.toBe('Encinitas');
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('does not cache Local after HTTP 429 so a later lookup can succeed', async () => {
+    vi.useFakeTimers();
+    let callCount = 0;
+    const fetchImpl = vi.fn(async () => {
+      callCount += 1;
+      if (callCount === 1) {
+        return { ok: false, status: 429, json: async () => ({}) };
+      }
+      return {
+        ok: true,
+        json: async () => ({ address: { city: 'Encinitas' } }),
+      };
+    }) as unknown as typeof fetch;
+
+    const resolver = new StartAreaResolver({
+      fetch: fetchImpl,
+      debounceMs: 0,
+      minIntervalMs: 0,
+    });
+    const coordinate = { latitude: 33.037, longitude: -117.292 };
+
+    const first = vi.fn();
+    resolver.request(coordinate, first);
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    expect(first).toHaveBeenCalledWith(START_AREA_FALLBACK_LABEL);
+    expect(resolver.getCached(coordinate)).toBeUndefined();
+
+    const second = vi.fn();
+    resolver.request(coordinate, second);
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    expect(second).toHaveBeenCalledWith('Encinitas');
+    expect(resolver.getCached(coordinate)).toBe('Encinitas');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not remember the Local fallback label into the cache', () => {
+    const resolver = new StartAreaResolver({ debounceMs: 0, minIntervalMs: 0 });
+    const coordinate = { latitude: 33.037, longitude: -117.292 };
+    resolver.remember(coordinate, START_AREA_FALLBACK_LABEL);
+    expect(resolver.getCached(coordinate)).toBeUndefined();
   });
 });
