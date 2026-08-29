@@ -40,11 +40,11 @@ If a library version must be selected, use the current stable version compatible
 1. Start the local web app and Worker (`pnpm dev`). For phone LAN/Tailscale testing of **Use my location**, use `pnpm run dev:mobile` (HTTPS) or `pnpm run dev:both` (HTTP :5173 + HTTPS :5174) and open the Vite `https://` Network URL (see root `README.md`).
 2. Select a start point on a map.
 3. Enter a target distance, flexibility, and Road/Gravel costing.
-4. Optionally configure experimental scoring/enrichment presets and departure time.
-5. Generate bounded, seeded loop candidates.
+4. Optionally open **Advanced preferences / POC tools** to configure experimental scoring/enrichment presets, departure time, and public scenario fixtures.
+5. Generate bounded, seeded loop candidates (**Generate routes**).
 6. Compare up to three routes by map geometry, POC fit, category badges, and expandable enrichment details.
 7. Select, regenerate, save locally, and record whether a route looks worth riding.
-8. Optionally download the selected accepted route as GPX and import it into Garmin Connect for an on-device field test.
+8. Optionally **Export to Garmin** (or **Download GPX**) and import the file into Garmin Connect for an on-device field test.
 
 ## Delivery sequence
 
