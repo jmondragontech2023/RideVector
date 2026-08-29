@@ -1604,6 +1604,15 @@ legend.field-label-row {
   .segmented-control .segment {
     min-height: 2.75rem;
   }
+
+  .plan-sticky-actions .primary-action,
+  .results-sticky-actions .primary-action {
+    flex: 1 1 100%;
+  }
+
+  .results-sticky-actions .secondary {
+    flex: 1 1 auto;
+  }
 }
 
 @media (min-width: 1600px) {
