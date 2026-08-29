@@ -314,9 +314,28 @@ export function RouteMap({
         onReset={() => setMarkerSettings(defaultDirectionMarkerSettings())}
       />
       <p className="route-map-legend" aria-label="Map legend">
-        {rejectedPreview
-          ? `${rejectedPreview.label} (dashed orange) · Start → follow numbered arrows in order (green → yellow → red). Markers tighten at turns; paired outlined arrows mark reversals or crossings.`
-          : 'Start → follow numbered arrows in order (green → yellow → red). Markers tighten at turns; paired outlined arrows mark reversals or crossings.'}
+        {rejectedPreview ? (
+          <>
+            <span className="route-map-legend__short">
+              {rejectedPreview.label} (dashed) · Start → numbered arrows
+            </span>
+            <span className="route-map-legend__full">
+              {rejectedPreview.label} (dashed orange) · Start → follow numbered arrows in order
+              (green → yellow → red). Markers tighten at turns; paired outlined arrows mark
+              reversals or crossings.
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="route-map-legend__short">
+              Start → numbered arrows (green → yellow → red)
+            </span>
+            <span className="route-map-legend__full">
+              Start → follow numbered arrows in order (green → yellow → red). Markers tighten at
+              turns; paired outlined arrows mark reversals or crossings.
+            </span>
+          </>
+        )}
       </p>
     </div>
   );

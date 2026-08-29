@@ -78,6 +78,11 @@ describe('Download GPX UI wiring', () => {
     expect(resultsPanelSource).toContain('onDownloadGpx={onDownloadGpx}');
     expect(resultsPanelSource).toContain('Export to Garmin');
     expect(resultsPanelSource).toContain('Download GPX');
+    expect(resultsPanelSource).toContain('results-action-export');
+    expect(resultsPanelSource).toContain('results-action-download-mobile');
+    expect(resultsPanelSource).toContain('results-more-actions');
+    expect(resultsPanelSource).toContain('onClick={onDownloadGpx}');
+    expect(resultsPanelSource).toContain('onClick={onSaveSelected}');
     expect(appSource).toContain('handleDownloadGpx');
     expect(appSource).toContain('onDownloadGpx={handleDownloadGpx}');
     expect(appSource).toContain('buildGpxDocument({');

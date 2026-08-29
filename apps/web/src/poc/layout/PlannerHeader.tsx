@@ -42,7 +42,13 @@ export function PlannerHeader({
             <span className="poc-header__plan-label">Active plan</span>
             <span className="poc-header__plan-value">{planSummary}</span>
             {onEditPlan ? (
-              <button type="button" className="secondary header-edit-plan" onClick={onEditPlan}>
+              <button
+                type="button"
+                className="secondary header-edit-plan edit-plan-control edit-plan-control--desktop"
+                data-edit-plan-slot="header"
+                data-testid="edit-plan-header"
+                onClick={onEditPlan}
+              >
                 Edit plan
               </button>
             ) : null}

@@ -151,7 +151,7 @@ describe('planner layout presentation', () => {
     const markup = renderToStaticMarkup(
       <RouteAlternativeSelector
         alternatives={[alternative, alternativeB]}
-        selectedId="b"
+        selectedId="a"
         onSelect={() => undefined}
       />,
     );
@@ -164,9 +164,11 @@ describe('planner layout presentation', () => {
     expect(markup).not.toContain('Most distinct');
     expect(markup).not.toContain('Show score details');
     expect(markup).toContain('data-selected="true"');
-    expect(markup).toContain('data-route-identity="b"');
+    expect(markup).toContain('data-route-identity="a"');
     expect(markup).toContain('Selected');
     expect(markup).toContain('aria-pressed="true"');
+    expect(markup).toContain('route-card-meta');
+    expect(markup).toContain('from target');
   });
 
   it('renders an active preferences summary', () => {
@@ -264,9 +266,14 @@ describe('planner layout presentation', () => {
     expect(markup).toContain('Overview');
     expect(markup).toContain('Details');
     expect(markup).toContain('Diagnostics');
-    expect(markup).toContain('Edit plan');
+    expect(markup).toContain('data-edit-plan-slot="rail"');
+    expect(markup).toContain('edit-plan-control--mobile');
     expect(markup).toContain('Regenerate');
     expect(markup).toContain('Route B');
+    expect(markup).toContain('results-action-download--desktop');
+    expect(markup).toContain('results-more-actions--mobile');
+    expect(markup).toContain('action-label--short');
+    expect(markup).toContain('>More</summary>');
   });
 
   it('keeps Garmin wording accurate without implying direct sync', () => {
@@ -306,6 +313,131 @@ describe('planner layout presentation', () => {
     expect(markup).toContain('Training &amp; Planning');
     expect(markup).not.toContain('syncs automatically');
     expect(markup).not.toContain('Garmin API integration');
+  });
+
+  it('exposes compact mobile Save/Export/More sticky actions wired to existing handlers', () => {
+    const markup = renderToStaticMarkup(
+      <ResultsPanel
+        result={sampleResult({ alternatives: [alternativeB, alternative] })}
+        selected={alternativeB}
+        alternatives={[alternativeB, alternative]}
+        features={DEFAULT_POC_FEATURES}
+        planSummary="12 mi ±3 mi · Road · Basic"
+        seed={1}
+        status="success"
+        errorMessage={null}
+        resultsTab="overview"
+        targetDistanceMeters={19_312}
+        previewAttemptNumber={null}
+        wouldRide="maybe"
+        feedbackReason=""
+        deviationAcceptable={null}
+        saveMessage={null}
+        onResultsTabChange={() => undefined}
+        onSelectAlternative={() => undefined}
+        onEditPlan={() => undefined}
+        onRegenerate={() => undefined}
+        onPreviewAttempt={() => undefined}
+        onWouldRideChange={() => undefined}
+        onFeedbackReasonChange={() => undefined}
+        onDeviationAcceptableChange={() => undefined}
+        onSaveSelected={() => undefined}
+        onDownloadGpx={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('data-testid="results-action-save"');
+    expect(markup).toContain('data-testid="results-action-export"');
+    expect(markup).toContain('data-testid="results-action-more"');
+    expect(markup).toContain('data-testid="results-action-download-desktop"');
+    expect(markup).toContain('data-testid="results-action-download-mobile"');
+    expect(markup).toContain('aria-label="More export options"');
+    expect(markup).toContain('aria-label="Save selected locally"');
+    expect(markup).toContain('aria-label="Export to Garmin"');
+    expect(markup).toContain('action-label--short');
+    expect(markup).toContain('>Save</span>');
+    expect(markup).toContain('>Export</span>');
+    expect(markup).toContain('results-action-download--desktop');
+    expect(markup).toContain('results-more-actions--mobile');
+  });
+
+  it('marks Edit plan slots so only one is visible per breakpoint', () => {
+    const header = renderToStaticMarkup(
+      <PlannerHeader
+        contractTitle="RideVector API"
+        themePreference="system"
+        onThemePreferenceChange={() => undefined}
+        savedRoutes={[]}
+        onOpenSaved={() => undefined}
+        onDeleteSaved={() => undefined}
+        workspaceMode="results"
+        planSummary="12 mi ±3 mi · Road · Geometry"
+        onEditPlan={() => undefined}
+      />,
+    );
+    const rail = renderToStaticMarkup(
+      <ResultsPanel
+        result={sampleResult()}
+        selected={alternative}
+        alternatives={[alternative]}
+        features={DEFAULT_POC_FEATURES}
+        planSummary="12 mi ±3 mi · Road · Geometry"
+        seed={1}
+        status="success"
+        errorMessage={null}
+        resultsTab="overview"
+        targetDistanceMeters={19_312}
+        previewAttemptNumber={null}
+        wouldRide="maybe"
+        feedbackReason=""
+        deviationAcceptable={null}
+        saveMessage={null}
+        onResultsTabChange={() => undefined}
+        onSelectAlternative={() => undefined}
+        onEditPlan={() => undefined}
+        onRegenerate={() => undefined}
+        onPreviewAttempt={() => undefined}
+        onWouldRideChange={() => undefined}
+        onFeedbackReasonChange={() => undefined}
+        onDeviationAcceptableChange={() => undefined}
+        onSaveSelected={() => undefined}
+        onDownloadGpx={() => undefined}
+      />,
+    );
+
+    expect(header).toContain('data-edit-plan-slot="header"');
+    expect(header).toContain('edit-plan-control--desktop');
+    expect(rail).toContain('data-edit-plan-slot="rail"');
+    expect(rail).toContain('edit-plan-control--mobile');
+    expect(header.match(/Edit plan/g)?.length).toBe(1);
+    expect(rail.match(/data-edit-plan-slot="rail"/g)?.length).toBe(1);
+  });
+
+  it('keeps all three alternatives selectable without dropping cards', () => {
+    const alternativeC: PocAlternative = {
+      ...alternative,
+      id: 'c',
+      name: 'Route C',
+      scoring: alternative.scoring
+        ? { ...alternative.scoring, overallScore: 89, fitSummary: 'POC fit 89/100' }
+        : undefined,
+    };
+    const markup = renderToStaticMarkup(
+      <RouteAlternativeSelector
+        alternatives={[alternativeB, alternativeC, alternative]}
+        selectedId="b"
+        onSelect={() => undefined}
+      />,
+    );
+    expect(markup).toContain('data-alternative-count="3"');
+    expect(markup).toContain('Route A');
+    expect(markup).toContain('Route B');
+    expect(markup).toContain('Route C');
+    expect(markup).toContain('data-selected="true"');
+    expect(markup).toContain('route-card-meta');
+    expect(markup).toContain('POC fit 90');
+    expect(markup).toContain('POC fit 89');
+    expect(markup).toContain('POC fit 84');
   });
 
   it('simplifies the header and relocates contract metadata under POC tools', () => {

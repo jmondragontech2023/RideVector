@@ -14,6 +14,7 @@ export function RouteAlternativeSelector({ alternatives, selectedId, onSelect }:
       className="route-cards route-cards--sticky"
       aria-label="Route alternatives"
       data-testid="route-alternative-selector"
+      data-alternative-count={alternatives.length}
     >
       {alternatives.map((alt) => {
         const nearMatchDeviation = formatNearMatchDeviation(alt);
@@ -23,6 +24,11 @@ export function RouteAlternativeSelector({ alternatives, selectedId, onSelect }:
         const className = ['route-card', identity.className, selected ? 'selected' : '']
           .filter(Boolean)
           .join(' ');
+        const distanceLabel = formatMiles(alt.distanceMeters);
+        const durationLabel = formatDuration(alt.durationSeconds);
+        const deltaLabel = nearMatchDeviation
+          ? nearMatchDeviation
+          : `${alt.distanceFromTargetMeters >= 0 ? '+' : ''}${formatMiles(Math.abs(alt.distanceFromTargetMeters))} from target`;
 
         return (
           <li key={alt.id}>
@@ -45,17 +51,11 @@ export function RouteAlternativeSelector({ alternatives, selectedId, onSelect }:
                 ) : null}
                 {selected ? <span className="route-selected-label">Selected</span> : null}
               </span>
-              <span>
-                {formatMiles(alt.distanceMeters)} · {formatDuration(alt.durationSeconds)}
+              <span
+                className={nearMatchDeviation ? 'route-card-meta near-match' : 'route-card-meta'}
+              >
+                {distanceLabel} · {durationLabel} · {deltaLabel}
               </span>
-              {nearMatchDeviation ? (
-                <span className="near-match-deviation">{nearMatchDeviation}</span>
-              ) : (
-                <span className="subtle">
-                  {alt.distanceFromTargetMeters >= 0 ? '+' : ''}
-                  {formatMiles(Math.abs(alt.distanceFromTargetMeters))} from target
-                </span>
-              )}
               {badges.length > 0 ? (
                 <span className="route-card-badges">
                   {badges.map((badge) => (

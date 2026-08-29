@@ -83,7 +83,9 @@ export function ResultsPanel({
         <div className="actions results-secondary-actions">
           <button
             type="button"
-            className="secondary"
+            className="secondary edit-plan-control edit-plan-control--mobile"
+            data-edit-plan-slot="rail"
+            data-testid="edit-plan-rail"
             disabled={status === 'loading'}
             onClick={onEditPlan}
           >
@@ -216,23 +218,63 @@ export function ResultsPanel({
       <div className="results-sticky-actions sticky-actions" data-testid="results-sticky-actions">
         <button
           type="button"
-          className="primary-action"
+          className="primary-action results-action-save"
+          data-testid="results-action-save"
           disabled={!selected}
           onClick={onSaveSelected}
+          aria-label="Save selected locally"
         >
-          Save selected locally
+          <span className="action-label action-label--full">Save selected locally</span>
+          <span className="action-label action-label--short" aria-hidden="true">
+            Save
+          </span>
         </button>
         <button
           type="button"
-          className="primary-action"
+          className="primary-action results-action-export"
+          data-testid="results-action-export"
+          disabled={!selected}
+          onClick={onDownloadGpx}
+          aria-label="Export to Garmin"
+        >
+          <span className="action-label action-label--full">Export to Garmin</span>
+          <span className="action-label action-label--short" aria-hidden="true">
+            Export
+          </span>
+        </button>
+        <button
+          type="button"
+          className="secondary results-action-download results-action-download--desktop"
+          data-testid="results-action-download-desktop"
           disabled={!selected}
           onClick={onDownloadGpx}
         >
-          Export to Garmin
-        </button>
-        <button type="button" className="secondary" disabled={!selected} onClick={onDownloadGpx}>
           Download GPX
         </button>
+        <details className="results-more-actions results-more-actions--mobile">
+          <summary
+            className="results-more-actions__summary"
+            data-testid="results-action-more"
+            aria-label="More export options"
+          >
+            More
+          </summary>
+          <div
+            className="results-more-actions__panel"
+            role="group"
+            aria-label="More export options"
+          >
+            <button
+              type="button"
+              className="secondary"
+              data-testid="results-action-download-mobile"
+              disabled={!selected}
+              onClick={onDownloadGpx}
+            >
+              Download GPX
+            </button>
+          </div>
+        </details>
       </div>
     </aside>
   );
