@@ -213,10 +213,7 @@ export function ResultsPanel({
         ) : null}
       </div>
 
-      <div
-        className="results-sticky-actions sticky-actions"
-        data-testid="results-sticky-actions"
-      >
+      <div className="results-sticky-actions sticky-actions" data-testid="results-sticky-actions">
         <button
           type="button"
           className="primary-action"
@@ -233,12 +230,7 @@ export function ResultsPanel({
         >
           Export to Garmin
         </button>
-        <button
-          type="button"
-          className="secondary"
-          disabled={!selected}
-          onClick={onDownloadGpx}
-        >
+        <button type="button" className="secondary" disabled={!selected} onClick={onDownloadGpx}>
           Download GPX
         </button>
       </div>

@@ -20,11 +20,7 @@ export function RouteAlternativeSelector({ alternatives, selectedId, onSelect }:
         const badges = (alt.categories ?? []).slice(0, 2);
         const selected = alt.id === selectedId;
         const identity = routePresentationForName(alt.name);
-        const className = [
-          'route-card',
-          identity.className,
-          selected ? 'selected' : '',
-        ]
+        const className = ['route-card', identity.className, selected ? 'selected' : '']
           .filter(Boolean)
           .join(' ');
 
