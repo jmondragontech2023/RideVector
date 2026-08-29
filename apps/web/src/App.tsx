@@ -7,19 +7,16 @@ import {
   saveFeatureSettings,
 } from './poc/feature-settings';
 import { POC_SCENARIO_FIXTURES, fixtureFlexibilityMiles } from './poc/fixtures';
-import { ExperimentalSettingsPanel } from './poc/layout/ExperimentalSettingsPanel';
 import { PlanPanel } from './poc/layout/PlanPanel';
 import { PlannerHeader } from './poc/layout/PlannerHeader';
 import {
   defaultResultsTab,
   derivePlannerWorkspaceMode,
   formatActivePlanSummary,
-  type PlanningSidebarTab,
   type ResultsWorkspaceTab,
 } from './poc/layout/planner-workspace';
 import { MapThemeToggle } from './poc/layout/MapThemeToggle';
 import { ResultsPanel } from './poc/layout/ResultsPanel';
-import { PlanningWorkspaceTabs } from './poc/layout/ResponsiveWorkspaceTabs';
 import { RouteMap } from './poc/RouteMap';
 import {
   deleteSavedRoute,
@@ -92,7 +89,6 @@ export function App() {
   const [departureMode, setDepartureMode] = useState<'now' | 'custom'>('now');
   const [customLocalDateTime, setCustomLocalDateTime] = useState('');
   const [featureSettingsHydrated, setFeatureSettingsHydrated] = useState(false);
-  const [planningTab, setPlanningTab] = useState<PlanningSidebarTab>('plan');
   const [resultsTab, setResultsTab] = useState<ResultsWorkspaceTab>('overview');
   const generationSessionRef = useRef(new GenerationSession());
   const locationSessionRef = useRef(new LocationSession());
@@ -199,7 +195,6 @@ export function App() {
 
   function handleEditPlan() {
     clearGenerationResults();
-    setPlanningTab('plan');
   }
 
   function applyExperimentalSettings(next: {
@@ -558,95 +553,66 @@ export function App() {
     }
   }
 
-  const savedList = (
-    <details className="saved-block" open={savedRoutes.length > 0}>
-      <summary>Saved locally ({savedRoutes.length})</summary>
-      {savedRoutes.length === 0 ? (
-        <p className="subtle">No browser-local saves yet.</p>
-      ) : (
-        <ul className="saved-list">
-          {savedRoutes.map((route) => (
-            <li key={route.id}>
-              <div>
-                <strong>{route.label}</strong>
-                <p className="subtle">
-                  seed {route.seed}
-                  {route.feedback ? ` · would ride: ${route.feedback.wouldRide}` : ''}
-                </p>
-              </div>
-              <div className="actions">
-                <button type="button" className="secondary" onClick={() => handleOpenSaved(route)}>
-                  Open
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => handleDeleteSaved(route.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </details>
-  );
-
   return (
     <div className={`poc-shell workspace-${workspaceMode}`}>
       <PlannerHeader
         contractTitle={smokeContractTitle}
         themePreference={themePreference}
         onThemePreferenceChange={setThemePreference}
+        savedRoutes={savedRoutes}
+        onOpenSaved={handleOpenSaved}
+        onDeleteSaved={handleDeleteSaved}
+        workspaceMode={workspaceMode}
+        planSummary={workspaceMode === 'results' ? planSummary : undefined}
+        onEditPlan={workspaceMode === 'results' ? handleEditPlan : undefined}
       />
 
       <section
         className={`poc-layout poc-layout--${workspaceMode}`}
         aria-label="Route planner"
         data-workspace={workspaceMode}
+        data-has-start={start ? 'true' : 'false'}
+        data-testid="planner-workspace"
       >
         {workspaceMode === 'planning' ? (
-          <>
-            <div className="planning-sidebar-chrome">
-              <PlanningWorkspaceTabs active={planningTab} onChange={setPlanningTab} />
-            </div>
-            <PlanPanel
-              active={planningTab === 'plan'}
-              start={start}
-              targetMiles={targetMiles}
-              flexibilityMiles={flexibilityMiles}
-              previewRangeMeters={previewRangeMeters}
-              costing={costing}
-              seed={seed}
-              status={status}
-              errorMessage={errorMessage}
-              locating={locating}
-              locationMessage={locationMessage}
-              locationWarning={locationWarning}
-              onApplyFixture={applyFixture}
-              onTargetMilesChange={(value) => {
-                setTargetMiles(value);
-                clearGenerationResults();
-              }}
-              onFlexibilityMilesChange={(value) => {
-                setFlexibilityMiles(value);
-                clearGenerationResults();
-              }}
-              onCostingChange={(value) => {
-                setCosting(value);
-                clearGenerationResults();
-              }}
-              onUseMyLocation={() => void handleUseMyLocation()}
-              onGenerate={() => void runGenerate(seed)}
-            >
-              {saveMessage ? <p className="status">{saveMessage}</p> : null}
-              {savedList}
-            </PlanPanel>
-          </>
+          <PlanPanel
+            start={start}
+            targetMiles={targetMiles}
+            flexibilityMiles={flexibilityMiles}
+            previewRangeMeters={previewRangeMeters}
+            costing={costing}
+            seed={seed}
+            status={status}
+            errorMessage={errorMessage}
+            locating={locating}
+            locationMessage={locationMessage}
+            locationWarning={locationWarning}
+            features={features}
+            elevationPreference={elevationPreference}
+            trafficPreference={trafficPreference}
+            departureMode={departureMode}
+            customLocalDateTime={customLocalDateTime}
+            onApplyFixture={applyFixture}
+            onTargetMilesChange={(value) => {
+              setTargetMiles(value);
+              clearGenerationResults();
+            }}
+            onFlexibilityMilesChange={(value) => {
+              setFlexibilityMiles(value);
+              clearGenerationResults();
+            }}
+            onCostingChange={(value) => {
+              setCosting(value);
+              clearGenerationResults();
+            }}
+            onUseMyLocation={() => void handleUseMyLocation()}
+            onGenerate={() => void runGenerate(seed)}
+            onExperimentalChange={applyExperimentalSettings}
+            saveMessage={saveMessage}
+          />
         ) : null}
 
-        <div className="map-panel" aria-label="Map">
+        <div className="map-panel" aria-label="Map" data-testid="map-panel">
           <div className="map-toolbar">
             <MapThemeToggle mapTheme={mapTheme} onToggle={toggleMapTheme} />
           </div>
@@ -668,19 +634,6 @@ export function App() {
           />
         </div>
 
-        {workspaceMode === 'planning' ? (
-          <ExperimentalSettingsPanel
-            active={planningTab === 'experiment'}
-            features={features}
-            elevationPreference={elevationPreference}
-            trafficPreference={trafficPreference}
-            departureMode={departureMode}
-            customLocalDateTime={customLocalDateTime}
-            disabled={status === 'loading'}
-            onChange={applyExperimentalSettings}
-          />
-        ) : null}
-
         {workspaceMode === 'results' && result ? (
           <ResultsPanel
             result={result}
@@ -698,7 +651,6 @@ export function App() {
             feedbackReason={feedbackReason}
             deviationAcceptable={deviationAcceptable}
             saveMessage={saveMessage}
-            savedRoutes={savedRoutes}
             onResultsTabChange={setResultsTab}
             onSelectAlternative={(id) => {
               invalidateInFlightGpxExport();
@@ -713,8 +665,6 @@ export function App() {
             onDeviationAcceptableChange={setDeviationAcceptable}
             onSaveSelected={handleSaveSelected}
             onDownloadGpx={handleDownloadGpx}
-            onOpenSaved={handleOpenSaved}
-            onDeleteSaved={handleDeleteSaved}
           />
         ) : null}
       </section>

@@ -1,6 +1,6 @@
 import { CandidateDiagnosticsPanel } from '../CandidateDiagnosticsPanel';
 import { RouteComparisonPanel } from '../RouteComparisonPanel';
-import type { SavedPocRoute, WouldRide } from '../storage';
+import type { WouldRide } from '../storage';
 import type { PocAlternative, PocExperimentalFeatures, PocGenerateResponse } from '../types';
 import { formatDuration, formatMiles } from '../units';
 import type { ResultsWorkspaceTab } from './planner-workspace';
@@ -24,7 +24,6 @@ type Props = {
   feedbackReason: string;
   deviationAcceptable: boolean | null;
   saveMessage: string | null;
-  savedRoutes: SavedPocRoute[];
   onResultsTabChange: (tab: ResultsWorkspaceTab) => void;
   onSelectAlternative: (id: string) => void;
   onEditPlan: () => void;
@@ -35,8 +34,6 @@ type Props = {
   onDeviationAcceptableChange: (value: boolean) => void;
   onSaveSelected: () => void;
   onDownloadGpx: () => void;
-  onOpenSaved: (route: SavedPocRoute) => void;
-  onDeleteSaved: (id: string) => void;
 };
 
 export function ResultsPanel({
@@ -55,7 +52,6 @@ export function ResultsPanel({
   feedbackReason,
   deviationAcceptable,
   saveMessage,
-  savedRoutes,
   onResultsTabChange,
   onSelectAlternative,
   onEditPlan,
@@ -66,13 +62,15 @@ export function ResultsPanel({
   onDeviationAcceptableChange,
   onSaveSelected,
   onDownloadGpx,
-  onOpenSaved,
-  onDeleteSaved,
 }: Props) {
   const effectiveFeatures = result.features ?? features;
 
   return (
-    <aside className="results-column" aria-label="Route evaluation workspace">
+    <aside
+      className="results-column"
+      aria-label="Route evaluation workspace"
+      data-testid="decision-rail"
+    >
       <div className="results-sticky-header">
         <div className="plan-summary-row">
           <p className="plan-summary" aria-label="Active plan summary">
@@ -82,16 +80,23 @@ export function ResultsPanel({
             Seed <code>{seed}</code>
           </p>
         </div>
-        <div className="actions sticky-actions">
+        <div className="actions results-secondary-actions">
           <button
             type="button"
-            className="secondary"
+            className="secondary edit-plan-control edit-plan-control--mobile"
+            data-edit-plan-slot="rail"
+            data-testid="edit-plan-rail"
             disabled={status === 'loading'}
             onClick={onEditPlan}
           >
             Edit plan
           </button>
-          <button type="button" disabled={status === 'loading'} onClick={onRegenerate}>
+          <button
+            type="button"
+            className="secondary"
+            disabled={status === 'loading'}
+            onClick={onRegenerate}
+          >
             {status === 'loading' ? 'Generating…' : 'Regenerate'}
           </button>
         </div>
@@ -169,14 +174,12 @@ export function ResultsPanel({
               feedbackReason={feedbackReason}
               deviationAcceptable={deviationAcceptable}
               saveMessage={saveMessage}
-              savedRoutes={savedRoutes}
+              hideStickyActions
               onWouldRideChange={onWouldRideChange}
               onFeedbackReasonChange={onFeedbackReasonChange}
               onDeviationAcceptableChange={onDeviationAcceptableChange}
               onSaveSelected={onSaveSelected}
               onDownloadGpx={onDownloadGpx}
-              onOpenSaved={onOpenSaved}
-              onDeleteSaved={onDeleteSaved}
             />
           </div>
         ) : null}
@@ -210,6 +213,68 @@ export function ResultsPanel({
             />
           </div>
         ) : null}
+      </div>
+
+      <div className="results-sticky-actions sticky-actions" data-testid="results-sticky-actions">
+        <button
+          type="button"
+          className="primary-action results-action-save"
+          data-testid="results-action-save"
+          disabled={!selected}
+          onClick={onSaveSelected}
+          aria-label="Save selected locally"
+        >
+          <span className="action-label action-label--full">Save selected locally</span>
+          <span className="action-label action-label--short" aria-hidden="true">
+            Save
+          </span>
+        </button>
+        <button
+          type="button"
+          className="primary-action results-action-export"
+          data-testid="results-action-export"
+          disabled={!selected}
+          onClick={onDownloadGpx}
+          aria-label="Export to Garmin"
+        >
+          <span className="action-label action-label--full">Export to Garmin</span>
+          <span className="action-label action-label--short" aria-hidden="true">
+            Export
+          </span>
+        </button>
+        <button
+          type="button"
+          className="secondary results-action-download results-action-download--desktop"
+          data-testid="results-action-download-desktop"
+          disabled={!selected}
+          onClick={onDownloadGpx}
+        >
+          Download GPX
+        </button>
+        <details className="results-more-actions results-more-actions--mobile">
+          <summary
+            className="results-more-actions__summary"
+            data-testid="results-action-more"
+            aria-label="More export options"
+          >
+            More
+          </summary>
+          <div
+            className="results-more-actions__panel"
+            role="group"
+            aria-label="More export options"
+          >
+            <button
+              type="button"
+              className="secondary"
+              data-testid="results-action-download-mobile"
+              disabled={!selected}
+              onClick={onDownloadGpx}
+            >
+              Download GPX
+            </button>
+          </div>
+        </details>
       </div>
     </aside>
   );
