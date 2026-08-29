@@ -78,6 +78,8 @@ describe('ExpandableMapPanel', () => {
     media = installMatchMedia(true);
     document.body.innerHTML = '';
     document.body.style.cssText = '';
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
   });
 
   afterEach(() => {
@@ -132,9 +134,9 @@ describe('ExpandableMapPanel', () => {
     ) as HTMLButtonElement;
     expect(close).not.toBeNull();
     expect(close.getAttribute('aria-expanded')).toBe('true');
-    expect(view.container.querySelector('[data-testid="map-expand-summary"]')?.textContent).toContain(
-      'Route B',
-    );
+    expect(
+      view.container.querySelector('[data-testid="map-expand-summary"]')?.textContent,
+    ).toContain('Route B');
     expect(view.container.querySelector('[data-testid="map-expand-open"]')).toBeNull();
 
     act(() => {
@@ -195,7 +197,9 @@ describe('ExpandableMapPanel', () => {
     );
 
     act(() => {
-      (view.container.querySelector('[data-testid="map-expand-open"]') as HTMLButtonElement).click();
+      (
+        view.container.querySelector('[data-testid="map-expand-open"]') as HTMLButtonElement
+      ).click();
     });
     expect(view.container.querySelector('.map-panel--expanded')).not.toBeNull();
 
@@ -213,7 +217,9 @@ describe('ExpandableMapPanel', () => {
     expect(view.container.querySelector('.map-panel--expanded')).toBeNull();
 
     act(() => {
-      (view.container.querySelector('[data-testid="map-expand-open"]') as HTMLButtonElement).click();
+      (
+        view.container.querySelector('[data-testid="map-expand-open"]') as HTMLButtonElement
+      ).click();
     });
     act(() => {
       media.setMatches(false);
@@ -231,13 +237,17 @@ describe('ExpandableMapPanel', () => {
     );
 
     act(() => {
-      (view.container.querySelector('[data-testid="map-expand-open"]') as HTMLButtonElement).click();
+      (
+        view.container.querySelector('[data-testid="map-expand-open"]') as HTMLButtonElement
+      ).click();
     });
     expect(document.body.style.overflow).toBe('hidden');
     expect(document.body.style.position).toBe('fixed');
 
     act(() => {
-      (view.container.querySelector('[data-testid="map-expand-close"]') as HTMLButtonElement).click();
+      (
+        view.container.querySelector('[data-testid="map-expand-close"]') as HTMLButtonElement
+      ).click();
     });
     expect(document.body.style.overflow).toBe('');
     expect(document.body.style.position).toBe('');
@@ -253,11 +263,15 @@ describe('ExpandableMapPanel', () => {
 
     const before = view.container.querySelector('[data-testid="stable-map"]');
     act(() => {
-      (view.container.querySelector('[data-testid="map-expand-open"]') as HTMLButtonElement).click();
+      (
+        view.container.querySelector('[data-testid="map-expand-open"]') as HTMLButtonElement
+      ).click();
     });
     const during = view.container.querySelector('[data-testid="stable-map"]');
     act(() => {
-      (view.container.querySelector('[data-testid="map-expand-close"]') as HTMLButtonElement).click();
+      (
+        view.container.querySelector('[data-testid="map-expand-close"]') as HTMLButtonElement
+      ).click();
     });
     const after = view.container.querySelector('[data-testid="stable-map"]');
 
@@ -271,7 +285,7 @@ describe('ExpandableMapPanel', () => {
 describe('mobile expandable map wiring', () => {
   it('wires ExpandableMapPanel once with expansion in layoutKey', () => {
     expect(appSource).toContain('ExpandableMapPanel');
-    expect(appSource).toContain('mapExpanded ? \'expanded\' : \'inline\'');
+    expect(appSource).toContain("mapExpanded ? 'expanded' : 'inline'");
     expect(appSource).toMatch(/ExpandableMapPanel[\s\S]*<RouteMap/);
     expect(appSource.match(/<RouteMap/g)?.length).toBe(1);
     expect(appSource).not.toContain('localStorage');
@@ -323,7 +337,7 @@ describe('mobile expandable map wiring', () => {
     expect(routeMapSource).toContain('layoutKey');
     expect(panelSource).toContain('aria-expanded');
     expect(panelSource).toContain('aria-controls');
-    expect(panelSource).toContain('role={expanded ? \'dialog\'');
+    expect(panelSource).toContain("role={expanded ? 'dialog'");
   });
 
   it('obscures background rails while the map is expanded', () => {

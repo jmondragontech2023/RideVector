@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { MapThemeToggle } from './MapThemeToggle';
 import type { ColorScheme } from '../use-prefers-color-scheme';
 
@@ -124,8 +117,8 @@ export function ExpandableMapPanel({
       if (event.key !== 'Tab' || !panelRef.current) return;
       const focusable = getFocusable(panelRef.current);
       if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
       const active = document.activeElement as HTMLElement | null;
       if (event.shiftKey) {
         if (active === first || !panelRef.current.contains(active)) {
