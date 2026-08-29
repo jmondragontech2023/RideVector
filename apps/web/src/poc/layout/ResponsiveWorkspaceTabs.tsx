@@ -1,38 +1,4 @@
-import type { PlanningSidebarTab, ResultsWorkspaceTab } from './planner-workspace';
-
-type PlanningTabsProps = {
-  active: PlanningSidebarTab;
-  onChange: (tab: PlanningSidebarTab) => void;
-};
-
-export function PlanningWorkspaceTabs({ active, onChange }: PlanningTabsProps) {
-  return (
-    <div className="workspace-tabs planning-tabs" role="tablist" aria-label="Planning panels">
-      <button
-        type="button"
-        role="tab"
-        id="planning-tab-plan"
-        aria-controls="planning-panel-plan"
-        aria-selected={active === 'plan'}
-        className={active === 'plan' ? 'workspace-tab selected' : 'workspace-tab'}
-        onClick={() => onChange('plan')}
-      >
-        Plan
-      </button>
-      <button
-        type="button"
-        role="tab"
-        id="planning-tab-experiment"
-        aria-controls="planning-panel-experiment"
-        aria-selected={active === 'experiment'}
-        className={active === 'experiment' ? 'workspace-tab selected' : 'workspace-tab'}
-        onClick={() => onChange('experiment')}
-      >
-        Experiment
-      </button>
-    </div>
-  );
-}
+import type { ResultsWorkspaceTab } from './planner-workspace';
 
 type ResultsTabsProps = {
   active: ResultsWorkspaceTab;
@@ -71,7 +37,11 @@ export function ResultsWorkspaceTabs({ active, diagnosticsCount, onChange }: Res
         id="results-tab-diagnostics"
         aria-controls="results-panel-diagnostics"
         aria-selected={active === 'diagnostics'}
-        className={active === 'diagnostics' ? 'workspace-tab selected' : 'workspace-tab'}
+        className={
+          active === 'diagnostics'
+            ? 'workspace-tab workspace-tab--secondary selected'
+            : 'workspace-tab workspace-tab--secondary'
+        }
         onClick={() => onChange('diagnostics')}
       >
         Diagnostics ({diagnosticsCount})
