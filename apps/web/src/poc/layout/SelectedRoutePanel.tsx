@@ -1,6 +1,6 @@
 import { RouteScoreBreakdown } from '../RouteScoreBreakdown';
 import { TrafficDiagnosticsPanel } from '../TrafficDiagnosticsPanel';
-import type { SavedPocRoute, WouldRide } from '../storage';
+import type { WouldRide } from '../storage';
 import type { PocAlternative, PocExperimentalFeatures, PocGenerateResponse } from '../types';
 
 type Props = {
@@ -11,14 +11,13 @@ type Props = {
   feedbackReason: string;
   deviationAcceptable: boolean | null;
   saveMessage: string | null;
-  savedRoutes: SavedPocRoute[];
   onWouldRideChange: (value: WouldRide) => void;
   onFeedbackReasonChange: (value: string) => void;
   onDeviationAcceptableChange: (value: boolean) => void;
   onSaveSelected: () => void;
   onDownloadGpx: () => void;
-  onOpenSaved: (route: SavedPocRoute) => void;
-  onDeleteSaved: (id: string) => void;
+  /** When true, Save/Export live in the sticky chrome instead of this panel. */
+  hideStickyActions?: boolean;
 };
 
 export function SelectedRoutePanel({
@@ -29,20 +28,18 @@ export function SelectedRoutePanel({
   feedbackReason,
   deviationAcceptable,
   saveMessage,
-  savedRoutes,
   onWouldRideChange,
   onFeedbackReasonChange,
   onDeviationAcceptableChange,
   onSaveSelected,
   onDownloadGpx,
-  onOpenSaved,
-  onDeleteSaved,
+  hideStickyActions = false,
 }: Props) {
   const showTrafficDiagnostics =
     Boolean(result.trafficDiagnostics) && (result.features ?? features).motorTrafficEnrichment;
 
   return (
-    <div className="selected-route-panel">
+    <div className="selected-route-panel" data-testid="selected-route-panel">
       <RouteScoreBreakdown alternative={selected} features={result.features ?? features} />
 
       {showTrafficDiagnostics && result.trafficDiagnostics ? (
@@ -95,54 +92,29 @@ export function SelectedRoutePanel({
             </label>
           </fieldset>
         ) : null}
-        <div className="actions">
-          <button type="button" onClick={onSaveSelected}>
-            Save selected locally
-          </button>
-          <button type="button" className="secondary" onClick={onDownloadGpx}>
-            Download GPX
-          </button>
-        </div>
-        <p className="subtle location-disclosure">
-          GPX includes this route&apos;s precise location. Import into Garmin Connect under Training
-          &amp; Planning → Courses → Import, then sync to your device.
+
+        {!hideStickyActions ? (
+          <div className="actions export-actions" data-testid="export-actions">
+            <button type="button" className="primary-action" onClick={onSaveSelected}>
+              Save selected locally
+            </button>
+            <button type="button" className="primary-action" onClick={onDownloadGpx}>
+              Export to Garmin
+            </button>
+            <button type="button" className="secondary" onClick={onDownloadGpx}>
+              Download GPX
+            </button>
+          </div>
+        ) : null}
+
+        <p className="subtle location-disclosure" data-testid="garmin-export-disclosure">
+          Export to Garmin downloads a GPX file for import into Garmin Connect. GPX includes this
+          route&apos;s precise location. Import under Training &amp; Planning → Courses → Import,
+          then sync to your device. There is no direct Garmin API sync.
         </p>
       </fieldset>
 
       {saveMessage ? <p className="status">{saveMessage}</p> : null}
-
-      <details className="saved-block" open={savedRoutes.length > 0}>
-        <summary>Saved locally ({savedRoutes.length})</summary>
-        {savedRoutes.length === 0 ? (
-          <p className="subtle">No browser-local saves yet.</p>
-        ) : (
-          <ul className="saved-list">
-            {savedRoutes.map((route) => (
-              <li key={route.id}>
-                <div>
-                  <strong>{route.label}</strong>
-                  <p className="subtle">
-                    seed {route.seed}
-                    {route.feedback ? ` · would ride: ${route.feedback.wouldRide}` : ''}
-                  </p>
-                </div>
-                <div className="actions">
-                  <button type="button" className="secondary" onClick={() => onOpenSaved(route)}>
-                    Open
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => onDeleteSaved(route.id)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </details>
     </div>
   );
 }

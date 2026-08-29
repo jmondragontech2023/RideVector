@@ -29,9 +29,9 @@ Use these choices so the POC does not stall on design exploration:
 - Alternatives: return at most 3. Use factual names `Route A`, `Route B`, and `Route C`; do not use production personality names.
 - Scoring/enrichment: independently toggleable experimental features documented in `poc/SCORING_AND_ENRICHMENT.md` (`poc-scoring-v1`). Geometry scores are local; elevation uses Valhalla `/height`; weather uses Open-Meteo; traffic uses TomTom Flow Segment Data with optional `TOMTOM_API_KEY`.
 - Saving and feedback: browser `localStorage` only, with versioned storage keys and graceful handling of corrupt entries. Feature preferences use a separate key from saved routes.
-- GPX field-test export: client-side GPX 1.1 download of the selected accepted alternative (`apps/web/src/poc/gpx.ts`); no Worker export endpoint.
+- GPX field-test export: client-side GPX 1.1 download of the selected accepted alternative (`apps/web/src/poc/gpx.ts`); UI label **Export to Garmin** (with **Download GPX** available) — no Worker export endpoint and no direct Garmin API sync.
 - Testing: Vitest unit/component tests plus mocked Worker/provider integration tests. Live routing/weather/traffic checks are opt-in and never part of ordinary CI.
-- Styling: extend the existing CSS; do not add a design system.
+- Styling: extend the existing CSS; do not add a design system. Desktop uses a plan-or-decision rail beside the map; mobile uses a deliberate content order with sticky Generate / Save-Export actions. Experimental toggles and scenario fixtures live under **Advanced preferences / POC tools**.
 
 If a library version must be selected, use the current stable version compatible with the pinned React, Vite, TypeScript, Node, and Wrangler versions, pin it exactly, and update the lockfile.
 
@@ -40,11 +40,11 @@ If a library version must be selected, use the current stable version compatible
 1. Start the local web app and Worker (`pnpm dev`). For phone LAN/Tailscale testing of **Use my location**, use `pnpm run dev:mobile` (HTTPS) or `pnpm run dev:both` (HTTP :5173 + HTTPS :5174) and open the Vite `https://` Network URL (see root `README.md`).
 2. Select a start point on a map.
 3. Enter a target distance, flexibility, and Road/Gravel costing.
-4. Optionally configure experimental scoring/enrichment presets and departure time.
-5. Generate bounded, seeded loop candidates.
+4. Optionally open **Advanced preferences / POC tools** to configure experimental scoring/enrichment presets, departure time, and public scenario fixtures.
+5. Generate bounded, seeded loop candidates (**Generate routes**).
 6. Compare up to three routes by map geometry, POC fit, category badges, and expandable enrichment details.
 7. Select, regenerate, save locally, and record whether a route looks worth riding.
-8. Optionally download the selected accepted route as GPX and import it into Garmin Connect for an on-device field test.
+8. Optionally **Export to Garmin** (or **Download GPX**) and import the file into Garmin Connect for an on-device field test.
 
 ## Delivery sequence
 

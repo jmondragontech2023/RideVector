@@ -69,11 +69,20 @@ function makeResult(alternative: PocAlternative): PocGenerateResponse {
 }
 
 describe('Download GPX UI wiring', () => {
-  it('exposes Download GPX only through selected accepted-route actions', () => {
+  it('exposes Export to Garmin and Download GPX through selected accepted-route actions', () => {
+    expect(selectedPanelSource).toContain('Export to Garmin');
     expect(selectedPanelSource).toContain('Download GPX');
     expect(selectedPanelSource).toContain('onDownloadGpx');
     expect(selectedPanelSource).toContain('Garmin Connect');
+    expect(selectedPanelSource).toContain('no direct Garmin API sync');
     expect(resultsPanelSource).toContain('onDownloadGpx={onDownloadGpx}');
+    expect(resultsPanelSource).toContain('Export to Garmin');
+    expect(resultsPanelSource).toContain('Download GPX');
+    expect(resultsPanelSource).toContain('results-action-export');
+    expect(resultsPanelSource).toContain('results-action-download-mobile');
+    expect(resultsPanelSource).toContain('results-more-actions');
+    expect(resultsPanelSource).toContain('onClick={onDownloadGpx}');
+    expect(resultsPanelSource).toContain('onClick={onSaveSelected}');
     expect(appSource).toContain('handleDownloadGpx');
     expect(appSource).toContain('onDownloadGpx={handleDownloadGpx}');
     expect(appSource).toContain('buildGpxDocument({');
@@ -155,7 +164,7 @@ describe('Download GPX UI wiring', () => {
     expect(exported.xml).toContain('lon="-73.9700000"');
   });
 
-  it('renders an accessible Download GPX control beside Save without nesting interactive elements', () => {
+  it('renders accessible Export to Garmin and Download GPX controls beside Save without nesting interactive elements', () => {
     const selected = makeAlternative();
     const html = renderToStaticMarkup(
       <SelectedRoutePanel
@@ -166,22 +175,21 @@ describe('Download GPX UI wiring', () => {
         feedbackReason=""
         deviationAcceptable={null}
         saveMessage={null}
-        savedRoutes={[]}
         onWouldRideChange={() => undefined}
         onFeedbackReasonChange={() => undefined}
         onDeviationAcceptableChange={() => undefined}
         onSaveSelected={() => undefined}
         onDownloadGpx={() => undefined}
-        onOpenSaved={() => undefined}
-        onDeleteSaved={() => undefined}
       />,
     );
 
+    expect(html).toContain('Export to Garmin');
     expect(html).toContain('Download GPX');
     expect(html).toContain('Save selected locally');
     expect(html).toContain('type="button"');
     expect(html).not.toContain('<button><button');
     expect(html).toContain('Garmin Connect');
+    expect(html).toContain('no direct Garmin API sync');
   });
 
   it('keeps GPX export out of rejected-preview wiring', () => {

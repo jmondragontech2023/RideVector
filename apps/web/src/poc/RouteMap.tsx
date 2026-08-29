@@ -20,6 +20,7 @@ import { createStartMarkerIcon } from './start-marker';
 import type { RejectedPreview } from './candidate-diagnostics';
 import type { PocAlternative, PocCoordinate } from './types';
 import { readCssColor, type ColorScheme } from './use-prefers-color-scheme';
+import { routePresentationForName } from './layout/route-presentation';
 
 const DEFAULT_CENTER: LatLngExpression = [37.7749, -122.4194];
 const DEFAULT_ZOOM = 12;
@@ -182,11 +183,22 @@ export function RouteMap({
   }, [markerSettings, markerSettingsHydrated]);
 
   const routeColors = {
-    selected: readCssColor('--rv-route-selected', '#0b6e4f'),
-    unselected: readCssColor('--rv-route-unselected', '#7a8f84'),
+    selected: readCssColor('--rv-route-selected', '#2563eb'),
+    unselected: readCssColor('--rv-route-unselected', '#64748b'),
     rejected: readCssColor('--rv-route-rejected', '#d97706'),
     flow: readCssColor('--rv-route-flow', '#ffffff'),
   };
+
+  function colorForAlternative(alt: PocAlternative, selected: boolean): string {
+    const identity = routePresentationForName(alt.name);
+    const identityColor = readCssColor(identity.cssVar, identity.fallback);
+    if (selected) {
+      // Selected routes keep blue emphasis while retaining identity for unselected peers.
+      return routeColors.selected;
+    }
+    return identityColor || routeColors.unselected;
+  }
+
   const center: LatLngExpression = start ? [start.latitude, start.longitude] : DEFAULT_CENTER;
   const selectedAlternative =
     alternatives.find((alternative) => alternative.id === selectedId) ?? null;
@@ -243,9 +255,9 @@ export function RouteMap({
             key={alt.id}
             positions={toPositions(alt.geometry.coordinates)}
             pathOptions={{
-              color: routeColors.unselected,
+              color: colorForAlternative(alt, false),
               weight: 3,
-              opacity: 0.45,
+              opacity: 0.55,
             }}
           />
         ))}
@@ -255,7 +267,7 @@ export function RouteMap({
               key={`${selectedAlternative.id}-solid`}
               positions={selectedPositions}
               pathOptions={{
-                color: routeColors.selected,
+                color: colorForAlternative(selectedAlternative, true),
                 weight: 5,
                 opacity: 0.95,
                 className: 'route-selected-solid',
@@ -302,9 +314,28 @@ export function RouteMap({
         onReset={() => setMarkerSettings(defaultDirectionMarkerSettings())}
       />
       <p className="route-map-legend" aria-label="Map legend">
-        {rejectedPreview
-          ? `${rejectedPreview.label} (dashed orange) · Start → follow numbered arrows in order (green → yellow → red). Markers tighten at turns; paired outlined arrows mark reversals or crossings.`
-          : 'Start → follow numbered arrows in order (green → yellow → red). Markers tighten at turns; paired outlined arrows mark reversals or crossings.'}
+        {rejectedPreview ? (
+          <>
+            <span className="route-map-legend__short">
+              {rejectedPreview.label} (dashed) · Start → numbered arrows
+            </span>
+            <span className="route-map-legend__full">
+              {rejectedPreview.label} (dashed orange) · Start → follow numbered arrows in order
+              (green → yellow → red). Markers tighten at turns; paired outlined arrows mark
+              reversals or crossings.
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="route-map-legend__short">
+              Start → numbered arrows (green → yellow → red)
+            </span>
+            <span className="route-map-legend__full">
+              Start → follow numbered arrows in order (green → yellow → red). Markers tighten at
+              turns; paired outlined arrows mark reversals or crossings.
+            </span>
+          </>
+        )}
       </p>
     </div>
   );

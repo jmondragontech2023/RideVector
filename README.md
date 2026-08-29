@@ -118,7 +118,7 @@ Experimental scoring/enrichment (distance fit, loop quality, diversity, elevatio
 After generating (or reopening a locally saved) route:
 
 1. Open the **Details** tab for the selected accepted alternative.
-2. Click **Download GPX** (client-side only — no API endpoint).
+2. Click **Export to Garmin** (or **Download GPX**) — client-side only, no API endpoint and no direct Garmin sync.
 3. In Garmin Connect: **Training & Planning → Courses → Import**, then sync the course to a compatible Garmin device.
 4. Record results in [`poc/EVALUATION.md`](poc/EVALUATION.md).
 
