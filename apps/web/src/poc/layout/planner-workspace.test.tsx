@@ -361,6 +361,57 @@ describe('planner layout presentation', () => {
     expect(markup).toContain('results-more-actions--mobile');
   });
 
+  it('places the sticky-action boundary after the route-alternative selector', () => {
+    const markup = renderToStaticMarkup(
+      <ResultsPanel
+        result={sampleResult({
+          alternatives: [alternativeB, alternative, { ...alternative, id: 'c', name: 'Route C' }],
+        })}
+        selected={alternativeB}
+        alternatives={[alternativeB, alternative, { ...alternative, id: 'c', name: 'Route C' }]}
+        features={DEFAULT_POC_FEATURES}
+        planSummary="12 mi ±3 mi · Road · Basic"
+        seed={1}
+        status="success"
+        errorMessage={null}
+        resultsTab="overview"
+        targetDistanceMeters={19_312}
+        previewAttemptNumber={null}
+        wouldRide="maybe"
+        feedbackReason=""
+        deviationAcceptable={null}
+        saveMessage={null}
+        onResultsTabChange={() => undefined}
+        onSelectAlternative={() => undefined}
+        onEditPlan={() => undefined}
+        onRegenerate={() => undefined}
+        onPreviewAttempt={() => undefined}
+        onWouldRideChange={() => undefined}
+        onFeedbackReasonChange={() => undefined}
+        onDeviationAcceptableChange={() => undefined}
+        onSaveSelected={() => undefined}
+        onDownloadGpx={() => undefined}
+      />,
+    );
+
+    const selectorIndex = markup.indexOf('data-testid="route-alternative-selector"');
+    const boundaryIndex = markup.indexOf('data-testid="results-sticky-boundary"');
+    const stickyIndex = markup.indexOf('data-testid="results-sticky-actions"');
+    const tabsIndex = markup.indexOf('aria-label="Route evaluation"');
+
+    expect(selectorIndex).toBeGreaterThan(-1);
+    expect(boundaryIndex).toBeGreaterThan(selectorIndex);
+    expect(tabsIndex).toBeGreaterThan(boundaryIndex);
+    expect(stickyIndex).toBeGreaterThan(boundaryIndex);
+    expect(stickyIndex).toBeGreaterThan(tabsIndex);
+    expect(markup).toContain('data-testid="results-plan-header"');
+    expect(markup.indexOf('data-testid="results-plan-header"')).toBeLessThan(selectorIndex);
+    // Sticky actions remain nested inside the boundary (closing order).
+    expect(markup).toMatch(
+      /data-testid="results-sticky-boundary"[\s\S]*data-testid="results-sticky-actions"[\s\S]*<\/div>\s*<\/aside>/,
+    );
+  });
+
   it('marks Edit plan slots so only one is visible per breakpoint', () => {
     const header = renderToStaticMarkup(
       <PlannerHeader

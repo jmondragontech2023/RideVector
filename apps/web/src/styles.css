@@ -548,6 +548,21 @@ h1 {
   z-index: 2;
 }
 
+.results-sticky-boundary {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.results-sticky-boundary .results-tabs {
+  flex-shrink: 0;
+  padding: 0.5rem 0.75rem 0;
+  background: var(--rv-surface-elevated);
+  border-bottom: 1px solid var(--rv-border);
+}
+
 .results-tab-body {
   flex: 1;
   min-height: 0;
@@ -1677,23 +1692,45 @@ legend.field-label-row {
     gap: 0.4rem;
   }
 
-  .poc-layout--results .results-tab-body {
+  /*
+    Sticky Save/Export is constrained to this boundary, which begins after the
+    route alternatives in document order. Sticky cannot escape above it, so the
+    bar never covers Route A/B/C on first paint.
+  */
+  .poc-layout--results .results-sticky-boundary {
     order: 3;
+    display: flex;
+    flex-direction: column;
     overflow: visible;
-    max-height: none;
+    min-height: 0;
     border: 1px solid var(--rv-border);
     border-top: 0;
     background: var(--rv-surface);
-    padding-bottom: 0.85rem;
+  }
+
+  .poc-layout--results .results-sticky-boundary .results-tabs {
+    padding: 0.45rem 0.65rem 0;
+    border-bottom: 0;
+    background: transparent;
+  }
+
+  .poc-layout--results .results-tab-body {
+    order: unset;
+    overflow: visible;
+    max-height: none;
+    border: 0;
+    background: transparent;
+    padding: 0.55rem 0.65rem 0.85rem;
   }
 
   .poc-layout--results .results-sticky-actions {
-    order: 4;
+    order: unset;
     position: sticky;
     bottom: 0;
     z-index: 8;
-    margin: 0 -0.25rem;
-    border: 1px solid var(--rv-border);
+    margin: 0;
+    border: 0;
+    border-top: 1px solid var(--rv-border);
     box-shadow: 0 -6px 18px var(--rv-shadow-soft);
     flex-wrap: nowrap;
     gap: 0.35rem;
