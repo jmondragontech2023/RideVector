@@ -12,6 +12,8 @@ type Props = {
   workspaceMode: 'planning' | 'results';
   planSummary?: string;
   onEditPlan?: () => void;
+  /** When the mobile map is expanded, obscure header controls from AT/keyboard. */
+  contentObscured?: boolean;
 };
 
 export function PlannerHeader({
@@ -24,9 +26,15 @@ export function PlannerHeader({
   workspaceMode,
   planSummary,
   onEditPlan,
+  contentObscured = false,
 }: Props) {
   return (
-    <header className="poc-header" data-testid="planner-header">
+    <header
+      className="poc-header"
+      data-testid="planner-header"
+      aria-hidden={contentObscured || undefined}
+      inert={contentObscured || undefined}
+    >
       <div className="poc-header__brand">
         <h1>RideVector</h1>
         <p className="poc-header__tagline">Build a ride worth riding</p>

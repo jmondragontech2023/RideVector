@@ -34,6 +34,8 @@ type Props = {
   onDeviationAcceptableChange: (value: boolean) => void;
   onSaveSelected: () => void;
   onDownloadGpx: () => void;
+  /** When the mobile map is expanded, obscure results controls from AT/keyboard. */
+  contentObscured?: boolean;
 };
 
 export function ResultsPanel({
@@ -62,6 +64,7 @@ export function ResultsPanel({
   onDeviationAcceptableChange,
   onSaveSelected,
   onDownloadGpx,
+  contentObscured = false,
 }: Props) {
   const effectiveFeatures = result.features ?? features;
 
@@ -70,6 +73,8 @@ export function ResultsPanel({
       className="results-column"
       aria-label="Route evaluation workspace"
       data-testid="decision-rail"
+      aria-hidden={contentObscured || undefined}
+      inert={contentObscured || undefined}
     >
       <div className="results-sticky-header" data-testid="results-plan-header">
         <div className="plan-summary-row">

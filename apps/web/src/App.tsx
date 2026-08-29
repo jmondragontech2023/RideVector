@@ -15,7 +15,7 @@ import {
   formatActivePlanSummary,
   type ResultsWorkspaceTab,
 } from './poc/layout/planner-workspace';
-import { MapThemeToggle } from './poc/layout/MapThemeToggle';
+import { ExpandableMapPanel } from './poc/layout/ExpandableMapPanel';
 import { ResultsPanel } from './poc/layout/ResultsPanel';
 import { RouteMap } from './poc/RouteMap';
 import {
@@ -37,7 +37,7 @@ import {
   type PocGenerateResponse,
   type PocTrafficPreference,
 } from './poc/types';
-import { formatMiles, METERS_PER_MILE, milesToMeters } from './poc/units';
+import { formatMiles, formatDuration, METERS_PER_MILE, milesToMeters } from './poc/units';
 import {
   buildLocationSuccessMessage,
   buildPoorAccuracyWarning,
@@ -90,11 +90,17 @@ export function App() {
   const [customLocalDateTime, setCustomLocalDateTime] = useState('');
   const [featureSettingsHydrated, setFeatureSettingsHydrated] = useState(false);
   const [resultsTab, setResultsTab] = useState<ResultsWorkspaceTab>('overview');
+  const [mapExpanded, setMapExpanded] = useState(false);
+  const [mapCollapseToken, setMapCollapseToken] = useState(0);
   const generationSessionRef = useRef(new GenerationSession());
   const locationSessionRef = useRef(new LocationSession());
   const startAreaResolverRef = useRef(new StartAreaResolver());
   const gpxExportSessionRef = useRef(0);
   const { themePreference, mapTheme, setThemePreference, toggleMapTheme } = useAppearance();
+
+  function forceCollapseExpandedMap() {
+    setMapCollapseToken((token) => token + 1);
+  }
 
   function rememberStartAreaLabel(label: string | null) {
     setStartAreaLabel(label);
@@ -184,6 +190,11 @@ export function App() {
   function clearGenerationResults() {
     invalidateInFlightGeneration();
     invalidateInFlightGpxExport();
+    // Close expanded map when leaving generated results; keep it open while planning
+    // so mobile users can pick a start without the overlay dismissing.
+    if (result !== null) {
+      forceCollapseExpandedMap();
+    }
     setResult(null);
     setSelectedId(null);
     setStatus('idle');
@@ -194,6 +205,7 @@ export function App() {
   }
 
   function handleEditPlan() {
+    forceCollapseExpandedMap();
     clearGenerationResults();
   }
 
@@ -235,6 +247,9 @@ export function App() {
     costing,
     features: result?.features ?? features,
   });
+  const selectedMapSummary = selected
+    ? `${selected.name} · ${formatMiles(selected.distanceMeters)} · ${formatDuration(selected.durationSeconds)}`
+    : null;
 
   async function runGenerate(nextSeed: number, overrideStart?: PocCoordinate) {
     const effectiveStart = overrideStart ?? start;
@@ -554,7 +569,10 @@ export function App() {
   }
 
   return (
-    <div className={`poc-shell workspace-${workspaceMode}`}>
+    <div
+      className={`poc-shell workspace-${workspaceMode}`}
+      data-map-expanded={mapExpanded ? 'true' : 'false'}
+    >
       <PlannerHeader
         contractTitle={smokeContractTitle}
         themePreference={themePreference}
@@ -565,6 +583,7 @@ export function App() {
         workspaceMode={workspaceMode}
         planSummary={workspaceMode === 'results' ? planSummary : undefined}
         onEditPlan={workspaceMode === 'results' ? handleEditPlan : undefined}
+        contentObscured={mapExpanded}
       />
 
       <section
@@ -609,20 +628,24 @@ export function App() {
             onGenerate={() => void runGenerate(seed)}
             onExperimentalChange={applyExperimentalSettings}
             saveMessage={saveMessage}
+            contentObscured={mapExpanded}
           />
         ) : null}
 
-        <div className="map-panel" aria-label="Map" data-testid="map-panel">
-          <div className="map-toolbar">
-            <MapThemeToggle mapTheme={mapTheme} onToggle={toggleMapTheme} />
-          </div>
+        <ExpandableMapPanel
+          mapTheme={mapTheme}
+          onMapThemeToggle={toggleMapTheme}
+          selectedSummary={workspaceMode === 'results' ? selectedMapSummary : null}
+          collapseToken={mapCollapseToken}
+          onExpandedChange={setMapExpanded}
+        >
           <RouteMap
             start={start}
             alternatives={alternatives}
             selectedId={selected?.id ?? null}
             recenterRequest={recenterRequest}
             rejectedPreview={rejectedPreview}
-            layoutKey={`${workspaceMode}-${resultsTab}-${mapTheme}`}
+            layoutKey={`${workspaceMode}-${resultsTab}-${mapTheme}-${mapExpanded ? 'expanded' : 'inline'}`}
             mapTheme={mapTheme}
             onSelectStart={(coordinate) => {
               invalidateInFlightLocation();
@@ -632,7 +655,7 @@ export function App() {
               setLocationWarning(null);
             }}
           />
-        </div>
+        </ExpandableMapPanel>
 
         {workspaceMode === 'results' && result ? (
           <ResultsPanel
@@ -665,6 +688,7 @@ export function App() {
             onDeviationAcceptableChange={setDeviationAcceptable}
             onSaveSelected={handleSaveSelected}
             onDownloadGpx={handleDownloadGpx}
+            contentObscured={mapExpanded}
           />
         ) : null}
       </section>

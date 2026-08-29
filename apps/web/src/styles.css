@@ -393,13 +393,115 @@ h1 {
 
 .map-toolbar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
   margin-bottom: 0.45rem;
+}
+
+.map-toolbar-start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.map-expand-toggle {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.map-expand-summary {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--rv-text-muted);
+  line-height: 1.3;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.map-panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mobile-only expand control; desktop keeps the inline map. */
+@media (min-width: 860px) {
+  .map-expand-toggle--open {
+    display: none !important;
+  }
+}
+
+.map-panel--expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  background: var(--rv-surface-solid);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.map-panel--expanded .map-toolbar {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid var(--rv-border);
+  background: var(--rv-surface-elevated);
+}
+
+.map-panel--expanded .map-panel-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.map-panel--expanded .route-map-wrap {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.map-panel--expanded .route-map,
+.poc-layout--planning[data-has-start='false'] .map-panel--expanded .route-map,
+.poc-layout--planning[data-has-start='true'] .map-panel--expanded .route-map,
+.poc-layout--results .map-panel--expanded .route-map {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.poc-shell[data-map-expanded='true'] .plan-sticky-actions,
+.poc-shell[data-map-expanded='true'] .results-sticky-actions {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .map-theme-toggle {
   font-size: 0.85rem;
   padding: 0.4rem 0.7rem;
+  min-height: 2.75rem;
 }
 
 .poc-layout {
@@ -1642,6 +1744,16 @@ legend.field-label-row {
     max-height: 36vh;
     overflow: hidden;
     padding: 0.45rem;
+  }
+
+  .poc-layout--results .map-panel--expanded,
+  .poc-layout--planning .map-panel--expanded {
+    max-height: none;
+    overflow: hidden;
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
   }
 
   .poc-layout--results .map-toolbar {

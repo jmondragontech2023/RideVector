@@ -42,6 +42,8 @@ type Props = {
   }) => void;
   saveMessage?: string | null;
   children?: ReactNode;
+  /** When the mobile map is expanded, obscure plan controls from AT/keyboard. */
+  contentObscured?: boolean;
 };
 
 export function PlanPanel({
@@ -70,6 +72,7 @@ export function PlanPanel({
   onExperimentalChange,
   saveMessage,
   children,
+  contentObscured = false,
 }: Props) {
   return (
     <aside
@@ -78,6 +81,8 @@ export function PlanPanel({
       data-testid="plan-rail"
       data-active="true"
       aria-label="Plan"
+      aria-hidden={contentObscured || undefined}
+      inert={contentObscured || undefined}
     >
       <div className="plan-main panel-scroll">
         <p className="plan-help">
