@@ -1624,17 +1624,35 @@ legend.field-label-row {
   /* Results order: map → plan/alternatives → tab body → compact sticky actions */
   .poc-layout--results .map-panel {
     order: 1;
-    max-height: 42vh;
+    max-height: 36vh;
     overflow: hidden;
+    padding: 0.45rem;
+  }
+
+  .poc-layout--results .map-toolbar {
+    margin-bottom: 0.25rem;
   }
 
   .poc-layout--results .route-map-wrap {
-    gap: 0.35rem;
+    gap: 0.25rem;
   }
 
   .poc-layout--results .route-map {
-    height: 26vh;
-    min-height: 9.5rem;
+    height: 22vh;
+    min-height: 8.5rem;
+  }
+
+  .poc-layout--results .direction-marker-controls {
+    padding: 0.35rem 0.45rem;
+  }
+
+  .poc-layout--results .direction-marker-controls > summary {
+    font-size: 0.8rem;
+  }
+
+  .poc-layout--results .route-map-legend {
+    font-size: 0.72rem;
+    line-height: 1.25;
   }
 
   .poc-layout--results .route-map-legend__full {
@@ -1655,6 +1673,8 @@ legend.field-label-row {
     position: static;
     border: 1px solid var(--rv-border);
     background: var(--rv-surface);
+    padding: 0.55rem 0.65rem 0.45rem;
+    gap: 0.4rem;
   }
 
   .poc-layout--results .results-tab-body {
