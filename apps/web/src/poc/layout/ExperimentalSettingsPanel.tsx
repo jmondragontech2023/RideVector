@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
 import { ExperimentalFeaturesPanel } from '../ExperimentalFeaturesPanel';
+import { POC_SCENARIO_FIXTURES } from '../fixtures';
 import type {
   PocElevationPreference,
   PocExperimentalFeatures,
@@ -7,7 +7,6 @@ import type {
 } from '../types';
 
 type Props = {
-  active: boolean;
   features: PocExperimentalFeatures;
   elevationPreference: PocElevationPreference;
   trafficPreference: PocTrafficPreference;
@@ -21,11 +20,10 @@ type Props = {
     departureMode: 'now' | 'custom';
     customLocalDateTime: string;
   }) => void;
-  children?: ReactNode;
+  onApplyFixture: (id: string) => void;
 };
 
 export function ExperimentalSettingsPanel({
-  active,
   features,
   elevationPreference,
   trafficPreference,
@@ -33,27 +31,46 @@ export function ExperimentalSettingsPanel({
   customLocalDateTime,
   disabled,
   onChange,
-  children,
+  onApplyFixture,
 }: Props) {
   return (
-    <aside
+    <div
       id="planning-panel-experiment"
-      className={active ? 'experiment-column is-active' : 'experiment-column'}
-      data-active={active ? 'true' : 'false'}
-      aria-label="Experiment"
+      className="experiment-panel-body"
+      data-testid="experimental-settings"
+      aria-label="Advanced preferences"
     >
-      <div className="panel-scroll">
-        <ExperimentalFeaturesPanel
-          features={features}
-          elevationPreference={elevationPreference}
-          trafficPreference={trafficPreference}
-          departureMode={departureMode}
-          customLocalDateTime={customLocalDateTime}
+      <label className="field poc-tool-field">
+        <span>Public scenario fixtures (POC)</span>
+        <select
+          defaultValue=""
           disabled={disabled}
-          onChange={onChange}
-        />
-        {children}
-      </div>
-    </aside>
+          onChange={(event) => {
+            if (event.target.value) {
+              onApplyFixture(event.target.value);
+              event.target.value = '';
+            }
+          }}
+        >
+          <option value="">Load a public landmark scenario…</option>
+          {POC_SCENARIO_FIXTURES.map((fixture) => (
+            <option key={fixture.id} value={fixture.id}>
+              {fixture.label}
+            </option>
+          ))}
+        </select>
+        <p className="subtle">Fixtures are POC tools, not normal rider input.</p>
+      </label>
+
+      <ExperimentalFeaturesPanel
+        features={features}
+        elevationPreference={elevationPreference}
+        trafficPreference={trafficPreference}
+        departureMode={departureMode}
+        customLocalDateTime={customLocalDateTime}
+        disabled={disabled}
+        onChange={onChange}
+      />
+    </div>
   );
 }

@@ -7,19 +7,16 @@ import {
   saveFeatureSettings,
 } from './poc/feature-settings';
 import { POC_SCENARIO_FIXTURES, fixtureFlexibilityMiles } from './poc/fixtures';
-import { ExperimentalSettingsPanel } from './poc/layout/ExperimentalSettingsPanel';
 import { PlanPanel } from './poc/layout/PlanPanel';
 import { PlannerHeader } from './poc/layout/PlannerHeader';
 import {
   defaultResultsTab,
   derivePlannerWorkspaceMode,
   formatActivePlanSummary,
-  type PlanningSidebarTab,
   type ResultsWorkspaceTab,
 } from './poc/layout/planner-workspace';
-import { MapThemeToggle } from './poc/layout/MapThemeToggle';
+import { ExpandableMapPanel } from './poc/layout/ExpandableMapPanel';
 import { ResultsPanel } from './poc/layout/ResultsPanel';
-import { PlanningWorkspaceTabs } from './poc/layout/ResponsiveWorkspaceTabs';
 import { RouteMap } from './poc/RouteMap';
 import {
   deleteSavedRoute,
@@ -40,7 +37,7 @@ import {
   type PocGenerateResponse,
   type PocTrafficPreference,
 } from './poc/types';
-import { formatMiles, METERS_PER_MILE, milesToMeters } from './poc/units';
+import { formatMiles, formatDuration, METERS_PER_MILE, milesToMeters } from './poc/units';
 import {
   buildLocationSuccessMessage,
   buildPoorAccuracyWarning,
@@ -92,13 +89,18 @@ export function App() {
   const [departureMode, setDepartureMode] = useState<'now' | 'custom'>('now');
   const [customLocalDateTime, setCustomLocalDateTime] = useState('');
   const [featureSettingsHydrated, setFeatureSettingsHydrated] = useState(false);
-  const [planningTab, setPlanningTab] = useState<PlanningSidebarTab>('plan');
   const [resultsTab, setResultsTab] = useState<ResultsWorkspaceTab>('overview');
+  const [mapExpanded, setMapExpanded] = useState(false);
+  const [mapCollapseToken, setMapCollapseToken] = useState(0);
   const generationSessionRef = useRef(new GenerationSession());
   const locationSessionRef = useRef(new LocationSession());
   const startAreaResolverRef = useRef(new StartAreaResolver());
   const gpxExportSessionRef = useRef(0);
   const { themePreference, mapTheme, setThemePreference, toggleMapTheme } = useAppearance();
+
+  function forceCollapseExpandedMap() {
+    setMapCollapseToken((token) => token + 1);
+  }
 
   function rememberStartAreaLabel(label: string | null) {
     setStartAreaLabel(label);
@@ -188,6 +190,11 @@ export function App() {
   function clearGenerationResults() {
     invalidateInFlightGeneration();
     invalidateInFlightGpxExport();
+    // Close expanded map when leaving generated results; keep it open while planning
+    // so mobile users can pick a start without the overlay dismissing.
+    if (result !== null) {
+      forceCollapseExpandedMap();
+    }
     setResult(null);
     setSelectedId(null);
     setStatus('idle');
@@ -198,8 +205,8 @@ export function App() {
   }
 
   function handleEditPlan() {
+    forceCollapseExpandedMap();
     clearGenerationResults();
-    setPlanningTab('plan');
   }
 
   function applyExperimentalSettings(next: {
@@ -240,6 +247,9 @@ export function App() {
     costing,
     features: result?.features ?? features,
   });
+  const selectedMapSummary = selected
+    ? `${selected.name} · ${formatMiles(selected.distanceMeters)} · ${formatDuration(selected.durationSeconds)}`
+    : null;
 
   async function runGenerate(nextSeed: number, overrideStart?: PocCoordinate) {
     const effectiveStart = overrideStart ?? start;
@@ -558,105 +568,84 @@ export function App() {
     }
   }
 
-  const savedList = (
-    <details className="saved-block" open={savedRoutes.length > 0}>
-      <summary>Saved locally ({savedRoutes.length})</summary>
-      {savedRoutes.length === 0 ? (
-        <p className="subtle">No browser-local saves yet.</p>
-      ) : (
-        <ul className="saved-list">
-          {savedRoutes.map((route) => (
-            <li key={route.id}>
-              <div>
-                <strong>{route.label}</strong>
-                <p className="subtle">
-                  seed {route.seed}
-                  {route.feedback ? ` · would ride: ${route.feedback.wouldRide}` : ''}
-                </p>
-              </div>
-              <div className="actions">
-                <button type="button" className="secondary" onClick={() => handleOpenSaved(route)}>
-                  Open
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => handleDeleteSaved(route.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </details>
-  );
-
   return (
-    <div className={`poc-shell workspace-${workspaceMode}`}>
+    <div
+      className={`poc-shell workspace-${workspaceMode}`}
+      data-map-expanded={mapExpanded ? 'true' : 'false'}
+    >
       <PlannerHeader
         contractTitle={smokeContractTitle}
         themePreference={themePreference}
         onThemePreferenceChange={setThemePreference}
+        savedRoutes={savedRoutes}
+        onOpenSaved={handleOpenSaved}
+        onDeleteSaved={handleDeleteSaved}
+        workspaceMode={workspaceMode}
+        planSummary={workspaceMode === 'results' ? planSummary : undefined}
+        onEditPlan={workspaceMode === 'results' ? handleEditPlan : undefined}
+        contentObscured={mapExpanded}
       />
 
       <section
         className={`poc-layout poc-layout--${workspaceMode}`}
         aria-label="Route planner"
         data-workspace={workspaceMode}
+        data-has-start={start ? 'true' : 'false'}
+        data-testid="planner-workspace"
       >
         {workspaceMode === 'planning' ? (
-          <>
-            <div className="planning-sidebar-chrome">
-              <PlanningWorkspaceTabs active={planningTab} onChange={setPlanningTab} />
-            </div>
-            <PlanPanel
-              active={planningTab === 'plan'}
-              start={start}
-              targetMiles={targetMiles}
-              flexibilityMiles={flexibilityMiles}
-              previewRangeMeters={previewRangeMeters}
-              costing={costing}
-              seed={seed}
-              status={status}
-              errorMessage={errorMessage}
-              locating={locating}
-              locationMessage={locationMessage}
-              locationWarning={locationWarning}
-              onApplyFixture={applyFixture}
-              onTargetMilesChange={(value) => {
-                setTargetMiles(value);
-                clearGenerationResults();
-              }}
-              onFlexibilityMilesChange={(value) => {
-                setFlexibilityMiles(value);
-                clearGenerationResults();
-              }}
-              onCostingChange={(value) => {
-                setCosting(value);
-                clearGenerationResults();
-              }}
-              onUseMyLocation={() => void handleUseMyLocation()}
-              onGenerate={() => void runGenerate(seed)}
-            >
-              {saveMessage ? <p className="status">{saveMessage}</p> : null}
-              {savedList}
-            </PlanPanel>
-          </>
+          <PlanPanel
+            start={start}
+            targetMiles={targetMiles}
+            flexibilityMiles={flexibilityMiles}
+            previewRangeMeters={previewRangeMeters}
+            costing={costing}
+            seed={seed}
+            status={status}
+            errorMessage={errorMessage}
+            locating={locating}
+            locationMessage={locationMessage}
+            locationWarning={locationWarning}
+            features={features}
+            elevationPreference={elevationPreference}
+            trafficPreference={trafficPreference}
+            departureMode={departureMode}
+            customLocalDateTime={customLocalDateTime}
+            onApplyFixture={applyFixture}
+            onTargetMilesChange={(value) => {
+              setTargetMiles(value);
+              clearGenerationResults();
+            }}
+            onFlexibilityMilesChange={(value) => {
+              setFlexibilityMiles(value);
+              clearGenerationResults();
+            }}
+            onCostingChange={(value) => {
+              setCosting(value);
+              clearGenerationResults();
+            }}
+            onUseMyLocation={() => void handleUseMyLocation()}
+            onGenerate={() => void runGenerate(seed)}
+            onExperimentalChange={applyExperimentalSettings}
+            saveMessage={saveMessage}
+            contentObscured={mapExpanded}
+          />
         ) : null}
 
-        <div className="map-panel" aria-label="Map">
-          <div className="map-toolbar">
-            <MapThemeToggle mapTheme={mapTheme} onToggle={toggleMapTheme} />
-          </div>
+        <ExpandableMapPanel
+          mapTheme={mapTheme}
+          onMapThemeToggle={toggleMapTheme}
+          selectedSummary={workspaceMode === 'results' ? selectedMapSummary : null}
+          collapseToken={mapCollapseToken}
+          onExpandedChange={setMapExpanded}
+        >
           <RouteMap
             start={start}
             alternatives={alternatives}
             selectedId={selected?.id ?? null}
             recenterRequest={recenterRequest}
             rejectedPreview={rejectedPreview}
-            layoutKey={`${workspaceMode}-${resultsTab}-${mapTheme}`}
+            layoutKey={`${workspaceMode}-${resultsTab}-${mapTheme}-${mapExpanded ? 'expanded' : 'inline'}`}
             mapTheme={mapTheme}
             onSelectStart={(coordinate) => {
               invalidateInFlightLocation();
@@ -666,20 +655,7 @@ export function App() {
               setLocationWarning(null);
             }}
           />
-        </div>
-
-        {workspaceMode === 'planning' ? (
-          <ExperimentalSettingsPanel
-            active={planningTab === 'experiment'}
-            features={features}
-            elevationPreference={elevationPreference}
-            trafficPreference={trafficPreference}
-            departureMode={departureMode}
-            customLocalDateTime={customLocalDateTime}
-            disabled={status === 'loading'}
-            onChange={applyExperimentalSettings}
-          />
-        ) : null}
+        </ExpandableMapPanel>
 
         {workspaceMode === 'results' && result ? (
           <ResultsPanel
@@ -698,7 +674,6 @@ export function App() {
             feedbackReason={feedbackReason}
             deviationAcceptable={deviationAcceptable}
             saveMessage={saveMessage}
-            savedRoutes={savedRoutes}
             onResultsTabChange={setResultsTab}
             onSelectAlternative={(id) => {
               invalidateInFlightGpxExport();
@@ -713,8 +688,7 @@ export function App() {
             onDeviationAcceptableChange={setDeviationAcceptable}
             onSaveSelected={handleSaveSelected}
             onDownloadGpx={handleDownloadGpx}
-            onOpenSaved={handleOpenSaved}
-            onDeleteSaved={handleDeleteSaved}
+            contentObscured={mapExpanded}
           />
         ) : null}
       </section>

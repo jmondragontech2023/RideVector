@@ -9,7 +9,7 @@ Owner field-test record for the local route-generation POC. **Do not invent resu
 3. Set the target distance and distance flexibility (± miles). Confirm the displayed accepted range before generating.
 4. Optionally set departure time and experimental feature presets (see matrix below).
 5. Generate, compare up to three alternatives (including any amber **Near match** routes), regenerate if needed, and optionally save with feedback in browser `localStorage` only.
-6. Optionally open **Details**, tap **Download GPX**, and import the file into Garmin Connect for an on-device ride (see Garmin field-test checklist below).
+6. Optionally open **Details**, tap **Export to Garmin** (or **Download GPX**), and import the file into Garmin Connect for an on-device ride (see Garmin field-test checklist below).
 7. Fill the tables below with your judgment.
 
 ## Base scenario results
@@ -32,7 +32,7 @@ Owner field-test record for the local route-generation POC. **Do not invent resu
 
 ## Garmin GPX field-test checklist
 
-Use **Download GPX** on a selected accepted route (or a reopened local save). Do **not** invent results. Leave fields `pending` until you complete each step.
+Use **Export to Garmin** (or **Download GPX**) on a selected accepted route (or a reopened local save). This downloads a GPX file for manual import — there is no direct Garmin API sync. Do **not** invent results. Leave fields `pending` until you complete each step.
 
 Manual import path (Garmin Connect): **Training & Planning → Courses → Import**, then send/sync the course to a compatible Garmin device.
 

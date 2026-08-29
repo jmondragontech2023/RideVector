@@ -1,9 +1,16 @@
 import type { ReactNode } from 'react';
-import { POC_SCENARIO_FIXTURES } from '../fixtures';
-import { formatAcceptedRangeLabel, type PocCoordinate, type PocCostingMode } from '../types';
+import type {
+  PocCoordinate,
+  PocCostingMode,
+  PocElevationPreference,
+  PocExperimentalFeatures,
+  PocTrafficPreference,
+} from '../types';
+import { formatAcceptedRangeLabel } from '../types';
+import { ActivePreferencesSummary } from './ActivePreferencesSummary';
+import { ExperimentalSettingsPanel } from './ExperimentalSettingsPanel';
 
 type Props = {
-  active: boolean;
   start: PocCoordinate | null;
   targetMiles: string;
   flexibilityMiles: string;
@@ -15,17 +22,31 @@ type Props = {
   locating: boolean;
   locationMessage: string | null;
   locationWarning: string | null;
-  onApplyFixture: (id: string) => void;
+  features: PocExperimentalFeatures;
+  elevationPreference: PocElevationPreference;
+  trafficPreference: PocTrafficPreference;
+  departureMode: 'now' | 'custom';
+  customLocalDateTime: string;
   onTargetMilesChange: (value: string) => void;
   onFlexibilityMilesChange: (value: string) => void;
   onCostingChange: (value: PocCostingMode) => void;
   onUseMyLocation: () => void;
   onGenerate: () => void;
+  onApplyFixture: (id: string) => void;
+  onExperimentalChange: (next: {
+    features: PocExperimentalFeatures;
+    elevationPreference: PocElevationPreference;
+    trafficPreference: PocTrafficPreference;
+    departureMode: 'now' | 'custom';
+    customLocalDateTime: string;
+  }) => void;
+  saveMessage?: string | null;
   children?: ReactNode;
+  /** When the mobile map is expanded, obscure plan controls from AT/keyboard. */
+  contentObscured?: boolean;
 };
 
 export function PlanPanel({
-  active,
   start,
   targetMiles,
   flexibilityMiles,
@@ -37,97 +58,40 @@ export function PlanPanel({
   locating,
   locationMessage,
   locationWarning,
-  onApplyFixture,
+  features,
+  elevationPreference,
+  trafficPreference,
+  departureMode,
+  customLocalDateTime,
   onTargetMilesChange,
   onFlexibilityMilesChange,
   onCostingChange,
   onUseMyLocation,
   onGenerate,
+  onApplyFixture,
+  onExperimentalChange,
+  saveMessage,
   children,
+  contentObscured = false,
 }: Props) {
   return (
     <aside
       id="planning-panel-plan"
-      className={active ? 'plan-column is-active' : 'plan-column'}
-      data-active={active ? 'true' : 'false'}
+      className="plan-column is-active"
+      data-testid="plan-rail"
+      data-active="true"
       aria-label="Plan"
+      aria-hidden={contentObscured || undefined}
+      inert={contentObscured || undefined}
     >
-      <div className="panel-scroll">
+      <div className="plan-main panel-scroll">
         <p className="plan-help">
           Click the map to set a start, enter a target distance, and generate bicycle loop
           alternatives. Road/Gravel is a costing preference, not a measured surface guarantee.
         </p>
 
-        <label className="field">
-          <span>Scenario fixture</span>
-          <select
-            defaultValue=""
-            onChange={(event) => {
-              if (event.target.value) {
-                onApplyFixture(event.target.value);
-                event.target.value = '';
-              }
-            }}
-          >
-            <option value="">Load a public landmark scenario…</option>
-            {POC_SCENARIO_FIXTURES.map((fixture) => (
-              <option key={fixture.id} value={fixture.id}>
-                {fixture.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="field">
-          <span>Target distance (miles)</span>
-          <input
-            type="number"
-            min={1}
-            step={0.5}
-            value={targetMiles}
-            onChange={(event) => onTargetMilesChange(event.target.value)}
-          />
-        </label>
-
-        <label className="field">
-          <span>Distance flexibility (± miles)</span>
-          <input
-            type="number"
-            min={0.5}
-            step={0.5}
-            value={flexibilityMiles}
-            onChange={(event) => onFlexibilityMilesChange(event.target.value)}
-          />
-          <p className="subtle">{formatAcceptedRangeLabel(previewRangeMeters)}</p>
-        </label>
-
-        <fieldset className="field">
-          <legend>Costing mode</legend>
-          <label className="choice">
-            <input
-              type="radio"
-              name="costing"
-              checked={costing === 'road'}
-              onChange={() => onCostingChange('road')}
-            />
-            Road
-          </label>
-          <label className="choice">
-            <input
-              type="radio"
-              name="costing"
-              checked={costing === 'gravel'}
-              onChange={() => onCostingChange('gravel')}
-            />
-            Gravel
-          </label>
-          <p className="subtle">
-            Costing preference only — not a measured paved/gravel surface percentage.
-          </p>
-        </fieldset>
-
         <div className="start-controls">
-          <p className="map-hint">
+          <p className="map-hint" data-testid="start-status">
             {start
               ? `Start: ${start.latitude.toFixed(5)}, ${start.longitude.toFixed(5)}`
               : 'Click the map to select a start point.'}
@@ -155,11 +119,74 @@ export function PlanPanel({
           ) : null}
         </div>
 
-        <div className="actions sticky-actions">
-          <button type="button" disabled={status === 'loading'} onClick={onGenerate}>
-            {status === 'loading' ? 'Generating…' : 'Generate'}
-          </button>
-        </div>
+        <label className="field">
+          <span>Target distance (miles)</span>
+          <input
+            type="number"
+            min={1}
+            step={0.5}
+            value={targetMiles}
+            onChange={(event) => onTargetMilesChange(event.target.value)}
+          />
+        </label>
+
+        <label className="field">
+          <span>Distance flexibility (± miles)</span>
+          <input
+            type="number"
+            min={0.5}
+            step={0.5}
+            value={flexibilityMiles}
+            onChange={(event) => onFlexibilityMilesChange(event.target.value)}
+          />
+          <p className="subtle">{formatAcceptedRangeLabel(previewRangeMeters)}</p>
+        </label>
+
+        <fieldset className="field costing-segment" aria-label="Costing mode">
+          <legend>Road / Gravel</legend>
+          <div className="segmented-control" role="group" aria-label="Costing mode">
+            <button
+              type="button"
+              className={costing === 'road' ? 'segment selected' : 'segment'}
+              aria-pressed={costing === 'road'}
+              onClick={() => onCostingChange('road')}
+            >
+              Road
+            </button>
+            <button
+              type="button"
+              className={costing === 'gravel' ? 'segment selected' : 'segment'}
+              aria-pressed={costing === 'gravel'}
+              onClick={() => onCostingChange('gravel')}
+            >
+              Gravel
+            </button>
+          </div>
+          <p className="subtle">
+            Costing preference only — not a measured paved/gravel surface percentage.
+          </p>
+        </fieldset>
+
+        <ActivePreferencesSummary
+          features={features}
+          elevationPreference={elevationPreference}
+          trafficPreference={trafficPreference}
+          departureMode={departureMode}
+        />
+
+        <details className="advanced-preferences" data-testid="advanced-preferences">
+          <summary>Advanced preferences / POC tools</summary>
+          <ExperimentalSettingsPanel
+            features={features}
+            elevationPreference={elevationPreference}
+            trafficPreference={trafficPreference}
+            departureMode={departureMode}
+            customLocalDateTime={customLocalDateTime}
+            disabled={status === 'loading'}
+            onChange={onExperimentalChange}
+            onApplyFixture={onApplyFixture}
+          />
+        </details>
 
         <p className="seed-line">
           Active seed: <code>{seed}</code>
@@ -177,7 +204,20 @@ export function PlanPanel({
           </p>
         ) : null}
 
+        {saveMessage ? <p className="status">{saveMessage}</p> : null}
+
         {children}
+      </div>
+
+      <div className="plan-sticky-actions sticky-actions" data-testid="plan-sticky-actions">
+        <button
+          type="button"
+          className="primary-action"
+          disabled={status === 'loading'}
+          onClick={onGenerate}
+        >
+          {status === 'loading' ? 'Generating…' : 'Generate routes'}
+        </button>
       </div>
     </aside>
   );

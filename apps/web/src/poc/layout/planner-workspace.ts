@@ -8,6 +8,7 @@ import {
 
 export type PlannerWorkspaceMode = 'planning' | 'results';
 
+/** @deprecated Prefer Advanced preferences disclosure; kept for test migration. */
 export type PlanningSidebarTab = 'plan' | 'experiment';
 
 export type ResultsWorkspaceTab = 'overview' | 'details' | 'diagnostics';
