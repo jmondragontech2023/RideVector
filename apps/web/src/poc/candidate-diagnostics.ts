@@ -19,7 +19,7 @@ const REJECTION_LABELS: Record<PocRejectionReason, RejectionReasonLabel> = {
   },
   duplicate_candidate: {
     short: 'Near duplicate',
-    description: 'Routed within range but too similar to an already accepted loop.',
+    description: 'Routed within range but too similar to an already accepted alternative.',
   },
   upstream_failure: {
     short: 'Routing failed',
@@ -32,6 +32,10 @@ const REJECTION_LABELS: Record<PocRejectionReason, RejectionReasonLabel> = {
   selection_limit: {
     short: 'Not selected',
     description: 'Eligible but excluded by the bounded alternative limit.',
+  },
+  endpoint_mismatch: {
+    short: 'Missed endpoint',
+    description: 'Routed geometry did not stay on the requested Start and End.',
   },
 };
 
