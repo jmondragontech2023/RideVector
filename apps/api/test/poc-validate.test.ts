@@ -32,6 +32,32 @@ describe('validatePocGenerateRequest', () => {
     }
   });
 
+  it('accepts point-to-point requests without a target distance', () => {
+    const result = validatePocGenerateRequest({
+      start: valid.start,
+      costing: valid.costing,
+      routeMode: 'point_to_point',
+      end: { latitude: 37.8044, longitude: -122.2712 },
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.request.targetDistanceMeters).toBe(0);
+    }
+  });
+
+  it('ignores an out-of-range target on point-to-point requests', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      routeMode: 'point_to_point',
+      end: { latitude: 37.8044, longitude: -122.2712 },
+      targetDistanceMeters: 100,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.request.targetDistanceMeters).toBe(0);
+    }
+  });
+
   it('rejects coincident start and end in point-to-point mode', () => {
     const result = validatePocGenerateRequest({
       ...valid,

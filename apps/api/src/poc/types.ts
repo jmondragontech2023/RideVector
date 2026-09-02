@@ -47,10 +47,10 @@ export type PocReturnMode = 'none' | 'same_path' | 'shortest';
 
 export type PocGenerateRequest = {
   start: PocCoordinate;
-  /** Canonical target distance in meters. */
-  targetDistanceMeters: number;
-  /** ± flexibility around target in meters (user-controlled). */
-  distanceFlexibilityMeters: number;
+  /** Canonical target distance in meters. Required for loops; ignored for start/end. */
+  targetDistanceMeters?: number;
+  /** ± flexibility around target in meters (user-controlled). Required for loops; ignored for start/end. */
+  distanceFlexibilityMeters?: number;
   costing: PocCostingMode;
   /** Optional integer seed for deterministic anchors. */
   seed?: number;

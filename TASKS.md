@@ -69,8 +69,9 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 ## POC Phase 1 — Start/end selection (ADR-020)
 
 - [x] Extend `/api/poc/routes/generate` with `routeMode` / `end`; reject Phase 2 waypoints/return and loop+end combinations.
-- [x] Generate scored open Start → End alternatives with seeded interior detours; keep loop generation unchanged.
-- [x] Mode-aware geometry scoring (`poc-scoring-v2`); no loop-closure penalty on open routes; endpoint snap is hard validation.
+- [x] Generate scored open Start → End routes from the direct path only; keep loop generation unchanged.
+- [x] Mode-aware geometry scoring (`poc-scoring-v3`); no loop-closure penalty or distance-fit term on open routes; endpoint snap is hard validation.
+- [x] Ignore and hide target distance / flexibility in start-and-end mode (owner override 2026-09-02).
 - [x] Desktop/mobile Start/End selection, active map-tap control, editable coordinates, clear/swap, local save restore, GPX open-path compatibility.
 - [ ] Owner confirms the start/end experience before Phase 2.
 
@@ -83,6 +84,15 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 - Maximum 10 routing-provider calls per generation attempt; traffic enrichment ≤15 TomTom calls.
 - Do not send precise personal locations to logs, fixtures, or committed files.
 - Do not deploy POC feature behavior through staging or production workflows.
+
+## Verification log (POC Phase 1 start/end — ignore target distance)
+
+| Check | Command / action | Outcome |
+| --- | --- | --- |
+| Branch | `cursor/start-end-phase-1-44a8` | pending this pass |
+| Unit / mocked tests | `pnpm --filter @ridevector/api exec vitest run` and `pnpm --filter @ridevector/web exec vitest run` | pending this pass |
+| Full gate | `pnpm run check` | pending this pass |
+| Merge / deploy | — | Not done (owner review; Phase 1 checkpoint) |
 
 ## Verification log (POC Phase 1 start/end)
 

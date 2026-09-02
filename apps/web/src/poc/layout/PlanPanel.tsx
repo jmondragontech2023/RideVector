@@ -121,9 +121,9 @@ export function PlanPanel({
     >
       <div className="plan-main panel-scroll">
         <p className="plan-help">
-          Choose a loop or a start-to-end ride, set the required locations, enter a target distance
-          for the entire ride, and generate bicycle alternatives. Road/Gravel is a costing
-          preference, not a measured surface guarantee.
+          {routeMode === 'point_to_point'
+            ? 'Choose distinct Start and End points and generate a bicycle route between them. Target distance is not used because the endpoints define the ride. Road/Gravel is a costing preference, not a measured surface guarantee.'
+            : 'Choose a loop, set the start, enter a target distance, and generate bicycle alternatives. Road/Gravel is a costing preference, not a measured surface guarantee.'}
         </p>
 
         <fieldset className="field costing-segment" aria-label="Ride mode">
@@ -333,31 +333,32 @@ export function PlanPanel({
           ) : null}
         </div>
 
-        <label className="field">
-          <span>
-            Target distance (miles)
-            {routeMode === 'point_to_point' ? ' — entire ride' : ''}
-          </span>
-          <input
-            type="number"
-            min={1}
-            step={0.5}
-            value={targetMiles}
-            onChange={(event) => onTargetMilesChange(event.target.value)}
-          />
-        </label>
+        {routeMode === 'loop' ? (
+          <>
+            <label className="field">
+              <span>Target distance (miles)</span>
+              <input
+                type="number"
+                min={1}
+                step={0.5}
+                value={targetMiles}
+                onChange={(event) => onTargetMilesChange(event.target.value)}
+              />
+            </label>
 
-        <label className="field">
-          <span>Distance flexibility (± miles)</span>
-          <input
-            type="number"
-            min={0.5}
-            step={0.5}
-            value={flexibilityMiles}
-            onChange={(event) => onFlexibilityMilesChange(event.target.value)}
-          />
-          <p className="subtle">{formatAcceptedRangeLabel(previewRangeMeters)}</p>
-        </label>
+            <label className="field">
+              <span>Distance flexibility (± miles)</span>
+              <input
+                type="number"
+                min={0.5}
+                step={0.5}
+                value={flexibilityMiles}
+                onChange={(event) => onFlexibilityMilesChange(event.target.value)}
+              />
+              <p className="subtle">{formatAcceptedRangeLabel(previewRangeMeters)}</p>
+            </label>
+          </>
+        ) : null}
 
         <fieldset className="field costing-segment" aria-label="Costing mode">
           <legend>Road / Gravel</legend>
@@ -418,7 +419,7 @@ export function PlanPanel({
         {status === 'loading' ? (
           <p className="status" role="status">
             {routeMode === 'point_to_point'
-              ? 'Trying up to 10 start-to-end alternatives…'
+              ? 'Routing from Start to End…'
               : 'Trying up to 10 directionally varied loops…'}
           </p>
         ) : null}

@@ -143,6 +143,21 @@ export function buildGenerationSummary(response: PocGenerateResponse): string {
     (item) => item.distanceClassification === 'within_range',
   ).length;
 
+  if (response.routeMode === 'point_to_point') {
+    if (acceptedCount === 0) {
+      const breakdown = joinEnglishParts(
+        formatRejectionBreakdown(diagnosticSummary.rejectionCounts, requestedRangeMeters),
+      );
+      const base = breakdown
+        ? `Tried ${attempted} start-to-end path${attempted === 1 ? '' : 's'}. ${breakdown.charAt(0).toUpperCase()}${breakdown.slice(1)}.`
+        : `Tried ${attempted} start-to-end path${attempted === 1 ? '' : 's'}. None passed filtering.`;
+      return base;
+    }
+    return acceptedCount === 1
+      ? 'Routed from Start to End.'
+      : `Routed ${acceptedCount} start-to-end alternatives.`;
+  }
+
   if (acceptedCount > 0 && withinCount === 0) {
     return (
       warnings.find((warning) => warning.includes('exact range')) ??

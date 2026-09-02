@@ -42,6 +42,11 @@ function buildExplanation(input: BuildDiagnosticInput): string {
   const bandHigh = formatDistanceMiles(max, 1);
 
   if (input.outcome === 'accepted') {
+    if (input.routeMode === 'point_to_point') {
+      return input.acceptedRouteName
+        ? `Accepted as ${input.acceptedRouteName} for the requested Start and End.`
+        : 'Routed a start-to-end path for the requested Start and End.';
+    }
     if (input.distanceClassification === 'near_match') {
       return input.acceptedRouteName
         ? `Accepted as ${input.acceptedRouteName} near match outside the ${bandLow}–${bandHigh} mile requested range.`
@@ -177,7 +182,8 @@ function closestRoutableRejected(
     distanceFromTargetMeters:
       closest.distanceFromTargetMeters ?? distanceMeters - targetDistanceMeters,
     toleranceMissMeters,
-    toleranceMissPercent: (toleranceMissMeters / targetDistanceMeters) * 100,
+    toleranceMissPercent:
+      targetDistanceMeters > 0 ? (toleranceMissMeters / targetDistanceMeters) * 100 : 0,
     direction,
   };
 }

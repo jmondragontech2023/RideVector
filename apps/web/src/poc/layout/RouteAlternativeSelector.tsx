@@ -6,9 +6,15 @@ type Props = {
   alternatives: PocAlternative[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  ignoreDistanceTarget?: boolean;
 };
 
-export function RouteAlternativeSelector({ alternatives, selectedId, onSelect }: Props) {
+export function RouteAlternativeSelector({
+  alternatives,
+  selectedId,
+  onSelect,
+  ignoreDistanceTarget = false,
+}: Props) {
   return (
     <ul
       className="route-cards route-cards--sticky"
@@ -26,9 +32,11 @@ export function RouteAlternativeSelector({ alternatives, selectedId, onSelect }:
           .join(' ');
         const distanceLabel = formatMiles(alt.distanceMeters);
         const durationLabel = formatDuration(alt.durationSeconds);
-        const deltaLabel = nearMatchDeviation
-          ? nearMatchDeviation
-          : `${alt.distanceFromTargetMeters >= 0 ? '+' : ''}${formatMiles(Math.abs(alt.distanceFromTargetMeters))} from target`;
+        const deltaLabel = ignoreDistanceTarget
+          ? null
+          : nearMatchDeviation
+            ? nearMatchDeviation
+            : `${alt.distanceFromTargetMeters >= 0 ? '+' : ''}${formatMiles(Math.abs(alt.distanceFromTargetMeters))} from target`;
 
         return (
           <li key={alt.id}>
@@ -54,7 +62,8 @@ export function RouteAlternativeSelector({ alternatives, selectedId, onSelect }:
               <span
                 className={nearMatchDeviation ? 'route-card-meta near-match' : 'route-card-meta'}
               >
-                {distanceLabel} · {durationLabel} · {deltaLabel}
+                {distanceLabel} · {durationLabel}
+                {deltaLabel ? ` · ${deltaLabel}` : ''}
               </span>
               {badges.length > 0 ? (
                 <span className="route-card-badges">

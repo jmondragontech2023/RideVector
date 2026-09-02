@@ -116,6 +116,11 @@ export function isPointToPointRequest(
   return request.routeMode === 'point_to_point' && request.end !== undefined;
 }
 
+/** Start/end rides are defined by endpoints; target distance is not used. */
+export function ignoresDistanceTarget(routeMode: PocRouteMode): boolean {
+  return routeMode === 'point_to_point';
+}
+
 const FORBIDDEN_CLIENT_FIELDS = [
   'score',
   'scores',
@@ -223,18 +228,24 @@ export function validatePocGenerateRequest(
     }
   }
 
-  if (!isFiniteNumber(record.targetDistanceMeters)) {
-    details.push({ field: 'targetDistanceMeters', reason: 'must be a finite number' });
-  } else if (record.targetDistanceMeters < POC_CONFIG.minTargetDistanceMeters) {
-    details.push({
-      field: 'targetDistanceMeters',
-      reason: `must be at least ${POC_CONFIG.minTargetDistanceMeters} meters`,
-    });
-  } else if (record.targetDistanceMeters > POC_CONFIG.maxTargetDistanceMeters) {
-    details.push({
-      field: 'targetDistanceMeters',
-      reason: `must be at most ${POC_CONFIG.maxTargetDistanceMeters} meters`,
-    });
+  const ignoreDistanceTarget = ignoresDistanceTarget(routeMode);
+  let targetDistanceMeters = 0;
+  if (!ignoreDistanceTarget) {
+    if (!isFiniteNumber(record.targetDistanceMeters)) {
+      details.push({ field: 'targetDistanceMeters', reason: 'must be a finite number' });
+    } else if (record.targetDistanceMeters < POC_CONFIG.minTargetDistanceMeters) {
+      details.push({
+        field: 'targetDistanceMeters',
+        reason: `must be at least ${POC_CONFIG.minTargetDistanceMeters} meters`,
+      });
+    } else if (record.targetDistanceMeters > POC_CONFIG.maxTargetDistanceMeters) {
+      details.push({
+        field: 'targetDistanceMeters',
+        reason: `must be at most ${POC_CONFIG.maxTargetDistanceMeters} meters`,
+      });
+    } else {
+      targetDistanceMeters = record.targetDistanceMeters;
+    }
   }
 
   if (!isCostingMode(record.costing)) {
@@ -242,7 +253,7 @@ export function validatePocGenerateRequest(
   }
 
   let flexMeters = defaultDistanceFlexibilityMeters();
-  if (record.distanceFlexibilityMeters !== undefined) {
+  if (!ignoreDistanceTarget && record.distanceFlexibilityMeters !== undefined) {
     if (!isFiniteNumber(record.distanceFlexibilityMeters)) {
       details.push({ field: 'distanceFlexibilityMeters', reason: 'must be a finite number' });
     } else {
@@ -333,7 +344,7 @@ export function validatePocGenerateRequest(
       start: startResult.coordinate,
       routeMode,
       ...(routeMode === 'point_to_point' && end ? { end } : {}),
-      targetDistanceMeters: record.targetDistanceMeters as number,
+      targetDistanceMeters,
       distanceFlexibilityMeters: flexMeters,
       costing: record.costing as PocCostingMode,
       seed,

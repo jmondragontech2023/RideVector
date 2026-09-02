@@ -272,15 +272,17 @@ export function App() {
 
     const miles = Number(targetMiles);
     const flexMiles = Number(flexibilityMiles);
-    if (!Number.isFinite(miles) || miles <= 0) {
-      setStatus('error');
-      setErrorMessage('Enter a positive target distance in miles.');
-      return;
-    }
-    if (!Number.isFinite(flexMiles) || flexMiles <= 0) {
-      setStatus('error');
-      setErrorMessage('Enter a positive distance flexibility in miles.');
-      return;
+    if (routeMode !== 'point_to_point') {
+      if (!Number.isFinite(miles) || miles <= 0) {
+        setStatus('error');
+        setErrorMessage('Enter a positive target distance in miles.');
+        return;
+      }
+      if (!Number.isFinite(flexMiles) || flexMiles <= 0) {
+        setStatus('error');
+        setErrorMessage('Enter a positive distance flexibility in miles.');
+        return;
+      }
     }
     if (departureMode === 'custom' && customLocalDateTime.trim() === '') {
       setStatus('error');
@@ -302,8 +304,12 @@ export function App() {
           start: effectiveStart,
           routeMode,
           ...(routeMode === 'point_to_point' && end ? { end } : {}),
-          targetDistanceMeters: milesToMeters(miles),
-          distanceFlexibilityMeters: milesToMeters(flexMiles),
+          ...(routeMode === 'point_to_point'
+            ? {}
+            : {
+                targetDistanceMeters: milesToMeters(miles),
+                distanceFlexibilityMeters: milesToMeters(flexMiles),
+              }),
           costing,
           seed: nextSeed,
           features,
@@ -449,8 +455,14 @@ export function App() {
       ...(result.routeMode === 'point_to_point' || routeMode === 'point_to_point'
         ? { end: result.end ?? end ?? undefined }
         : {}),
-      targetDistanceMeters: milesToMeters(Number(targetMiles)),
-      distanceFlexibilityMeters: milesToMeters(Number(flexibilityMiles)),
+      targetDistanceMeters:
+        (result.routeMode ?? routeMode) === 'point_to_point'
+          ? selected.distanceMeters
+          : milesToMeters(Number(targetMiles)),
+      distanceFlexibilityMeters:
+        (result.routeMode ?? routeMode) === 'point_to_point'
+          ? milesToMeters(DEFAULT_DISTANCE_FLEXIBILITY_MILES)
+          : milesToMeters(Number(flexibilityMiles)),
       costing,
       seed: result.seed,
       features: result.features ?? features,

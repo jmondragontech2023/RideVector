@@ -29,8 +29,8 @@ Use these choices so the POC does not stall on design exploration:
 - Distance acceptance: user-controlled ± flexibility (default 3 miles) with near-match fallback; not disableable.
 - Upstream behavior: bounded concurrency of 3, per-call timeout of 8 seconds, no automatic retries inside a generation attempt.
 - Alternatives: return at most 3. Use factual names `Route A`, `Route B`, and `Route C`; do not use production personality names.
-- Scoring/enrichment: independently toggleable experimental features documented in `poc/SCORING_AND_ENRICHMENT.md` (`poc-scoring-v2`; historical saves may still show `poc-scoring-v1`). Geometry scores are local and mode-aware; elevation uses Valhalla `/height`; weather uses Open-Meteo; traffic uses TomTom Flow Segment Data with optional `TOMTOM_API_KEY`.
-- Ride modes: **Generate a loop** (default / omitted `routeMode`) or **Start and end**. Point-to-point uses the direct Start → End baseline plus seeded interior detours; requested endpoints are hard constraints.
+- Scoring/enrichment: independently toggleable experimental features documented in `poc/SCORING_AND_ENRICHMENT.md` (`poc-scoring-v3`; historical saves may still show `poc-scoring-v1` or `poc-scoring-v2`). Geometry scores are local and mode-aware; elevation uses Valhalla `/height`; weather uses Open-Meteo; traffic uses TomTom Flow Segment Data with optional `TOMTOM_API_KEY`.
+- Ride modes: **Generate a loop** (default / omitted `routeMode`) or **Start and end**. Point-to-point routes only the direct Start → End path. Target distance and flexibility are ignored because the endpoints define the ride. Requested endpoints are hard constraints.
 - Saving and feedback: browser `localStorage` only, with versioned storage keys and graceful handling of corrupt entries. Feature preferences use a separate key from saved routes.
 - GPX field-test export: client-side GPX 1.1 download of the selected accepted alternative (`apps/web/src/poc/gpx.ts`); UI label **Export to Garmin** (with **Download GPX** available) — no Worker export endpoint and no direct Garmin API sync.
 - Testing: Vitest unit/component tests plus mocked Worker/provider integration tests. Live routing/weather/traffic checks are opt-in and never part of ordinary CI.
@@ -42,7 +42,7 @@ If a library version must be selected, use the current stable version compatible
 
 1. Start the local web app and Worker (`pnpm dev`). For phone LAN/Tailscale testing of **Use my location**, use `pnpm run dev:mobile` (HTTPS) or `pnpm run dev:both` (HTTP :5173 + HTTPS :5174) and open the Vite `https://` Network URL (see root `README.md`).
 2. Choose **Generate a loop** or **Start and end**. Select Start (and End, in start-and-end mode) on the map or by editing coordinates. **Map tap sets** chooses which endpoint the next tap writes.
-3. Enter a target distance for the entire ride, flexibility, and Road/Gravel costing.
+3. For a loop, enter a target distance and flexibility. For start-and-end, those fields are hidden. Choose Road/Gravel costing.
 4. Optionally open **Advanced preferences / POC tools** to configure experimental scoring/enrichment presets, departure time, and public scenario fixtures.
 5. Generate bounded, seeded loop candidates (**Generate routes**).
 6. Compare up to three routes by map geometry, POC fit, category badges, and expandable enrichment details.
@@ -78,8 +78,8 @@ The request includes:
 - WGS84 start coordinate
 - optional `routeMode` (`loop` | `point_to_point`; omitted means loop)
 - WGS84 end coordinate when `routeMode` is `point_to_point`
-- target distance in meters (entire ride)
-- distance flexibility in meters
+- target distance in meters (required for loops; omitted/ignored for start-and-end)
+- distance flexibility in meters (required for loops; omitted/ignored for start-and-end)
 - `road` or `gravel` costing preference
 - optional integer seed
 - optional experimental feature flags and preferences

@@ -160,6 +160,54 @@ describe('candidate diagnostics helpers', () => {
     expect(rejectionReasonLabel('upstream_failure').short).toBe('Routing failed');
   });
 
+  it('summarizes start-to-end generations without a distance range', () => {
+    expect(
+      buildGenerationSummary(
+        response({
+          routeMode: 'point_to_point',
+          acceptedCount: 1,
+          attemptedCount: 1,
+          alternatives: [
+            {
+              id: 'a',
+              name: 'Route A',
+              geometry: { type: 'LineString', coordinates: [] },
+              distanceMeters: 8 * 1609.344,
+              durationSeconds: 1800,
+              distanceFromTargetMeters: 0,
+              bearingFamily: 'direct',
+              categories: [],
+              scoring: {
+                version: 'poc-scoring-v3',
+                overallScore: 80,
+                components: {},
+                missingComponents: [],
+                explanations: [],
+                explanationCodes: [],
+                fitSummary: 'POC fit 80/100',
+              },
+              warnings: [],
+              distanceClassification: 'within_range',
+              requestedRangeMeters: { min: 8 * 1609.344, max: 8 * 1609.344 },
+            },
+          ],
+          diagnosticSummary: {
+            attemptedCount: 1,
+            acceptedCount: 1,
+            rejectionCounts: {
+              upstream_failure: 0,
+              malformed_geometry: 0,
+              outside_tolerance: 0,
+              duplicate_candidate: 0,
+              selection_limit: 0,
+              endpoint_mismatch: 0,
+            },
+          },
+        }),
+      ),
+    ).toBe('Routed from Start to End.');
+  });
+
   it('formats above/below target wording', () => {
     expect(formatTargetDeltaWithTarget(-804.672, targetDistanceMeters)).toContain('below target');
     expect(formatTargetDeltaWithTarget(804.672, targetDistanceMeters)).toContain('above target');

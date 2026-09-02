@@ -34,7 +34,6 @@ import {
 import { trafficExposureLabelText } from './traffic/provider';
 import type { RoutingProvider } from './routing/provider';
 import type { TrafficProvider } from './traffic/provider';
-import { buildPointToPointPatterns, estimateBaselineDistanceMeters } from './point-to-point';
 import type {
   PocAlternative,
   PocCandidateDiagnostic,
@@ -44,7 +43,11 @@ import type {
   PocRouteScoring,
 } from './types';
 import { emptyRejectionCounts } from './types';
-import { isPointToPointRequest, type ValidatedPocGenerateRequest } from './validate';
+import {
+  ignoresDistanceTarget,
+  isPointToPointRequest,
+  type ValidatedPocGenerateRequest,
+} from './validate';
 import type { WeatherProvider } from './weather/provider';
 
 export type GenerateDeps = {
@@ -110,10 +113,29 @@ function toBaseAlternative(
   seed: number,
   targetDistanceMeters: number,
   distanceFlexibilityMeters: number,
+  ignoreDistanceTarget = false,
 ): Omit<
   PocAlternative,
   'categories' | 'scoring' | 'diversity' | 'elevation' | 'weather' | 'traffic'
 > {
+  if (ignoreDistanceTarget) {
+    return {
+      id: `poc-${seed}-${index}-${candidate.bearingFamily}`,
+      name: alternativeName(index),
+      geometry: candidate.geometry,
+      distanceMeters: candidate.distanceMeters,
+      durationSeconds: candidate.durationSeconds,
+      distanceFromTargetMeters: 0,
+      bearingFamily: candidate.bearingFamily,
+      warnings: [],
+      distanceClassification: 'within_range',
+      requestedRangeMeters: {
+        min: candidate.distanceMeters,
+        max: candidate.distanceMeters,
+      },
+    };
+  }
+
   const requestedRangeMeters = acceptedRangeMeters(targetDistanceMeters, distanceFlexibilityMeters);
   const warnings =
     candidate.classification === 'near_match'
@@ -245,6 +267,20 @@ function recordRoutedAttempt(
     return;
   }
 
+  if (ignoresDistanceTarget(request.routeMode)) {
+    routableCandidates.push({
+      attemptNumber,
+      bearingFamily,
+      geometry: result.geometry,
+      distanceMeters: result.distanceMeters,
+      durationSeconds: result.durationSeconds,
+      distanceFromTargetMeters: 0,
+      midpoint: geometryMidpointForCandidate(result.geometry),
+      classification: 'within_range',
+    });
+    return;
+  }
+
   const distanceFromTargetMeters = result.distanceMeters - request.targetDistanceMeters;
   const classification = classifyRouteDistance(
     result.distanceMeters,
@@ -286,7 +322,8 @@ function recordRoutedAttempt(
 
 /**
  * Generates up to three factual alternatives. Loop mode uses seeded circular
- * anchors; point-to-point keeps Start/End fixed and seeds interior detours.
+ * anchors and a target-distance band. Point-to-point routes only the direct
+ * Start → End path; the rider's endpoints define the ride.
  * Deterministic for identical normalized input and seed (given deterministic provider).
  */
 export async function generatePocRoutes(
@@ -299,7 +336,7 @@ export async function generatePocRoutes(
   const seed = request.seed;
   const candidateDiagnostics: PocCandidateDiagnostic[] = [];
   const routableCandidates: RoutableCandidate[] = [];
-  const requestedRangeMeters = acceptedRangeMeters(
+  let requestedRangeMeters = acceptedRangeMeters(
     request.targetDistanceMeters,
     request.distanceFlexibilityMeters,
   );
@@ -339,7 +376,7 @@ export async function generatePocRoutes(
     }
   };
 
-  const runPointToPoint = async (maxAttempts: number): Promise<number> => {
+  const runPointToPoint = async (): Promise<number> => {
     if (!isPointToPointRequest(request)) {
       return 0;
     }
@@ -353,74 +390,11 @@ export async function generatePocRoutes(
       { attemptNumber: 1, bearingFamily: 'direct', result: directResult },
       endpoints,
     );
-    const baselineDistanceMeters = directResult.ok
-      ? directResult.distanceMeters
-      : estimateBaselineDistanceMeters(request.start, request.end);
-
-    if (maxAttempts <= 1) {
-      return 1;
-    }
-
-    const patterns = buildPointToPointPatterns(
-      request.start,
-      request.end,
-      baselineDistanceMeters,
-      request.targetDistanceMeters,
-      seed,
-      maxAttempts,
-    ).slice(1);
-
-    const routed = await mapPool(patterns, POC_CONFIG.concurrency, async (pattern, index) => {
-      const result = await deps.provider.route({
-        locations: pattern.locations,
-        costing: request.costing,
-      });
-      return {
-        attemptNumber: index + 2,
-        bearingFamily: pattern.id,
-        result,
-      } satisfies RoutedCandidate;
-    });
-
-    for (const attempt of routed) {
-      recordRoutedAttempt(attemptContext, attempt, endpoints);
-    }
-    return 1 + patterns.length;
+    return 1;
   };
 
   if (isPointToPointRequest(request)) {
-    attemptCount = await runPointToPoint(attemptCount);
-    if (
-      routableCandidates.filter((item) => item.classification === 'within_range').length < 2 &&
-      attemptCount < POC_CONFIG.maxCandidateCount &&
-      deps.candidateCount === undefined
-    ) {
-      const extra = buildPointToPointPatterns(
-        request.start,
-        request.end,
-        routableCandidates[0]?.distanceMeters ??
-          estimateBaselineDistanceMeters(request.start, request.end),
-        request.targetDistanceMeters,
-        seed,
-        POC_CONFIG.maxCandidateCount,
-      ).slice(attemptCount);
-      const endpoints = { start: request.start, end: request.end };
-      const routed = await mapPool(extra, POC_CONFIG.concurrency, async (pattern, index) => {
-        const result = await deps.provider.route({
-          locations: pattern.locations,
-          costing: request.costing,
-        });
-        return {
-          attemptNumber: attemptCount + index + 1,
-          bearingFamily: pattern.id,
-          result,
-        } satisfies RoutedCandidate;
-      });
-      for (const attempt of routed) {
-        recordRoutedAttempt(attemptContext, attempt, endpoints);
-      }
-      attemptCount += extra.length;
-    }
+    attemptCount = await runPointToPoint();
   } else {
     await runLoopBatch(0, attemptCount);
     if (
@@ -438,6 +412,7 @@ export async function generatePocRoutes(
     request.routeMode === 'point_to_point'
       ? selectPointToPointAlternatives(routableCandidates, request.targetDistanceMeters)
       : selectRouteAlternatives(routableCandidates, request.targetDistanceMeters);
+  const ignoreDistanceTarget = ignoresDistanceTarget(request.routeMode);
   const baseAlternatives = selection.selected.map((candidate, index) =>
     toBaseAlternative(
       candidate,
@@ -445,6 +420,7 @@ export async function generatePocRoutes(
       seed,
       request.targetDistanceMeters,
       request.distanceFlexibilityMeters,
+      ignoreDistanceTarget,
     ),
   );
 
@@ -475,12 +451,14 @@ export async function generatePocRoutes(
 
   const scoredDrafts = baseAlternatives.map((base) => {
     const enrichmentForRoute = enrichment.byRouteId.get(base.id);
-    const distance = scoreDistanceFit({
-      distanceMeters: base.distanceMeters,
-      targetDistanceMeters: request.targetDistanceMeters,
-      distanceFlexibilityMeters: request.distanceFlexibilityMeters,
-      classification: base.distanceClassification,
-    });
+    const distance = ignoreDistanceTarget
+      ? null
+      : scoreDistanceFit({
+          distanceMeters: base.distanceMeters,
+          targetDistanceMeters: request.targetDistanceMeters,
+          distanceFlexibilityMeters: request.distanceFlexibilityMeters,
+          classification: base.distanceClassification,
+        });
     const loopMetrics = analyzeLoopQuality(base.geometry);
     const loopScore = scoreGeometryQuality(loopMetrics, request.routeMode);
     const diversity = computeDiversityBreakdown(base.id, base.geometry, peerGeometries);
@@ -498,16 +476,17 @@ export async function generatePocRoutes(
     const combined = combineComponentScores({
       features: request.features,
       routeMode: request.routeMode,
-      distanceFit: request.features.distanceFitScoring
-        ? {
-            score: distance.score,
-            raw: {
-              absoluteDifferenceMeters: distance.absoluteDifferenceMeters,
-              percentDifference: distance.percentDifference,
-              insideRange: distance.insideRange,
-            },
-          }
-        : null,
+      distanceFit:
+        request.features.distanceFitScoring && distance
+          ? {
+              score: distance.score,
+              raw: {
+                absoluteDifferenceMeters: distance.absoluteDifferenceMeters,
+                percentDifference: distance.percentDifference,
+                insideRange: distance.insideRange,
+              },
+            }
+          : null,
       loopQuality: request.features.loopQualityScoring
         ? { score: loopScore, raw: { ...loopMetrics } }
         : null,
@@ -694,10 +673,19 @@ export async function generatePocRoutes(
         ? 'No routes met your exact range. Showing the closest near match.'
         : 'No routes met your exact range. Showing the two closest near matches.',
     );
-  } else if (alternatives.length < POC_CONFIG.maxAlternatives && nearMatchCount === 0) {
+  } else if (
+    !ignoreDistanceTarget &&
+    alternatives.length < POC_CONFIG.maxAlternatives &&
+    nearMatchCount === 0
+  ) {
     warnings.push(
       `Only ${alternatives.length} distinct alternative(s) satisfied range and diversity checks.`,
     );
+  }
+
+  if (ignoreDistanceTarget) {
+    const routedDistance = alternatives[0]?.distanceMeters ?? 0;
+    requestedRangeMeters = { min: routedDistance, max: routedDistance };
   }
 
   const durationMs = Math.max(0, (deps.now ?? Date.now)() - started);

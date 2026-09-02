@@ -7,7 +7,7 @@ import type {
 
 export const EXPERIMENTAL_FEATURE_HELP: Record<keyof PocExperimentalFeatures, string> = {
   distanceFitScoring:
-    'Softly ranks returned routes by how closely each distance matches your target. Routes inside your accepted range score higher than near matches. Distance acceptance rules stay strict—this does not reject out-of-range candidates.',
+    'Softly ranks returned loops by how closely each distance matches your target. Routes inside your accepted range score higher than near matches. Distance acceptance rules stay strict—this does not reject out-of-range candidates. Ignored for start-and-end rides, which have no distance target.',
   loopQualityScoring:
     'Ranks loops by geometry shape: start/end closure, backtracking, repeated segments, self-intersections, and short spikes. Approximation for comparison only—not a safety or road-quality score.',
   routeDiversityScoring:

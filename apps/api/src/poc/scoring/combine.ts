@@ -60,7 +60,7 @@ export function combineComponentScores(input: ScoreInputs): CombinedScoreResult 
       enabled: input.features.distanceFitScoring,
       score: input.distanceFit?.score ?? null,
       raw: input.distanceFit?.raw ?? {},
-      applicable: input.distanceFit !== null,
+      applicable: input.routeMode !== 'point_to_point' && input.distanceFit !== null,
     },
     {
       key: 'loopQuality',
@@ -132,7 +132,11 @@ export function combineComponentScores(input: ScoreInputs): CombinedScoreResult 
 
   const explanations: string[] = [];
   const explanationCodes: string[] = [];
-  if (input.distanceFit && input.features.distanceFitScoring) {
+  if (
+    input.distanceFit &&
+    input.features.distanceFitScoring &&
+    input.routeMode !== 'point_to_point'
+  ) {
     if (input.distanceFit.raw.insideRange === true) {
       explanations.push('inside your distance range');
       explanationCodes.push('distance_inside_range');

@@ -114,19 +114,44 @@ describe('generatePocRoutes point-to-point', () => {
     const result = await generatePocRoutes(ptpRequest(), { provider, candidateCount: 6 });
     expect(result.routeMode).toBe('point_to_point');
     expect(result.end).toEqual(END);
-    expect(result.acceptedCount).toBeGreaterThanOrEqual(1);
-    expect(result.alternatives.length).toBeLessThanOrEqual(3);
+    expect(result.attemptedCount).toBe(1);
+    expect(calls).toBe(1);
+    expect(result.acceptedCount).toBe(1);
+    expect(result.alternatives).toHaveLength(1);
     expect(result.warnings.some((warning) => warning.includes('loop'))).toBe(false);
-    for (const alternative of result.alternatives) {
-      expect(geometryMeetsRequestedEndpoints(alternative.geometry, START, END)).toBe(true);
-      expect(alternative.id).toMatch(/^poc-4-\d+-(direct|detour-\d+)$/);
-      const first = alternative.geometry.coordinates[0]!;
-      const last = alternative.geometry.coordinates.at(-1)!;
-      expect(haversineMeters({ longitude: first[0], latitude: first[1] }, START)).toBeLessThan(1);
-      expect(haversineMeters({ longitude: last[0], latitude: last[1] }, END)).toBeLessThan(1);
-    }
-    expect(result.scoringVersion).toBe('poc-scoring-v2');
+    expect(result.warnings.some((warning) => warning.includes('range'))).toBe(false);
+    const alternative = result.alternatives[0]!;
+    expect(geometryMeetsRequestedEndpoints(alternative.geometry, START, END)).toBe(true);
+    expect(alternative.id).toBe('poc-4-0-direct');
+    expect(alternative.distanceFromTargetMeters).toBe(0);
+    expect(alternative.distanceClassification).toBe('within_range');
+    const first = alternative.geometry.coordinates[0]!;
+    const last = alternative.geometry.coordinates.at(-1)!;
+    expect(haversineMeters({ longitude: first[0], latitude: first[1] }, START)).toBeLessThan(1);
+    expect(haversineMeters({ longitude: last[0], latitude: last[1] }, END)).toBeLessThan(1);
+    expect(result.scoringVersion).toBe('poc-scoring-v3');
     expect(result.alternatives.some((alt) => alt.categories.includes('cleanest_loop'))).toBe(false);
+    expect(result.alternatives[0]?.scoring.components.distanceFit?.applicable).toBe(false);
+  });
+
+  it('does not reject a valid start-to-end route because of an unused tiny target', async () => {
+    const provider = new OpenRouteProvider(() => ({
+      ok: true,
+      geometry: {
+        type: 'LineString',
+        coordinates: openLine(START.latitude, START.longitude, END.latitude, END.longitude, 0.01),
+      },
+      distanceMeters: 12 * METERS_PER_MILE,
+      durationSeconds: 3000,
+    }));
+
+    const result = await generatePocRoutes(ptpRequest({ targetDistanceMeters: 100 }), {
+      provider,
+    });
+    expect(result.acceptedCount).toBe(1);
+    expect(result.rejections.outside_tolerance).toBe(0);
+    expect(result.alternatives[0]?.distanceClassification).toBe('within_range');
+    expect(result.alternatives[0]?.distanceFromTargetMeters).toBe(0);
   });
 
   it('rejects routes that miss the requested endpoints', async () => {
@@ -152,21 +177,27 @@ describe('generatePocRoutes point-to-point', () => {
     ).toBe(true);
   });
 
-  it('does not invent a third alternative from a duplicate corridor', async () => {
+  it('does not invent extra alternatives from a single Start to End corridor', async () => {
+    let calls = 0;
     const shared = openLine(START.latitude, START.longitude, END.latitude, END.longitude, 0.01);
-    const provider = new OpenRouteProvider(() => ({
-      ok: true,
-      geometry: { type: 'LineString', coordinates: shared },
-      distanceMeters: 12 * METERS_PER_MILE,
-      durationSeconds: 3000,
-    }));
+    const provider = new OpenRouteProvider(() => {
+      calls += 1;
+      return {
+        ok: true,
+        geometry: { type: 'LineString', coordinates: shared },
+        distanceMeters: 12 * METERS_PER_MILE,
+        durationSeconds: 3000,
+      };
+    });
 
     const result = await generatePocRoutes(ptpRequest({ seed: 2 }), {
       provider,
       candidateCount: 6,
     });
+    expect(calls).toBe(1);
+    expect(result.attemptedCount).toBe(1);
     expect(result.acceptedCount).toBe(1);
-    expect(result.rejections.duplicate_candidate).toBeGreaterThanOrEqual(1);
+    expect(result.rejections.duplicate_candidate).toBe(0);
     expect(result.alternatives).toHaveLength(1);
   });
 

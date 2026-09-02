@@ -31,7 +31,9 @@ Phase 2 also adds **Return to start**, off by default, with two choices when ena
 
 When returning, relabel End as **Turnaround**. Keep the control usable with zero intermediate stops. In loop mode, hide these controls and send only loop inputs. Switching back to start/end may restore that mode's draft, but inactive fields must never leak into a request.
 
-Target distance and flexibility remain required POC inputs and apply to the **entire ride**, including the return. Label this explicitly. A marker-constrained ride that cannot fit the requested range returns the existing bounded near-match behavior or an honest no-route explanation; never move endpoints/stops or silently relax limits.
+**Current Phase 1 behavior (owner override 2026-09-02):** start-and-end rides ignore target distance and flexibility. The planner hides those fields. Generation routes only the direct Start → End path. Distance-fit scoring and near-match fallback do not apply. Loop mode still requires a target and flexibility. This conflicts with the original paragraph below, which treated those inputs as required for the entire open ride (including a later return). Phase 2 return-distance wording is unchanged until that phase is authorized.
+
+Original Phase 1 draft (superseded for start/end distance): target distance and flexibility remain required POC inputs and apply to the **entire ride**, including the return. Label this explicitly. A marker-constrained ride that cannot fit the requested range returns the existing bounded near-match behavior or an honest no-route explanation; never move endpoints/stops or silently relax limits.
 
 ## Phase 1 — Select start/end and generate scored routes
 
@@ -53,7 +55,7 @@ Validate finite WGS84 coordinates, mode combinations, body size, stop count, exi
 
 ### 2. Generate endpoint-constrained alternatives
 
-Keep loop generation behavior. For point-to-point, route the direct Start → End baseline, then try deterministic seeded detours between the fixed endpoints when needed for distance fit and variety. Use the baseline distance to size bounded detours; do not reuse circular loop anchors unchanged. Always preserve endpoint constraints.
+Keep loop generation behavior. For point-to-point, route only the direct Start → End path. Do not seed interior detours to fit a target distance. Always preserve endpoint constraints.
 
 Extract shared validation, shortlist selection, enrichment, scoring, and response assembly from `generate.ts` as needed; keep handlers thin. Use stable candidate IDs independent of loop bearing labels. Adapt diagnostics and empty-state copy so open routes are not called failed loops.
 
@@ -61,7 +63,7 @@ Replace the loop-midpoint duplicate heuristic for point-to-point candidates with
 
 ### 3. Adapt scoring before presenting results
 
-Apply distance fit, diversity, elevation, traffic, and weather using the existing toggles, dependency rules, coverage gates, and missing-data behavior. Score complete routes. Road/Gravel remains a routing preference rather than measured surface coverage.
+Apply diversity, elevation, traffic, and weather using the existing toggles, dependency rules, coverage gates, and missing-data behavior. Distance-fit scoring is not applicable for start-and-end rides. Score complete routes. Road/Gravel remains a routing preference rather than measured surface coverage.
 
 For open paths, replace the closure term with endpoint/required-stop compliance as hard validation. Retain applicable geometry checks for unintended repeats, spikes, and detours; do not deduct points because Start differs from End. Make geometry-quality explanations and badges mode-aware, including replacing “clean loop shape” for open routes.
 
@@ -77,7 +79,7 @@ Save the normalized route request alongside the selected geometry and its scorin
 
 - A rider selects distinct Start/End on desktop and mobile, generates a valid open bicycle route, compares available alternatives, saves, reopens, and exports it.
 - Existing loop mode, geolocation, fixtures, experimental preferences, and GPX remain usable.
-- Enabled applicable scores affect ranking; open routes receive no loop-closure penalty. Unreachable endpoints and impossible distance ranges have clear outcomes.
+- Enabled applicable scores affect ranking; open routes receive no loop-closure penalty and no distance-fit term. Unreachable endpoints have a clear outcome. Impossible distance ranges apply to loops only.
 - Validation, adapter, generation, scoring, interaction, storage, and GPX tests pass; the root quality gate passes.
 - Provide exact verification results and a short owner test script using public locations. Ask the owner to confirm start/end behavior. **Stop here until confirmed; do not implement Phase 2 early.**
 

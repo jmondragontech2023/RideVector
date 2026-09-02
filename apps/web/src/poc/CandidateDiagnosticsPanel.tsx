@@ -21,11 +21,13 @@ export type CandidateDiagnosticsPanelProps = {
 function DiagnosticRow({
   diagnostic,
   targetDistanceMeters,
+  ignoreDistanceTarget,
   previewAttemptNumber,
   onPreviewAttempt,
 }: {
   diagnostic: PocCandidateDiagnostic;
   targetDistanceMeters: number;
+  ignoreDistanceTarget: boolean;
   previewAttemptNumber: number | null;
   onPreviewAttempt: (attemptNumber: number | null) => void;
 }) {
@@ -58,7 +60,7 @@ function DiagnosticRow({
             <dd>{formatDuration(diagnostic.durationSeconds)}</dd>
           </>
         ) : null}
-        {diagnostic.distanceFromTargetMeters !== undefined ? (
+        {diagnostic.distanceFromTargetMeters !== undefined && !ignoreDistanceTarget ? (
           <>
             <dt>Vs target</dt>
             <dd>
@@ -130,6 +132,7 @@ export function CandidateDiagnosticsPanel({
                 key={diagnostic.attemptNumber}
                 diagnostic={diagnostic}
                 targetDistanceMeters={targetDistanceMeters}
+                ignoreDistanceTarget={result.routeMode === 'point_to_point'}
                 previewAttemptNumber={previewAttemptNumber}
                 onPreviewAttempt={onPreviewAttempt}
               />

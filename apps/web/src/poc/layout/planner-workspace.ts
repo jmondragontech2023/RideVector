@@ -49,14 +49,16 @@ export function formatActivePlanSummary(input: {
   features: PocExperimentalFeatures;
   routeMode?: PocRouteMode;
 }): string {
+  const costingLabel = input.costing === 'gravel' ? 'Gravel' : 'Road';
+  const presetLabel = matchingFeaturePresetLabel(input.features);
+  if (input.routeMode === 'point_to_point') {
+    return `Start–end · ${costingLabel} · ${presetLabel}`;
+  }
   const target = Number(input.targetMiles);
   const flex = Number(input.flexibilityMiles);
   const targetLabel = Number.isFinite(target) && target > 0 ? `${target} mi` : '— mi';
   const flexLabel = Number.isFinite(flex) && flex > 0 ? `±${flex} mi` : '±— mi';
-  const costingLabel = input.costing === 'gravel' ? 'Gravel' : 'Road';
-  const presetLabel = matchingFeaturePresetLabel(input.features);
-  const modeLabel = input.routeMode === 'point_to_point' ? 'Start–end' : 'Loop';
-  return `${modeLabel} · ${targetLabel} ${flexLabel} · ${costingLabel} · ${presetLabel}`;
+  return `Loop · ${targetLabel} ${flexLabel} · ${costingLabel} · ${presetLabel}`;
 }
 
 export function defaultResultsTab(result: PocGenerateResponse): ResultsWorkspaceTab {

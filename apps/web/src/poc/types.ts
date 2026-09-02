@@ -268,8 +268,8 @@ export type PocGenerateResponse = {
 
 export type PocGenerateRequestBody = {
   start: PocCoordinate;
-  targetDistanceMeters: number;
-  distanceFlexibilityMeters: number;
+  targetDistanceMeters?: number;
+  distanceFlexibilityMeters?: number;
   costing: PocCostingMode;
   seed?: number;
   features?: PocExperimentalFeatures;

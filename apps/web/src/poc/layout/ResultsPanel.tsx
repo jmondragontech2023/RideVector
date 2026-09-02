@@ -67,6 +67,7 @@ export function ResultsPanel({
   contentObscured = false,
 }: Props) {
   const effectiveFeatures = result.features ?? features;
+  const ignoreDistanceTarget = result.routeMode === 'point_to_point';
 
   return (
     <aside
@@ -112,7 +113,9 @@ export function ResultsPanel({
         ) : null}
         {status === 'loading' ? (
           <p className="status" role="status">
-            Trying up to 10 directionally varied loops…
+            {ignoreDistanceTarget
+              ? 'Routing from Start to End…'
+              : 'Trying up to 10 directionally varied loops…'}
           </p>
         ) : null}
         {alternatives.length > 0 ? (
@@ -120,6 +123,7 @@ export function ResultsPanel({
             alternatives={alternatives}
             selectedId={selected?.id ?? null}
             onSelect={onSelectAlternative}
+            ignoreDistanceTarget={ignoreDistanceTarget}
           />
         ) : (
           <p className="subtle">No accepted alternatives in this generation.</p>
@@ -148,9 +152,14 @@ export function ResultsPanel({
               {selected ? (
                 <p className="metrics">
                   {formatMiles(selected.distanceMeters)} ·{' '}
-                  {formatDuration(selected.durationSeconds)} ·{' '}
-                  {selected.distanceFromTargetMeters >= 0 ? '+' : ''}
-                  {formatMiles(Math.abs(selected.distanceFromTargetMeters))} from target
+                  {formatDuration(selected.durationSeconds)}
+                  {ignoreDistanceTarget ? null : (
+                    <>
+                      {' · '}
+                      {selected.distanceFromTargetMeters >= 0 ? '+' : ''}
+                      {formatMiles(Math.abs(selected.distanceFromTargetMeters))} from target
+                    </>
+                  )}
                 </p>
               ) : null}
               <p className="metrics subtle">

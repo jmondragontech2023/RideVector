@@ -113,7 +113,7 @@ describe('planner workspace helpers', () => {
         features: FEATURE_PRESETS.basic,
         routeMode: 'point_to_point',
       }),
-    ).toBe('Start–end · 8 mi ±3 mi · Gravel · Basic');
+    ).toBe('Start–end · Gravel · Basic');
     expect(matchingFeaturePresetLabel(FEATURE_PRESETS.basic)).toBe('Basic');
     expect(
       matchingFeaturePresetLabel({
@@ -248,6 +248,91 @@ describe('planner layout presentation', () => {
     expect(markup).toContain('Your start location is sent');
     expect(markup).toContain('segmented-control');
     expect(markup).toContain('active-preferences-summary');
+  });
+
+  it('hides target distance and flexibility in start-and-end mode', () => {
+    const markup = renderToStaticMarkup(
+      <PlanPanel
+        start={{ latitude: 37.77, longitude: -122.42 }}
+        end={{ latitude: 37.8, longitude: -122.47 }}
+        routeMode="point_to_point"
+        activeEndpoint="end"
+        targetMiles="12"
+        flexibilityMiles="3"
+        previewRangeMeters={{ min: 14_484, max: 24_140 }}
+        costing="road"
+        seed={1}
+        status="idle"
+        errorMessage={null}
+        locating={false}
+        locationMessage={null}
+        locationWarning={null}
+        features={DEFAULT_POC_FEATURES}
+        elevationPreference="none"
+        trafficPreference="none"
+        departureMode="now"
+        customLocalDateTime=""
+        onRouteModeChange={() => undefined}
+        onActiveEndpointChange={() => undefined}
+        onStartChange={() => undefined}
+        onEndChange={() => undefined}
+        onClearStart={() => undefined}
+        onClearEnd={() => undefined}
+        onSwapEndpoints={() => undefined}
+        onTargetMilesChange={() => undefined}
+        onFlexibilityMilesChange={() => undefined}
+        onCostingChange={() => undefined}
+        onUseMyLocation={() => undefined}
+        onGenerate={() => undefined}
+        onApplyFixture={() => undefined}
+        onExperimentalChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Start and end');
+    expect(markup).toContain('endpoints define the ride');
+    expect(markup).not.toContain('Target distance (miles)');
+    expect(markup).not.toContain('Distance flexibility');
+    expect(markup).not.toContain('Accepted range');
+    expect(markup).not.toContain('entire ride');
+  });
+
+  it('omits from-target copy for start-and-end results', () => {
+    const markup = renderToStaticMarkup(
+      <ResultsPanel
+        result={sampleResult({
+          routeMode: 'point_to_point',
+          alternatives: [alternative],
+        })}
+        selected={alternative}
+        alternatives={[alternative]}
+        features={DEFAULT_POC_FEATURES}
+        planSummary="Start–end · Road · Geometry"
+        seed={1}
+        status="success"
+        errorMessage={null}
+        resultsTab="overview"
+        targetDistanceMeters={19_312}
+        previewAttemptNumber={null}
+        wouldRide="maybe"
+        feedbackReason=""
+        deviationAcceptable={null}
+        saveMessage={null}
+        onResultsTabChange={() => undefined}
+        onSelectAlternative={() => undefined}
+        onEditPlan={() => undefined}
+        onRegenerate={() => undefined}
+        onPreviewAttempt={() => undefined}
+        onWouldRideChange={() => undefined}
+        onFeedbackReasonChange={() => undefined}
+        onDeviationAcceptableChange={() => undefined}
+        onSaveSelected={() => undefined}
+        onDownloadGpx={() => undefined}
+      />,
+    );
+
+    expect(markup).not.toContain('from target');
+    expect(markup).toContain('Route A');
   });
 
   it('structures the desktop decision rail with overview/details/diagnostics and sticky export', () => {

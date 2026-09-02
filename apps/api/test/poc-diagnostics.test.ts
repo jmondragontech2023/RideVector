@@ -95,6 +95,26 @@ describe('buildCandidateDiagnostic', () => {
 
     expect(JSON.stringify(diagnostic)).not.toMatch(/valhalla|stack|url|http/i);
   });
+
+  it('describes accepted start-to-end routes without a requested range', () => {
+    const diagnostic = buildCandidateDiagnostic({
+      attemptNumber: 1,
+      bearingFamily: 'direct',
+      outcome: 'accepted',
+      distanceMeters: 8 * 1609.344,
+      durationSeconds: 2000,
+      distanceFromTargetMeters: 0,
+      geometry,
+      targetDistanceMeters,
+      distanceFlexibilityMeters,
+      acceptedRouteName: 'Route A',
+      distanceClassification: 'within_range',
+      routeMode: 'point_to_point',
+    });
+
+    expect(diagnostic.explanation).toContain('requested Start and End');
+    expect(diagnostic.explanation).not.toContain('requested range');
+  });
 });
 
 describe('buildDiagnosticSummary', () => {

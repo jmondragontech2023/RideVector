@@ -2,7 +2,7 @@
 
 Provisional experiment for comparing deterministic geometry scoring with optional elevation, motor-vehicle traffic, and weather enrichment. **Not** the production Milestone ranking contract. Values, weights, and thresholds may change after owner evaluation.
 
-Scoring configuration version: **`poc-scoring-v2`** (2026-09-02). Historical saved routes may still carry **`poc-scoring-v1`**. The version change records mode-aware geometry quality: open start-to-end routes no longer receive a loop-closure penalty. Loop-mode closure scoring is unchanged.
+Scoring configuration version: **`poc-scoring-v3`** (2026-09-02). Historical saved routes may still carry **`poc-scoring-v1`** or **`poc-scoring-v2`**. v2 recorded mode-aware geometry quality (open routes skip the loop-closure penalty). v3 also treats distance-fit as not applicable for start-and-end rides. Loop-mode distance and closure scoring is unchanged.
 
 ## Feature controls
 
@@ -10,7 +10,7 @@ Independent toggles (defaults in parentheses):
 
 | Toggle | Default | Notes |
 | --- | --- | --- |
-| Distance-fit scoring | on | Soft ranking only; distance acceptance remains hard |
+| Distance-fit scoring | on | Soft ranking for loops only; ignored for start-and-end. Loop distance acceptance remains hard |
 | Loop-quality scoring | on | Geometry shape, not safety. For start-to-end rides this is path quality (no closure penalty). |
 | Route-diversity scoring | on | Among returned alternatives only |
 | Elevation enrichment | off | Worker-side Valhalla `/height` sampling |
@@ -20,7 +20,7 @@ Independent toggles (defaults in parentheses):
 | Weather forecast | off | Open-Meteo hourly forecast |
 | Weather scoring | off | Requires weather forecast; conservative penalties |
 
-Non-disableable: distance acceptance, malformed-geometry rejection, bicycle routing restrictions, and request validation.
+Non-disableable: loop distance acceptance, malformed-geometry rejection, bicycle routing restrictions, and request validation. Start-and-end rides do not apply a distance target.
 
 Presets: **Basic** (distance only), **Geometry** (distance + loop + diversity), **Traffic** (Geometry + traffic enrich/score), **Weather** (Geometry + weather forecast, no weather score), **Full experiment** (all enrichment and scoring).
 
@@ -28,7 +28,7 @@ Presets: **Basic** (distance only), **Geometry** (distance + loop + diversity), 
 
 ### Distance fit (weight 50 geometry-only / 30 full)
 
-Uses target distance, requested flexibility, inside-range vs near-match, absolute and percentage difference from target. An in-range candidate always scores higher than an otherwise equivalent near match.
+Uses target distance, requested flexibility, inside-range vs near-match, absolute and percentage difference from target. An in-range candidate always scores higher than an otherwise equivalent near match. **Not applicable** for start-and-end rides: the endpoints define the ride, so this component is excluded even when the toggle is on.
 
 ### Loop / path quality (weight 30 / 20)
 
@@ -90,7 +90,7 @@ Congestion must **never** make a heavily trafficked road look quiet. User langua
 
 Preference: `none` | `prefer_lower` | `strongly_avoid_heavy`. Affects ranking only when enrichment + scoring + preference ≠ none and ≥2 routes have ≥60% sample coverage; otherwise disable traffic ranking and warn.
 
-## Combined weights (`poc-scoring-v2`; same numbers as v1)
+## Combined weights (`poc-scoring-v3`; same numbers as v1/v2)
 
 When every component is active and applicable:
 

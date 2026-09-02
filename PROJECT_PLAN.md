@@ -34,9 +34,9 @@ This is an evidence-gathering detour, not a replacement for Milestones 1–11. I
 Scope:
 
 - Select a start point on a web map, or choose **Start and end** and select both endpoints (ADR-020 Phase 1).
-- Enter a target distance for the entire ride and choose a broad road or gravel bicycle profile.
-- Generate bounded, seeded, directionally varied loop candidates, or open Start → End alternatives with seeded interior detours, through a provider-neutral routing adapter backed initially by a configurable Valhalla-compatible endpoint.
-- Return and display up to three alternatives with geometry, distance, estimated duration, target-distance difference, and factual warnings.
+- For loops, enter a target distance and flexibility and choose a broad road or gravel bicycle profile. Start-and-end rides omit the target: the selected endpoints define the ride.
+- Generate bounded, seeded, directionally varied loop candidates, or a direct Start → End bicycle route, through a provider-neutral routing adapter backed initially by a configurable Valhalla-compatible endpoint.
+- Return and display alternatives with geometry, distance, estimated duration, target-distance difference (loops only), and factual warnings.
 - Select, regenerate, and save candidates in browser-local storage for personal evaluation.
 - Download the selected accepted alternative as a client-side GPX 1.1 track for manual Garmin Connect course import (field-test export only).
 - Record local generation timing, candidate counts, selection, and a simple “would ride” assessment.
