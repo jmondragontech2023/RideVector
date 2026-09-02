@@ -89,9 +89,10 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 
 | Check | Command / action | Outcome |
 | --- | --- | --- |
-| Branch | `cursor/start-end-phase-1-44a8` | pending this pass |
-| Unit / mocked tests | `pnpm --filter @ridevector/api exec vitest run` and `pnpm --filter @ridevector/web exec vitest run` | pending this pass |
-| Full gate | `pnpm run check` | pending this pass |
+| Branch | `cursor/start-end-phase-1-44a8` | Pass |
+| Unit / mocked tests | `pnpm --filter @ridevector/api exec vitest run` (104) and `pnpm --filter @ridevector/web exec vitest run` (173) | Pass |
+| Full gate | `pnpm run check` | Pass (api 104, web 173; format/lint/types/build/env-isolation/secrets/wrangler types) |
+| Live Valhalla start/end generate | owner / optional smoke | Not run in this implementation pass |
 | Merge / deploy | — | Not done (owner review; Phase 1 checkpoint) |
 
 ## Verification log (POC Phase 1 start/end)
