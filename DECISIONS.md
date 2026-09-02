@@ -139,6 +139,32 @@ Accepted decisions are binding until superseded by a dated entry. Proposed decis
   - Post-POC intent: migrate to a RideVector-controlled Valhalla deployment after product validation and workload/cost benchmarking. Cloudflare Containers or a conventional Linux VM remain options; do not preselect production hosting here.
 - Consequence: POC developers can run `pnpm dev` without Docker Valhalla. Production/staging Workers still must not expose POC routing endpoints until Milestone 2+ hosting decisions are made.
 
+### ADR-019 — Manual GPX field-test export during the local POC
+
+- Status: Accepted — 2026-08-27
+- Context: Route quality cannot be adequately evaluated without riding generated routes. Garmin Connect’s documented third-party course import flow accepts GPX files, but the POC previously deferred all GPX behavior. Direct Garmin Courses API and Strava integrations remain out of scope until separately reviewed.
+- Decision:
+  - Add POC-4: client-side **Download GPX** for the currently selected accepted alternative (including routes reopened from browser-local saves).
+  - Generate GPX 1.1 entirely in `apps/web` from the existing provider-neutral GeoJSON `LineString`. Do not add a Worker endpoint, cloud storage, secrets, OAuth, FIT/TCX, or deployment changes.
+  - Export one `<trk>` / `<trkseg>` with ordered `<trkpt>` elements. Preserve exact coordinate order and count. Do not invent timestamps, elevation, turn/course points, or force loop closure.
+  - Label the control **Download GPX** (not “Send to Garmin”). Document the manual Garmin Connect import path and device-capability limits.
+  - Keep Milestone 10 responsible for production-grade saved-route/export contracts, security, persistence, hardening, and supported-client behavior. Direct Garmin Courses API and Strava publishing remain later, separately reviewed work.
+- Consequence: Owners can field-test generated courses on compatible Garmin devices without expanding the local POC into an integration platform. Garmin Connect / device import success remains an owner-verified checklist item, not an automated claim.
+
+### ADR-020 — POC Phase 1 start/end selection (narrow local extension)
+
+- Status: Accepted — 2026-09-02
+- Context: ADR-017 authorized generated loops only. The owner requested a plan for start/end, ordered stops, and return routing, then authorized Phase 1 only (`poc/START_END_WAYPOINTS_PLAN.md`). Owner field tests in `poc/EVALUATION.md` remain pending; this does not complete the ADR-017 exit decision.
+- Decision:
+  - Extend the local POC with an explicit **Start and end** mode that generates scored open bicycle routes between two map-selected or coordinate-edited locations.
+  - Keep **Generate a loop** as the default/legacy mode. Omitted `routeMode` continues to mean loop.
+  - Reject Phase 2 `waypoints` / non-`none` `returnMode` inputs and loop requests that include an end, rather than ignoring ambiguous fields.
+  - Point-to-point generation routes only the direct Start → End path. Target distance, flexibility, near-match fallback, and distance-fit scoring do not apply: the rider's endpoints define the ride. Loop mode is unchanged. (Owner override 2026-09-02; supersedes the same-day wording that treated target distance as applying to the entire open ride and seeded interior detours.)
+  - Geometry scoring is mode-aware (`poc-scoring-v3`): open routes are not penalized for lack of closure, and distance-fit is not applicable. Endpoint compliance is a hard validation, not a soft score.
+  - Browser-local saves store the normalized request (mode + endpoints). Legacy saves migrate as loop requests. GPX continues to export exact selected geometry and must not close an open path.
+  - Do not implement ordered intermediate stops or return-routing options until the owner confirms Phase 1.
+- Consequence: ADR-017 remains the loop-POC decision. This is a dated, narrowly scoped local-POC extension, not a production contract and not permission to resume Milestones 1–11 or deploy.
+
 ## Proposed; validate during later milestones
 
 ### ADR-P01 — Initial platform stack

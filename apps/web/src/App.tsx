@@ -1,8 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { generatePocRoutes, PocApiError } from './poc/api';
-import { CandidateDiagnosticsPanel } from './poc/CandidateDiagnosticsPanel';
 import { emptyDiagnosticSummary, findRejectedPreview } from './poc/candidate-diagnostics';
+import {
+  defaultFeatureSettings,
+  loadFeatureSettings,
+  saveFeatureSettings,
+} from './poc/feature-settings';
 import { POC_SCENARIO_FIXTURES, fixtureFlexibilityMiles } from './poc/fixtures';
+import { PlanPanel } from './poc/layout/PlanPanel';
+import { PlannerHeader } from './poc/layout/PlannerHeader';
+import {
+  defaultResultsTab,
+  derivePlannerWorkspaceMode,
+  formatActivePlanSummary,
+  type ResultsWorkspaceTab,
+} from './poc/layout/planner-workspace';
+import { ExpandableMapPanel } from './poc/layout/ExpandableMapPanel';
+import { ResultsPanel } from './poc/layout/ResultsPanel';
 import { RouteMap } from './poc/RouteMap';
 import {
   deleteSavedRoute,
@@ -14,14 +28,18 @@ import {
 } from './poc/storage';
 import {
   DEFAULT_DISTANCE_FLEXIBILITY_MILES,
-  formatAcceptedRangeLabel,
-  formatNearMatchDeviation,
+  DEFAULT_POC_FEATURES,
+  emptyRejectionCounts,
   type PocAlternative,
   type PocCoordinate,
   type PocCostingMode,
+  type PocElevationPreference,
+  type PocExperimentalFeatures,
   type PocGenerateResponse,
+  type PocRouteMode,
+  type PocTrafficPreference,
 } from './poc/types';
-import { formatDuration, formatMiles, METERS_PER_MILE, milesToMeters } from './poc/units';
+import { formatMiles, formatDuration, METERS_PER_MILE, milesToMeters } from './poc/units';
 import {
   buildLocationSuccessMessage,
   buildPoorAccuracyWarning,
@@ -36,12 +54,19 @@ import {
 import { GenerationSession, shouldApplyGenerationResponse } from './poc/generation-session';
 import { LocationSession, shouldApplyLocationResult } from './poc/location-session';
 import { createMapRecenterRequest, type MapRecenterRequest } from './poc/map-recenter';
+import { buildGpxDocument, GpxExportError } from './poc/gpx';
+import { downloadGpxFile } from './poc/gpx-download';
+import { StartAreaResolver, START_AREA_FALLBACK_LABEL } from './poc/start-area';
 import { smokeContractTitle } from './smokeContract';
+import { useAppearance } from './poc/use-appearance';
 
 type Status = 'idle' | 'loading' | 'error' | 'success';
 
 export function App() {
   const [start, setStart] = useState<PocCoordinate | null>(null);
+  const [end, setEnd] = useState<PocCoordinate | null>(null);
+  const [routeMode, setRouteMode] = useState<PocRouteMode>('loop');
+  const [activeEndpoint, setActiveEndpoint] = useState<'start' | 'end'>('start');
   const [targetMiles, setTargetMiles] = useState('12');
   const [flexibilityMiles, setFlexibilityMiles] = useState(
     String(DEFAULT_DISTANCE_FLEXIBILITY_MILES),
@@ -57,18 +82,100 @@ export function App() {
   const [feedbackReason, setFeedbackReason] = useState('');
   const [deviationAcceptable, setDeviationAcceptable] = useState<boolean | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [startAreaLabel, setStartAreaLabel] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [recenterRequest, setRecenterRequest] = useState<MapRecenterRequest | null>(null);
-  const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false);
   const [previewAttemptNumber, setPreviewAttemptNumber] = useState<number | null>(null);
+  const [features, setFeatures] = useState<PocExperimentalFeatures>({ ...DEFAULT_POC_FEATURES });
+  const [elevationPreference, setElevationPreference] = useState<PocElevationPreference>('none');
+  const [trafficPreference, setTrafficPreference] = useState<PocTrafficPreference>('none');
+  const [departureMode, setDepartureMode] = useState<'now' | 'custom'>('now');
+  const [customLocalDateTime, setCustomLocalDateTime] = useState('');
+  const [featureSettingsHydrated, setFeatureSettingsHydrated] = useState(false);
+  const [resultsTab, setResultsTab] = useState<ResultsWorkspaceTab>('overview');
+  const [mapExpanded, setMapExpanded] = useState(false);
+  const [mapCollapseToken, setMapCollapseToken] = useState(0);
   const generationSessionRef = useRef(new GenerationSession());
   const locationSessionRef = useRef(new LocationSession());
+  const startAreaResolverRef = useRef(new StartAreaResolver());
+  const gpxExportSessionRef = useRef(0);
+  const { themePreference, mapTheme, setThemePreference, toggleMapTheme } = useAppearance();
+
+  function forceCollapseExpandedMap() {
+    setMapCollapseToken((token) => token + 1);
+  }
+
+  function rememberStartAreaLabel(label: string | null) {
+    setStartAreaLabel(label);
+  }
+
+  function updateStartPoint(
+    coordinate: PocCoordinate,
+    options: { areaLabel?: string | null; resolveArea?: boolean } = {},
+  ) {
+    setStart(coordinate);
+    if (options.areaLabel !== undefined) {
+      startAreaResolverRef.current.cancelPending();
+      if (options.areaLabel) {
+        startAreaResolverRef.current.remember(coordinate, options.areaLabel);
+      }
+      rememberStartAreaLabel(options.areaLabel);
+      return;
+    }
+    if (options.resolveArea === false) {
+      return;
+    }
+
+    const cached = startAreaResolverRef.current.getCached(coordinate);
+    if (cached) {
+      startAreaResolverRef.current.cancelPending();
+      rememberStartAreaLabel(cached);
+      return;
+    }
+
+    rememberStartAreaLabel(null);
+    startAreaResolverRef.current.request(coordinate, (label) => {
+      rememberStartAreaLabel(label);
+    });
+  }
 
   useEffect(() => {
     setSavedRoutes(loadPocStore().routes);
+    const settings = loadFeatureSettings();
+    setFeatures(settings.features);
+    setElevationPreference(settings.elevationPreference);
+    setTrafficPreference(settings.trafficPreference);
+    setDepartureMode(settings.departureMode);
+    setCustomLocalDateTime(settings.customLocalDateTime);
+    setFeatureSettingsHydrated(true);
+
+    if (isGeolocationSupported(navigator) && !isSecureGeolocationContext(window)) {
+      setLocationMessage(insecureContextGeolocationFailure().message);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!featureSettingsHydrated) {
+      return;
+    }
+    saveFeatureSettings({
+      ...defaultFeatureSettings(),
+      features,
+      elevationPreference,
+      trafficPreference,
+      departureMode,
+      customLocalDateTime,
+    });
+  }, [
+    featureSettingsHydrated,
+    features,
+    elevationPreference,
+    trafficPreference,
+    departureMode,
+    customLocalDateTime,
+  ]);
 
   function invalidateInFlightGeneration() {
     generationSessionRef.current.invalidate();
@@ -79,15 +186,47 @@ export function App() {
     setLocating(false);
   }
 
+  /** Drop an in-flight start-area warm lookup when the selected plan changes. */
+  function invalidateInFlightGpxExport() {
+    gpxExportSessionRef.current += 1;
+    startAreaResolverRef.current.cancelExport();
+  }
+
   function clearGenerationResults() {
     invalidateInFlightGeneration();
+    invalidateInFlightGpxExport();
+    // Close expanded map when leaving generated results; keep it open while planning
+    // so mobile users can pick a start without the overlay dismissing.
+    if (result !== null) {
+      forceCollapseExpandedMap();
+    }
     setResult(null);
     setSelectedId(null);
     setStatus('idle');
     setErrorMessage(null);
     setSaveMessage(null);
-    setDiagnosticsExpanded(false);
     setPreviewAttemptNumber(null);
+    setResultsTab('overview');
+  }
+
+  function handleEditPlan() {
+    forceCollapseExpandedMap();
+    clearGenerationResults();
+  }
+
+  function applyExperimentalSettings(next: {
+    features: PocExperimentalFeatures;
+    elevationPreference: PocElevationPreference;
+    trafficPreference: PocTrafficPreference;
+    departureMode: 'now' | 'custom';
+    customLocalDateTime: string;
+  }) {
+    clearGenerationResults();
+    setFeatures(next.features);
+    setElevationPreference(next.elevationPreference);
+    setTrafficPreference(next.trafficPreference);
+    setDepartureMode(next.departureMode);
+    setCustomLocalDateTime(next.customLocalDateTime);
   }
 
   const targetDistanceMeters = milesToMeters(Number(targetMiles) || 0);
@@ -106,6 +245,17 @@ export function App() {
   const alternatives = result?.alternatives ?? [];
   const selected: PocAlternative | null =
     alternatives.find((alt) => alt.id === selectedId) ?? alternatives[0] ?? null;
+  const workspaceMode = derivePlannerWorkspaceMode({ result });
+  const planSummary = formatActivePlanSummary({
+    targetMiles,
+    flexibilityMiles,
+    costing,
+    features: result?.features ?? features,
+    routeMode: result?.routeMode ?? routeMode,
+  });
+  const selectedMapSummary = selected
+    ? `${selected.name} · ${formatMiles(selected.distanceMeters)} · ${formatDuration(selected.durationSeconds)}`
+    : null;
 
   async function runGenerate(nextSeed: number, overrideStart?: PocCoordinate) {
     const effectiveStart = overrideStart ?? start;
@@ -114,17 +264,29 @@ export function App() {
       setErrorMessage('Click the map to choose a start point.');
       return;
     }
+    if (routeMode === 'point_to_point' && !end) {
+      setStatus('error');
+      setErrorMessage('Select a distinct End, or switch to loop mode.');
+      return;
+    }
 
     const miles = Number(targetMiles);
     const flexMiles = Number(flexibilityMiles);
-    if (!Number.isFinite(miles) || miles <= 0) {
-      setStatus('error');
-      setErrorMessage('Enter a positive target distance in miles.');
-      return;
+    if (routeMode !== 'point_to_point') {
+      if (!Number.isFinite(miles) || miles <= 0) {
+        setStatus('error');
+        setErrorMessage('Enter a positive target distance in miles.');
+        return;
+      }
+      if (!Number.isFinite(flexMiles) || flexMiles <= 0) {
+        setStatus('error');
+        setErrorMessage('Enter a positive distance flexibility in miles.');
+        return;
+      }
     }
-    if (!Number.isFinite(flexMiles) || flexMiles <= 0) {
+    if (departureMode === 'custom' && customLocalDateTime.trim() === '') {
       setStatus('error');
-      setErrorMessage('Enter a positive distance flexibility in miles.');
+      setErrorMessage('Choose a custom departure date and time, or switch to Depart now.');
       return;
     }
 
@@ -132,6 +294,7 @@ export function App() {
     setErrorMessage(null);
     setSaveMessage(null);
     setPreviewAttemptNumber(null);
+    invalidateInFlightGpxExport();
 
     const { token, abortController, signal } = generationSessionRef.current.begin();
 
@@ -139,27 +302,47 @@ export function App() {
       const response = await generatePocRoutes(
         {
           start: effectiveStart,
-          targetDistanceMeters: milesToMeters(miles),
-          distanceFlexibilityMeters: milesToMeters(flexMiles),
+          routeMode,
+          ...(routeMode === 'point_to_point' && end ? { end } : {}),
+          ...(routeMode === 'point_to_point'
+            ? {}
+            : {
+                targetDistanceMeters: milesToMeters(miles),
+                distanceFlexibilityMeters: milesToMeters(flexMiles),
+              }),
           costing,
           seed: nextSeed,
+          features,
+          elevationPreference,
+          trafficPreference,
+          departure:
+            departureMode === 'custom'
+              ? {
+                  mode: 'custom',
+                  localDateTime: new Date(customLocalDateTime).toISOString(),
+                  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+                }
+              : { mode: 'now' },
         },
         signal,
       );
       if (!shouldApplyGenerationResponse(generationSessionRef.current, token, signal)) {
         return;
       }
-      setStart(effectiveStart);
+      // Cancel exports started against the previous result while this run was loading.
+      invalidateInFlightGpxExport();
+      updateStartPoint(effectiveStart, { resolveArea: false });
       setSeed(response.seed);
       setResult(response);
       setSelectedId(response.alternatives[0]?.id ?? null);
-      setDiagnosticsExpanded(response.alternatives.length === 0);
+      setResultsTab(defaultResultsTab(response));
       setStatus(response.alternatives.length > 0 ? 'success' : 'error');
       setErrorMessage(null);
     } catch (error) {
       if (!shouldApplyGenerationResponse(generationSessionRef.current, token, signal)) {
         return;
       }
+      invalidateInFlightGpxExport();
       setResult(null);
       setSelectedId(null);
       setStatus('error');
@@ -176,10 +359,12 @@ export function App() {
     if (!fixture) {
       return;
     }
-    // Clears in-flight generation and resets status so loading cannot stick.
     clearGenerationResults();
     invalidateInFlightLocation();
-    setStart(fixture.start);
+    updateStartPoint(fixture.start, { areaLabel: fixture.label });
+    setRouteMode(fixture.routeMode ?? 'loop');
+    setEnd(fixture.end ?? null);
+    setActiveEndpoint(fixture.routeMode === 'point_to_point' ? 'end' : 'start');
     setTargetMiles(String(fixture.targetDistanceMiles));
     setFlexibilityMiles(String(fixtureFlexibilityMiles(fixture)));
     setCosting(fixture.costing);
@@ -187,20 +372,103 @@ export function App() {
     setSaveMessage(`Loaded fixture: ${fixture.label}`);
   }
 
+  function handleDownloadGpx() {
+    if (!selected || !result) {
+      setSaveMessage('Generate and select a route before downloading GPX.');
+      return;
+    }
+    if (!start) {
+      setSaveMessage('Set a start point before downloading GPX.');
+      return;
+    }
+
+    try {
+      // Keep download inside the user-gesture turn. Awaiting Nominatim first can
+      // make Safari/mobile ignore the synthetic <a download> click.
+      const knownPlace =
+        startAreaLabel && startAreaLabel !== START_AREA_FALLBACK_LABEL
+          ? startAreaLabel.trim()
+          : null;
+      const areaLabel =
+        knownPlace || startAreaResolverRef.current.getCached(start) || START_AREA_FALLBACK_LABEL;
+
+      const exported = buildGpxDocument({
+        geometry: selected.geometry,
+        routeName: selected.name,
+        costing,
+        seed: result.seed,
+        distanceMeters: selected.distanceMeters,
+        startAreaLabel: areaLabel,
+      });
+      downloadGpxFile(exported.xml, exported.filename);
+      setSaveMessage(`Downloaded ${exported.filename}.`);
+
+      // If the filename had to use Local, warm Nominatim off the click path so a
+      // later download can pick up a real place label after recovery.
+      if (areaLabel === START_AREA_FALLBACK_LABEL) {
+        const warmToken = ++gpxExportSessionRef.current;
+        void startAreaResolverRef.current
+          .resolveForExport(start)
+          .then((label) => {
+            if (warmToken !== gpxExportSessionRef.current) {
+              return;
+            }
+            if (label && label !== START_AREA_FALLBACK_LABEL) {
+              rememberStartAreaLabel(label);
+            }
+          })
+          .catch((error: unknown) => {
+            if (
+              (typeof DOMException !== 'undefined' &&
+                error instanceof DOMException &&
+                error.name === 'AbortError') ||
+              (error instanceof Error && error.name === 'AbortError')
+            ) {
+              return;
+            }
+          });
+      }
+    } catch (error) {
+      const message =
+        error instanceof GpxExportError
+          ? error.message
+          : 'Unable to download GPX for the selected route.';
+      setSaveMessage(message);
+    }
+  }
+
   function handleSaveSelected() {
     if (!start || !selected || !result) {
       setSaveMessage('Generate and select a route before saving.');
+      return;
+    }
+    if ((result.routeMode ?? routeMode) === 'point_to_point' && !(result.end ?? end)) {
+      setSaveMessage('A start-and-end save needs both endpoints.');
       return;
     }
     const saved: SavedPocRoute = {
       id: `saved-${selected.id}-${result.seed}`,
       savedAt: new Date().toISOString(),
       label: `${selected.name} · ${formatMiles(selected.distanceMeters)}`,
-      start,
-      targetDistanceMeters: milesToMeters(Number(targetMiles)),
-      distanceFlexibilityMeters: milesToMeters(Number(flexibilityMiles)),
+      routeMode: result.routeMode ?? routeMode,
+      start: result.start ?? start,
+      ...(result.routeMode === 'point_to_point' || routeMode === 'point_to_point'
+        ? { end: result.end ?? end ?? undefined }
+        : {}),
+      targetDistanceMeters:
+        (result.routeMode ?? routeMode) === 'point_to_point'
+          ? selected.distanceMeters
+          : milesToMeters(Number(targetMiles)),
+      distanceFlexibilityMeters:
+        (result.routeMode ?? routeMode) === 'point_to_point'
+          ? milesToMeters(DEFAULT_DISTANCE_FLEXIBILITY_MILES)
+          : milesToMeters(Number(flexibilityMiles)),
       costing,
       seed: result.seed,
+      features: result.features ?? features,
+      elevationPreference: result.elevationPreference ?? elevationPreference,
+      trafficPreference: result.trafficPreference ?? trafficPreference,
+      departure: result.departure,
       alternative: selected,
       feedback: {
         wouldRide,
@@ -219,32 +487,49 @@ export function App() {
   function handleOpenSaved(route: SavedPocRoute) {
     invalidateInFlightGeneration();
     invalidateInFlightLocation();
-    setStart(route.start);
+    invalidateInFlightGpxExport();
+    updateStartPoint(route.start);
+    setRouteMode(route.routeMode ?? 'loop');
+    setEnd(route.end ?? null);
+    setActiveEndpoint(route.routeMode === 'point_to_point' && route.end ? 'end' : 'start');
     setTargetMiles(String(route.targetDistanceMeters / METERS_PER_MILE));
     setFlexibilityMiles(String(route.distanceFlexibilityMeters / METERS_PER_MILE));
     setCosting(route.costing);
     setSeed(route.seed);
+    if (route.features) {
+      setFeatures(route.features);
+    }
+    if (route.elevationPreference) {
+      setElevationPreference(route.elevationPreference);
+    }
+    if (route.trafficPreference) {
+      setTrafficPreference(route.trafficPreference);
+    }
     setResult({
       seed: route.seed,
       durationMs: 0,
       attemptedCount: 0,
       acceptedCount: 1,
       alternatives: [route.alternative],
-      rejections: {
-        upstream_failure: 0,
-        malformed_geometry: 0,
-        outside_tolerance: 0,
-        duplicate_candidate: 0,
-        selection_limit: 0,
-      },
+      routeMode: route.routeMode ?? 'loop',
+      start: route.start,
+      ...(route.end ? { end: route.end } : {}),
+      rejections: emptyRejectionCounts(),
       warnings: ['Opened from local saved routes.'],
       candidateDiagnostics: [],
       diagnosticSummary: emptyDiagnosticSummary(),
       distanceFlexibilityMeters: route.distanceFlexibilityMeters,
       requestedRangeMeters: route.alternative.requestedRangeMeters,
+      features: route.features ?? features,
+      elevationPreference: route.elevationPreference ?? elevationPreference,
+      trafficPreference: route.trafficPreference ?? trafficPreference,
+      departure: route.departure,
+      scoringVersion: route.alternative.scoring?.version,
+      enrichmentWarnings: [],
+      attribution: [],
     });
     setSelectedId(route.alternative.id);
-    setDiagnosticsExpanded(false);
+    setResultsTab('overview');
     setPreviewAttemptNumber(null);
     setDeviationAcceptable(route.feedback?.deviationAcceptable ?? null);
     setWouldRide(route.feedback?.wouldRide ?? 'maybe');
@@ -279,17 +564,17 @@ export function App() {
     setLocationWarning(null);
 
     try {
-      const result = await requestCurrentPosition(navigator.geolocation);
+      const position = await requestCurrentPosition(navigator.geolocation);
       if (!shouldApplyLocationResult(locationSessionRef.current, locationToken)) {
         return;
       }
       clearGenerationResults();
-      setStart(result.coordinate);
-      setRecenterRequest(createMapRecenterRequest(result.coordinate, 14));
-      setLocationMessage(buildLocationSuccessMessage(result.accuracyMeters));
+      updateStartPoint(position.coordinate);
+      setRecenterRequest(createMapRecenterRequest(position.coordinate, 14));
+      setLocationMessage(buildLocationSuccessMessage(position.accuracyMeters));
       setLocationWarning(
-        isPoorAccuracy(result.accuracyMeters)
-          ? buildPoorAccuracyWarning(result.accuracyMeters)
+        isPoorAccuracy(position.accuracyMeters)
+          ? buildPoorAccuracyWarning(position.accuracyMeters)
           : null,
       );
     } catch (error) {
@@ -320,338 +605,181 @@ export function App() {
   }
 
   return (
-    <div className="poc-shell">
-      <header className="poc-header">
-        <div>
-          <p className="eyebrow">Local route-generation POC</p>
-          <h1>RideVector</h1>
-          <p className="lede">
-            Click the map to set a start, enter a target distance, and generate bicycle loop
-            alternatives. Road/Gravel is a costing preference, not a measured surface guarantee.
-          </p>
-        </div>
-        <p className="contract-meta" data-testid="contract-title">
-          Contract: {smokeContractTitle}
-        </p>
-      </header>
+    <div
+      className={`poc-shell workspace-${workspaceMode}`}
+      data-map-expanded={mapExpanded ? 'true' : 'false'}
+    >
+      <PlannerHeader
+        contractTitle={smokeContractTitle}
+        themePreference={themePreference}
+        onThemePreferenceChange={setThemePreference}
+        savedRoutes={savedRoutes}
+        onOpenSaved={handleOpenSaved}
+        onDeleteSaved={handleDeleteSaved}
+        workspaceMode={workspaceMode}
+        planSummary={workspaceMode === 'results' ? planSummary : undefined}
+        onEditPlan={workspaceMode === 'results' ? handleEditPlan : undefined}
+        contentObscured={mapExpanded}
+      />
 
-      <section className="poc-layout" aria-label="Route planner">
-        <div className="map-panel">
+      <section
+        className={`poc-layout poc-layout--${workspaceMode}`}
+        aria-label="Route planner"
+        data-workspace={workspaceMode}
+        data-has-start={start ? 'true' : 'false'}
+        data-testid="planner-workspace"
+      >
+        {workspaceMode === 'planning' ? (
+          <PlanPanel
+            start={start}
+            end={end}
+            routeMode={routeMode}
+            activeEndpoint={activeEndpoint}
+            targetMiles={targetMiles}
+            flexibilityMiles={flexibilityMiles}
+            previewRangeMeters={previewRangeMeters}
+            costing={costing}
+            seed={seed}
+            status={status}
+            errorMessage={errorMessage}
+            locating={locating}
+            locationMessage={locationMessage}
+            locationWarning={locationWarning}
+            features={features}
+            elevationPreference={elevationPreference}
+            trafficPreference={trafficPreference}
+            departureMode={departureMode}
+            customLocalDateTime={customLocalDateTime}
+            onApplyFixture={applyFixture}
+            onRouteModeChange={(value) => {
+              setRouteMode(value);
+              if (value === 'loop') {
+                setActiveEndpoint('start');
+              }
+              clearGenerationResults();
+            }}
+            onActiveEndpointChange={setActiveEndpoint}
+            onStartChange={(coordinate) => {
+              invalidateInFlightLocation();
+              updateStartPoint(coordinate);
+              clearGenerationResults();
+            }}
+            onEndChange={(coordinate) => {
+              setEnd(coordinate);
+              clearGenerationResults();
+            }}
+            onClearStart={() => {
+              invalidateInFlightLocation();
+              startAreaResolverRef.current.cancelPending();
+              setStart(null);
+              rememberStartAreaLabel(null);
+              clearGenerationResults();
+            }}
+            onClearEnd={() => {
+              setEnd(null);
+              clearGenerationResults();
+            }}
+            onSwapEndpoints={() => {
+              if (!start || !end) {
+                return;
+              }
+              const previousStart = start;
+              updateStartPoint(end);
+              setEnd(previousStart);
+              clearGenerationResults();
+            }}
+            onTargetMilesChange={(value) => {
+              setTargetMiles(value);
+              clearGenerationResults();
+            }}
+            onFlexibilityMilesChange={(value) => {
+              setFlexibilityMiles(value);
+              clearGenerationResults();
+            }}
+            onCostingChange={(value) => {
+              setCosting(value);
+              clearGenerationResults();
+            }}
+            onUseMyLocation={() => void handleUseMyLocation()}
+            onGenerate={() => void runGenerate(seed)}
+            onExperimentalChange={applyExperimentalSettings}
+            saveMessage={saveMessage}
+            contentObscured={mapExpanded}
+          />
+        ) : null}
+
+        <ExpandableMapPanel
+          mapTheme={mapTheme}
+          onMapThemeToggle={toggleMapTheme}
+          selectedSummary={workspaceMode === 'results' ? selectedMapSummary : null}
+          collapseToken={mapCollapseToken}
+          onExpandedChange={setMapExpanded}
+        >
           <RouteMap
             start={start}
+            end={end}
+            routeMode={routeMode}
             alternatives={alternatives}
             selectedId={selected?.id ?? null}
             recenterRequest={recenterRequest}
             rejectedPreview={rejectedPreview}
+            layoutKey={`${workspaceMode}-${resultsTab}-${mapTheme}-${mapExpanded ? 'expanded' : 'inline'}`}
+            mapTheme={mapTheme}
             onSelectStart={(coordinate) => {
               invalidateInFlightLocation();
-              setStart(coordinate);
+              updateStartPoint(coordinate);
               clearGenerationResults();
               setLocationMessage(null);
               setLocationWarning(null);
             }}
+            onSelectCoordinate={(coordinate) => {
+              invalidateInFlightLocation();
+              if (routeMode === 'point_to_point' && activeEndpoint === 'end') {
+                setEnd(coordinate);
+              } else {
+                updateStartPoint(coordinate);
+                setLocationMessage(null);
+                setLocationWarning(null);
+              }
+              clearGenerationResults();
+            }}
           />
-          <div className="start-controls">
-            <button
-              type="button"
-              className="secondary"
-              disabled={locating || status === 'loading'}
-              onClick={() => void handleUseMyLocation()}
-            >
-              {locating ? 'Locating…' : 'Use my location'}
-            </button>
-            <p className="subtle location-disclosure">
-              Your start location is sent to the configured routing service when you generate
-              routes.
-            </p>
-          </div>
-          {locationMessage ? (
-            <p className="status" role="status">
-              {locationMessage}
-            </p>
-          ) : null}
-          {locationWarning ? (
-            <p className="status warning" role="status">
-              {locationWarning}
-            </p>
-          ) : null}
-          <p className="map-hint">
-            {start
-              ? `Start: ${start.latitude.toFixed(5)}, ${start.longitude.toFixed(5)}`
-              : 'Click the map to select a start point.'}
-          </p>
-        </div>
+        </ExpandableMapPanel>
 
-        <aside className="control-panel">
-          <label className="field">
-            <span>Scenario fixture</span>
-            <select
-              defaultValue=""
-              onChange={(event) => {
-                if (event.target.value) {
-                  applyFixture(event.target.value);
-                  event.target.value = '';
-                }
-              }}
-            >
-              <option value="">Load a public landmark scenario…</option>
-              {POC_SCENARIO_FIXTURES.map((fixture) => (
-                <option key={fixture.id} value={fixture.id}>
-                  {fixture.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field">
-            <span>Target distance (miles)</span>
-            <input
-              type="number"
-              min={1}
-              step={0.5}
-              value={targetMiles}
-              onChange={(event) => {
-                setTargetMiles(event.target.value);
-                clearGenerationResults();
-              }}
-            />
-          </label>
-
-          <label className="field">
-            <span>Distance flexibility (± miles)</span>
-            <input
-              type="number"
-              min={0.5}
-              step={0.5}
-              value={flexibilityMiles}
-              onChange={(event) => {
-                setFlexibilityMiles(event.target.value);
-                clearGenerationResults();
-              }}
-            />
-            <p className="subtle">{formatAcceptedRangeLabel(previewRangeMeters)}</p>
-          </label>
-
-          <fieldset className="field">
-            <legend>Costing mode</legend>
-            <label className="choice">
-              <input
-                type="radio"
-                name="costing"
-                checked={costing === 'road'}
-                onChange={() => {
-                  setCosting('road');
-                  clearGenerationResults();
-                }}
-              />
-              Road
-            </label>
-            <label className="choice">
-              <input
-                type="radio"
-                name="costing"
-                checked={costing === 'gravel'}
-                onChange={() => {
-                  setCosting('gravel');
-                  clearGenerationResults();
-                }}
-              />
-              Gravel
-            </label>
-            <p className="subtle">
-              Costing preference only — not a measured paved/gravel surface percentage.
-            </p>
-          </fieldset>
-
-          <div className="actions">
-            <button
-              type="button"
-              disabled={status === 'loading'}
-              onClick={() => void runGenerate(seed)}
-            >
-              {status === 'loading' ? 'Generating…' : 'Generate'}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={status === 'loading'}
-              onClick={() => void runGenerate(seed + 1)}
-            >
-              Regenerate
-            </button>
-          </div>
-
-          <p className="seed-line">
-            Active seed: <code>{seed}</code>
-          </p>
-
-          {errorMessage ? (
-            <p className="status error" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
-
-          {status === 'loading' ? (
-            <p className="status" role="status">
-              Trying up to 10 directionally varied loops…
-            </p>
-          ) : null}
-
-          {result ? (
-            <CandidateDiagnosticsPanel
-              result={result}
-              targetDistanceMeters={targetDistanceMeters}
-              expanded={diagnosticsExpanded}
-              onToggleExpanded={() => setDiagnosticsExpanded((value) => !value)}
-              previewAttemptNumber={previewAttemptNumber}
-              onPreviewAttempt={setPreviewAttemptNumber}
-            />
-          ) : null}
-
-          {result && selected ? (
-            <div className="result-block">
-              <p className="metrics">
-                {formatMiles(selected.distanceMeters)} · {formatDuration(selected.durationSeconds)}{' '}
-                · {selected.distanceFromTargetMeters >= 0 ? '+' : ''}
-                {formatMiles(Math.abs(selected.distanceFromTargetMeters))} from target
-              </p>
-              <p className="metrics subtle">
-                Generation {result.durationMs} ms · attempted {result.attemptedCount} · accepted{' '}
-                {result.acceptedCount}
-              </p>
-
-              <ul className="route-cards">
-                {alternatives.map((alt) => {
-                  const nearMatchDeviation = formatNearMatchDeviation(alt);
-                  return (
-                    <li key={alt.id}>
-                      <button
-                        type="button"
-                        className={alt.id === selected.id ? 'route-card selected' : 'route-card'}
-                        onClick={() => {
-                          setSelectedId(alt.id);
-                          setDeviationAcceptable(null);
-                        }}
-                      >
-                        <span className="route-card-title">
-                          <strong>{alt.name}</strong>
-                          {alt.distanceClassification === 'near_match' ? (
-                            <span className="near-match-badge">Near match</span>
-                          ) : null}
-                        </span>
-                        <span>
-                          {formatMiles(alt.distanceMeters)} · {formatDuration(alt.durationSeconds)}
-                        </span>
-                        {nearMatchDeviation ? (
-                          <span className="near-match-deviation">{nearMatchDeviation}</span>
-                        ) : null}
-                        <span className="subtle">{alt.bearingFamily}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-
-              {result.warnings.length > 0 ? (
-                <ul className="warnings">
-                  {result.warnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
-                  ))}
-                </ul>
-              ) : null}
-
-              <fieldset className="field feedback-block">
-                <legend>Would you ride this?</legend>
-                {(['yes', 'maybe', 'no'] as const).map((value) => (
-                  <label key={value} className="choice">
-                    <input
-                      type="radio"
-                      name="wouldRide"
-                      checked={wouldRide === value}
-                      onChange={() => setWouldRide(value)}
-                    />
-                    {value}
-                  </label>
-                ))}
-                <label className="field">
-                  <span>Optional reason</span>
-                  <textarea
-                    rows={2}
-                    maxLength={280}
-                    value={feedbackReason}
-                    onChange={(event) => setFeedbackReason(event.target.value)}
-                    placeholder="Why regenerate or reject?"
-                  />
-                </label>
-                {selected.distanceClassification === 'near_match' ? (
-                  <fieldset className="field">
-                    <legend>Was this distance deviation acceptable?</legend>
-                    <label className="choice">
-                      <input
-                        type="radio"
-                        name="deviationAcceptable"
-                        checked={deviationAcceptable === true}
-                        onChange={() => setDeviationAcceptable(true)}
-                      />
-                      Yes, acceptable for this ride
-                    </label>
-                    <label className="choice">
-                      <input
-                        type="radio"
-                        name="deviationAcceptable"
-                        checked={deviationAcceptable === false}
-                        onChange={() => setDeviationAcceptable(false)}
-                      />
-                      No, too far from my requested range
-                    </label>
-                  </fieldset>
-                ) : null}
-                <button type="button" onClick={handleSaveSelected}>
-                  Save selected locally
-                </button>
-              </fieldset>
-            </div>
-          ) : null}
-
-          {saveMessage ? <p className="status">{saveMessage}</p> : null}
-
-          <section className="saved-block" aria-label="Saved local routes">
-            <h2>Saved locally</h2>
-            {savedRoutes.length === 0 ? (
-              <p className="subtle">No browser-local saves yet.</p>
-            ) : (
-              <ul className="saved-list">
-                {savedRoutes.map((route) => (
-                  <li key={route.id}>
-                    <div>
-                      <strong>{route.label}</strong>
-                      <p className="subtle">
-                        seed {route.seed}
-                        {route.feedback ? ` · would ride: ${route.feedback.wouldRide}` : ''}
-                      </p>
-                    </div>
-                    <div className="actions">
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => handleOpenSaved(route)}
-                      >
-                        Open
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => handleDeleteSaved(route.id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </aside>
+        {workspaceMode === 'results' && result ? (
+          <ResultsPanel
+            result={result}
+            selected={selected}
+            alternatives={alternatives}
+            features={features}
+            planSummary={planSummary}
+            seed={seed}
+            status={status}
+            errorMessage={errorMessage}
+            resultsTab={resultsTab}
+            targetDistanceMeters={targetDistanceMeters}
+            previewAttemptNumber={previewAttemptNumber}
+            wouldRide={wouldRide}
+            feedbackReason={feedbackReason}
+            deviationAcceptable={deviationAcceptable}
+            saveMessage={saveMessage}
+            onResultsTabChange={setResultsTab}
+            onSelectAlternative={(id) => {
+              invalidateInFlightGpxExport();
+              setSelectedId(id);
+              setDeviationAcceptable(null);
+            }}
+            onEditPlan={handleEditPlan}
+            onRegenerate={() => void runGenerate(seed + 1)}
+            onPreviewAttempt={setPreviewAttemptNumber}
+            onWouldRideChange={setWouldRide}
+            onFeedbackReasonChange={setFeedbackReason}
+            onDeviationAcceptableChange={setDeviationAcceptable}
+            onSaveSelected={handleSaveSelected}
+            onDownloadGpx={handleDownloadGpx}
+            contentObscured={mapExpanded}
+          />
+        ) : null}
       </section>
     </div>
   );

@@ -2,7 +2,7 @@
 
 ## Active status
 
-**POC implementation complete on branch `poc/route-generation`**, except owner field-test answers in `poc/EVALUATION.md` (must remain pending). Milestone 0 remains merged. ADR-017 and `poc/README.md` govern the temporary POC exceptions; all prior production decisions and the Milestones 1–11 roadmap remain preserved.
+**POC scoring/enrichment + POC-4 GPX + Phase 1 start/end selection implemented**, except owner field-test answers in `poc/EVALUATION.md` (must remain pending). Phase 2 ordered stops and return routing are **not** started. Milestone 0 remains merged. ADR-017 / ADR-019 / ADR-020 and `poc/README.md` govern the temporary POC exceptions; all prior production decisions and the Milestones 1–11 roadmap remain preserved.
 
 ## POC-0 — Pivot and baseline
 
@@ -44,14 +44,93 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 - [x] Add at least five non-sensitive geographic fixtures and record evaluation findings. _(Fixtures + `poc/EVALUATION.md` template committed; owner field-test answers remain pending.)_
 - [ ] Decide to continue, revise the generator, or stop before resuming the production milestones. _(Owner decision after filling `poc/EVALUATION.md`.)_
 
+## POC-4 — Garmin GPX field-test export
+
+- [x] Add client-side GPX 1.1 serialization from the selected accepted alternative’s provider-neutral GeoJSON LineString (`apps/web/src/poc/gpx.ts`).
+- [x] Add a browser download boundary with sanitized `.gpx` filenames and reliable object-URL cleanup.
+- [x] Wire **Download GPX** into selected-route actions (generated selection and reopened local saves); never export rejected-preview geometry.
+- [x] Cover serialization, sanitization, invalid-geometry failure, download cleanup, and UI wiring with focused Vitest coverage.
+- [x] Document the manual Garmin Connect import path and amend deferred-scope language (ADR-019).
+- [ ] Owner imports an exported course into Garmin Connect, syncs to a compatible device, rides it, and records results in `poc/EVALUATION.md`.
+
+## POC scoring and enrichment iteration
+
+- [x] Create `poc/SCORING_AND_ENRICHMENT.md` (`poc-scoring-v1` weights, thresholds, provider limits).
+- [x] Independent experimental feature toggles + presets; enrichment vs scoring separation; preference persistence.
+- [x] Deterministic distance-fit, loop-quality, and diversity scoring with factual category badges.
+- [x] Elevation enrichment via Valhalla `/height` + preference scoring.
+- [x] Departure time + Open-Meteo weather forecast enrichment + optional weather scoring.
+- [x] TomTom motor-traffic enrichment + exposure proxy scoring with coverage gates.
+- [x] Combined POC fit ranking, expandable score UI, comparison panel.
+- [x] Provider failure isolation; rejected candidates never enriched.
+- [x] Expand `poc/EVALUATION.md` mode matrix; keep owner results pending.
+- [ ] Owner completes evaluation matrix in `poc/EVALUATION.md`.
+
+## POC Phase 1 — Start/end selection (ADR-020)
+
+- [x] Extend `/api/poc/routes/generate` with `routeMode` / `end`; reject Phase 2 waypoints/return and loop+end combinations.
+- [x] Generate scored open Start → End routes from the direct path only; keep loop generation unchanged.
+- [x] Mode-aware geometry scoring (`poc-scoring-v3`); no loop-closure penalty or distance-fit term on open routes; endpoint snap is hard validation.
+- [x] Ignore and hide target distance / flexibility in start-and-end mode (owner override 2026-09-02).
+- [x] Desktop/mobile Start/End selection, active map-tap control, editable coordinates, clear/swap, local save restore, GPX open-path compatibility.
+- [ ] Owner confirms the start/end experience before Phase 2.
+
 ## POC guardrails
 
-- No Supabase product schema, authentication, RLS, remote deployment, iOS, GPX, traffic, weather, or production analytics.
+- No Supabase product schema, authentication, RLS, remote deployment, iOS, production export infrastructure, direct Garmin/Strava publishing, or production analytics.
+- Manual client-side GPX download for field testing is allowed (POC-4); do not add Worker export endpoints or OAuth.
 - No `packages/domain` during the POC.
-- No “Best Overall,” “Quietest,” or “Adventure” labels without the corresponding measured ranking inputs.
-- Maximum 10 routing-provider calls per generation attempt.
+- No “Best Overall,” “Quietest,” or “Adventure” labels. Use **POC fit** and “lowest estimated motor-traffic exposure.”
+- Maximum 10 routing-provider calls per generation attempt; traffic enrichment ≤15 TomTom calls.
 - Do not send precise personal locations to logs, fixtures, or committed files.
 - Do not deploy POC feature behavior through staging or production workflows.
+
+## Verification log (POC Phase 1 start/end — ignore target distance)
+
+| Check | Command / action | Outcome |
+| --- | --- | --- |
+| Branch | `cursor/start-end-phase-1-44a8` | Pass |
+| Unit / mocked tests | `pnpm --filter @ridevector/api exec vitest run` (104) and `pnpm --filter @ridevector/web exec vitest run` (173) | Pass |
+| Full gate | `pnpm run check` | Pass (api 104, web 173; format/lint/types/build/env-isolation/secrets/wrangler types) |
+| Live Valhalla start/end generate | owner / optional smoke | Not run in this implementation pass |
+| Merge / deploy | — | Not done (owner review; Phase 1 checkpoint) |
+
+## Verification log (POC Phase 1 start/end)
+
+| Check | Command / action | Outcome |
+| --- | --- | --- |
+| Branch | `cursor/start-end-phase-1-44a8` from `cursor/mobile-expandable-map-2070` | Pass |
+| Unit / mocked tests | `pnpm --filter @ridevector/api exec vitest run` (99) and `pnpm --filter @ridevector/web exec vitest run` (170) | Pass |
+| Full gate | `pnpm run check` | Pass (api 99, web 170; format/lint/types/build/env-isolation/secrets/wrangler types) |
+| Live Valhalla start/end generate | owner / optional smoke | Not run in this implementation pass |
+| Merge / deploy | — | Not done (owner review; Phase 1 checkpoint) |
+
+## Verification log (POC-4 GPX field-test export)
+
+| Check | Command / action | Outcome |
+| --- | --- | --- |
+| Branch | `poc/garmin-gpx-export` from `poc/route-generation` | Pass |
+| Unit / UI tests | `pnpm --filter @ridevector/web exec vitest run src/poc/gpx.test.ts src/poc/gpx-ui.test.tsx` | Pass (14) |
+| Full gate | `pnpm run check` | Pass (api 83, web 126) |
+| Env isolation / client secrets / wrangler types | via `pnpm run check` | Pass |
+| Garmin Connect / device import | owner manual | Pending owner |
+| Merge / deploy | — | Not done (owner review) |
+
+## Verification log (scoring/enrichment iteration)
+
+| Check | Command / action | Outcome |
+| --- | --- | --- |
+| Branch | `poc/route-generation` from latest `main` | Pass |
+| Baseline | `pnpm run check` before changes | Pass |
+| Unit / mocked tests | `pnpm -r run test` (api 81, web 69) | Pass |
+| Full gate | `pnpm run check` | Pass |
+| Live Valhalla generate + scoring | `POST /api/poc/routes/generate` | Pass (3 alts, `poc-scoring-v1`) |
+| Live Valhalla `/height` enrichment | via Worker | Pass (`status: ok`, gain/loss present) |
+| Live Open-Meteo weather enrichment | via Worker | Pass (`status: ok`) |
+| Live TomTom traffic | requires `TOMTOM_API_KEY` | Skipped (key not configured) |
+| BugBot | branch review + fixes | Actionable findings fixed |
+| Owner field tests | `poc/EVALUATION.md` | Pending owner |
+| Merge / deploy | — | Not done (owner review) |
 
 ## Verification log (POC implementation, 2026-08-26)
 

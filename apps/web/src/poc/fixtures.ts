@@ -14,6 +14,8 @@ export type PocScenarioFixture = {
   description: string;
   /** Public landmark or synthetic downtown point. */
   start: { latitude: number; longitude: number };
+  end?: { latitude: number; longitude: number };
+  routeMode?: 'loop' | 'point_to_point';
   targetDistanceMiles: number;
   distanceFlexibilityMiles?: number;
   costing: 'road' | 'gravel';
@@ -66,6 +68,28 @@ export const POC_SCENARIO_FIXTURES: readonly PocScenarioFixture[] = [
     distanceFlexibilityMiles: 4,
     costing: 'road',
     seed: 5,
+  },
+  {
+    id: 'gg-park-crissy',
+    label: 'Golden Gate Park to Crissy Field',
+    description: 'Public San Francisco start/end corridor for open urban routing.',
+    start: { latitude: 37.7694, longitude: -122.4862 },
+    end: { latitude: 37.8039, longitude: -122.4662 },
+    routeMode: 'point_to_point',
+    targetDistanceMiles: 8,
+    costing: 'road',
+    seed: 6,
+  },
+  {
+    id: 'zilker-capitol',
+    label: 'Zilker Park to Texas Capitol',
+    description: 'Public Austin start/end corridor for mixed-city open routing.',
+    start: { latitude: 30.2672, longitude: -97.7731 },
+    end: { latitude: 30.2747, longitude: -97.7404 },
+    routeMode: 'point_to_point',
+    targetDistanceMiles: 10,
+    costing: 'road',
+    seed: 7,
   },
 ] as const;
 

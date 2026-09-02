@@ -17,11 +17,15 @@ Final types belong to Milestone 1. No map SDK or routing-provider type may appea
 
 ## Local POC algorithm
 
-ADR-017 authorizes a deliberately reduced local experiment before the production pipeline below is implemented. The POC estimates an anchor radius from target distance, creates 6–10 reproducible bearing-family waypoint patterns, asks a configurable Valhalla-compatible adapter to route each bicycle loop, rejects failures and routes outside a centralized provisional ±20% tolerance, applies a lightweight diversity check, and returns up to three factual alternatives.
+ADR-017 authorizes a deliberately reduced local experiment before the production pipeline below is implemented. The POC estimates an anchor radius from target distance, creates 6–10 reproducible bearing-family waypoint patterns, asks a configurable Valhalla-compatible adapter to route each bicycle loop, rejects failures and routes outside a centralized user-controlled distance range (with near-match fallback), applies a lightweight diversity check, and returns up to three factual alternatives.
+
+ADR-020 adds Phase 1 start/end generation on the same endpoint: route only the direct Start → End path. Target distance and flexibility are ignored; requested endpoints are hard constraints. Ordered stops and return routing remain Phase 2.
+
+After selection, optional Worker-side enrichment may attach elevation (Valhalla `/height`), weather (Open-Meteo), and motor-vehicle traffic samples (TomTom Flow Segment Data). Deterministic **POC fit** component scores and factual category badges are computed server-side when experimental toggles are enabled. See `poc/SCORING_AND_ENRICHMENT.md` for weights (`poc-scoring-v3`), limits, and missing-data rules. Motor-traffic exposure is an FRC/free-flow proxy — not bicycle safety or verified volume.
 
 During the POC phase, development may use a **public hosted Valhalla demo** via `VALHALLA_BASE_URL` so local hardware does not block validation (ADR-018). The adapter boundary is preserved so the same application code can later target RideVector-controlled Valhalla without changing route-generation logic.
 
-The POC does not claim exact surface composition, traffic quality, elevation preference, deadline compliance, or the production Best Overall/Quietest/Adventure personalities. Its algorithm, types, tolerance, and explanations are provisional evidence-gathering tools. The complete normalize → generate → enrich → reject → score → deduplicate/select → explain pipeline remains the production direction.
+The POC does not claim exact surface composition, verified quietness, segment-exact weather, or the production Best Overall/Quietest/Adventure personalities. Its algorithm, types, tolerance, and explanations are provisional evidence-gathering tools. The complete normalize → generate → enrich → reject → score → deduplicate/select → explain pipeline remains the production direction.
 
 ## Pipeline
 

@@ -7,3 +7,14 @@
 #
 # Point at self-hosted Valhalla when available, e.g.:
 # VALHALLA_BASE_URL=http://127.0.0.1:8002
+#
+# Optional non-secret provider base URLs (defaults exist in wrangler.jsonc):
+# OPEN_METEO_BASE_URL=https://api.open-meteo.com
+# TOMTOM_BASE_URL=https://api.tomtom.com
+#
+# Optional TomTom Traffic API key (local secret only). Required only when motor-traffic
+# enrichment is enabled in the planner. Ordinary CI and traffic-disabled runs do not need it.
+# Obtain a key from https://developer.tomtom.com/ and enable the Traffic API product on that key.
+# A key without Traffic API access returns HTTP 401/403 on flowSegmentData calls.
+# Never commit the real value.
+# TOMTOM_API_KEY=replace-with-local-tomtom-key

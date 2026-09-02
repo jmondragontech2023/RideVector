@@ -39,7 +39,8 @@ Property-based tests are appropriate for range invariants, percentage partitions
 - Worker ↔ routing adapter with recorded/synthetic fixtures plus separately scheduled live Valhalla smoke tests.
 - Traffic/weather adapter mapping, timeouts, partial results, retries, quotas, and malformed payloads.
 - API schema compatibility and generated TypeScript/Swift model conformance once selected.
-- GPX schema/semantic validation in Milestone 10.
+- POC client-side GPX 1.1 unit/semantic checks for field-test download (coordinate order, escaping, invalid geometry failure, filename sanitization).
+- GPX schema/semantic validation for production export contracts in Milestone 10.
 
 External APIs are mocked in ordinary CI. Recorded fixtures must be license-safe, scrubbed of secrets/personal data, versioned, and deliberately refreshable.
 

@@ -69,3 +69,6 @@ credentials.json
 service-account*.json
 **/secrets/**
 !**/secrets/.gitkeep
+
+# Local agent/manual verification artifacts (not committed)
+.artifacts/

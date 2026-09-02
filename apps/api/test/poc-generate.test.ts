@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { METERS_PER_MILE } from '../src/poc/config';
+import { DEFAULT_POC_FEATURES } from '../src/poc/features';
 import { generatePocRoutes } from '../src/poc/generate';
 import { isPocGenerationEnabled, handlePocGenerate } from '../src/poc/handler';
 import type {
@@ -9,6 +10,29 @@ import type {
   RoutingProvider,
 } from '../src/poc/routing/provider';
 import { ValhallaRoutingProvider } from '../src/poc/routing/valhalla';
+import type { ValidatedPocGenerateRequest } from '../src/poc/validate';
+
+function validatedRequest(
+  overrides: Partial<ValidatedPocGenerateRequest> = {},
+): ValidatedPocGenerateRequest {
+  return {
+    start: { latitude: 37.7749, longitude: -122.4194 },
+    routeMode: 'loop',
+    targetDistanceMeters: 20_000,
+    distanceFlexibilityMeters: 3 * METERS_PER_MILE,
+    costing: 'road',
+    seed: 3,
+    features: { ...DEFAULT_POC_FEATURES },
+    elevationPreference: 'none',
+    trafficPreference: 'none',
+    departure: {
+      mode: 'now',
+      departureInstantIso: '2026-08-26T18:00:00.000Z',
+      timeZone: 'UTC',
+    },
+    ...overrides,
+  };
+}
 
 function squareLoop(
   startLat: number,
@@ -54,14 +78,7 @@ class MockRoutingProvider implements RoutingProvider {
 }
 
 describe('generatePocRoutes with mocked provider', () => {
-  const flexMeters = 3 * METERS_PER_MILE;
-  const request = {
-    start: { latitude: 37.7749, longitude: -122.4194 },
-    targetDistanceMeters: 20_000,
-    distanceFlexibilityMeters: flexMeters,
-    costing: 'road' as const,
-    seed: 3,
-  };
+  const request = validatedRequest();
 
   it('maps successful candidates into factual alternatives within tolerance', async () => {
     const provider = new MockRoutingProvider((routeRequest) => {
@@ -95,7 +112,9 @@ describe('generatePocRoutes with mocked provider', () => {
     expect(result.durationMs).toBeGreaterThan(0);
     expect(result.candidateDiagnostics.length).toBeGreaterThan(0);
     expect(result.diagnosticSummary.acceptedCount).toBe(result.acceptedCount);
-    expect(JSON.stringify(result)).not.toContain('timeout');
+    expect(result.trafficDiagnostics.callsAttempted).toBe(0);
+    expect(JSON.stringify(result)).not.toContain('api.tomtom');
+    expect(JSON.stringify(result)).not.toContain('valhalla.example');
   });
 
   it('is deterministic for identical input and seed', async () => {

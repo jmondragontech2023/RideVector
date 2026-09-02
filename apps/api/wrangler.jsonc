@@ -13,6 +13,8 @@
     // Local POC default only (not a secret). Override via .dev.vars if needed.
     // Named remote envs do not set this; POC generation remains ENVIRONMENT=local gated.
     "VALHALLA_BASE_URL": "https://valhalla1.openstreetmap.de",
+    "OPEN_METEO_BASE_URL": "https://api.open-meteo.com",
+    "TOMTOM_BASE_URL": "https://api.tomtom.com",
   },
   "env": {
     "development": {

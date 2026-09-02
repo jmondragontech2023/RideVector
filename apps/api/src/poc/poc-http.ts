@@ -1,3 +1,4 @@
+import { POC_CONFIG } from './config';
 import type { PocErrorBody } from './types';
 
 export function jsonResponse(body: unknown, status = 200, init?: ResponseInit): Response {
@@ -37,6 +38,27 @@ export function readValhallaBaseUrl(env: Env): string | null {
   return baseUrl ? baseUrl : null;
 }
 
+export function readOpenMeteoBaseUrl(env: Env): string {
+  const configured = env.OPEN_METEO_BASE_URL?.trim();
+  return configured && configured.length > 0
+    ? configured.replace(/\/+$/, '')
+    : 'https://api.open-meteo.com';
+}
+
+export function readTomTomBaseUrl(env: Env): string {
+  const configured = env.TOMTOM_BASE_URL?.trim();
+  return configured && configured.length > 0
+    ? configured.replace(/\/+$/, '')
+    : 'https://api.tomtom.com';
+}
+
+/** Optional local secret — never required when traffic enrichment is disabled. */
+export function readTomTomApiKey(env: Env): string | null {
+  const extended = env as Env & { TOMTOM_API_KEY?: string };
+  const key = extended.TOMTOM_API_KEY?.trim();
+  return key && key.length > 0 ? key : null;
+}
+
 export function pocCorsHeaders(): HeadersInit {
   return {
     'access-control-allow-origin': '*',
@@ -48,8 +70,23 @@ export function pocCorsHeaders(): HeadersInit {
 export async function parseJsonBody(
   request: Request,
 ): Promise<{ ok: true; body: unknown } | { ok: false; response: Response }> {
+  let text: string;
   try {
-    return { ok: true, body: await request.json() };
+    text = await request.text();
+  } catch {
+    return {
+      ok: false,
+      response: errorResponse(400, 'VALIDATION_FAILED', 'Request body must be valid JSON.'),
+    };
+  }
+  if (new TextEncoder().encode(text).length > POC_CONFIG.maxRequestBodyBytes) {
+    return {
+      ok: false,
+      response: errorResponse(400, 'VALIDATION_FAILED', 'Request body is too large.'),
+    };
+  }
+  try {
+    return { ok: true, body: JSON.parse(text) as unknown };
   } catch {
     return {
       ok: false,

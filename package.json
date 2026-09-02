@@ -10,6 +10,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "dev": "pnpm --filter @ridevector/api --filter @ridevector/web --parallel dev",
+    "dev:mobile": "pnpm --filter @ridevector/api --filter @ridevector/web --parallel run dev:mobile",
+    "dev:both": "node ./scripts/dev-both.mjs",
     "lint": "pnpm -r run lint",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",

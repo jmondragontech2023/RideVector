@@ -14,7 +14,114 @@ describe('validatePocGenerateRequest', () => {
     if (result.ok) {
       expect(result.request.seed).toBe(0);
       expect(result.request.targetDistanceMeters).toBe(20_000);
+      expect(result.request.routeMode).toBe('loop');
+      expect(result.request.end).toBeUndefined();
     }
+  });
+
+  it('accepts a point-to-point request with a distinct end', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      routeMode: 'point_to_point',
+      end: { latitude: 37.8044, longitude: -122.2712 },
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.request.routeMode).toBe('point_to_point');
+      expect(result.request.end?.latitude).toBeCloseTo(37.8044);
+    }
+  });
+
+  it('accepts point-to-point requests without a target distance', () => {
+    const result = validatePocGenerateRequest({
+      start: valid.start,
+      costing: valid.costing,
+      routeMode: 'point_to_point',
+      end: { latitude: 37.8044, longitude: -122.2712 },
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.request.targetDistanceMeters).toBe(0);
+    }
+  });
+
+  it('ignores an out-of-range target on point-to-point requests', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      routeMode: 'point_to_point',
+      end: { latitude: 37.8044, longitude: -122.2712 },
+      targetDistanceMeters: 100,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.request.targetDistanceMeters).toBe(0);
+    }
+  });
+
+  it('rejects coincident start and end in point-to-point mode', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      routeMode: 'point_to_point',
+      end: valid.start,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.details.some((detail) => detail.field === 'end')).toBe(true);
+      expect(result.details.some((detail) => detail.reason.includes('loop mode'))).toBe(true);
+    }
+  });
+
+  it('rejects loop requests that include an end point', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      end: { latitude: 37.8, longitude: -122.27 },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.details.some((detail) => detail.field === 'end')).toBe(true);
+    }
+  });
+
+  it('rejects Phase 2 waypoint and return inputs', () => {
+    const waypoints = validatePocGenerateRequest({
+      ...valid,
+      routeMode: 'point_to_point',
+      end: { latitude: 37.8, longitude: -122.27 },
+      waypoints: [{ latitude: 37.79, longitude: -122.3 }],
+    });
+    expect(waypoints.ok).toBe(false);
+
+    const returnMode = validatePocGenerateRequest({
+      ...valid,
+      routeMode: 'point_to_point',
+      end: { latitude: 37.8, longitude: -122.27 },
+      returnMode: 'shortest',
+    });
+    expect(returnMode.ok).toBe(false);
+  });
+
+  it('rejects client-computed scores and provider options', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      scoring: { overallScore: 99 },
+      providerOptions: { costing: 'auto' },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.details.map((detail) => detail.field).sort()).toEqual([
+        'providerOptions',
+        'scoring',
+      ]);
+    }
+  });
+
+  it('accepts omitted Phase 2 defaults', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      waypoints: [],
+      returnMode: 'none',
+    });
+    expect(result.ok).toBe(true);
   });
 
   it('defaults distance flexibility to three miles', () => {
@@ -65,5 +172,46 @@ describe('validatePocGenerateRequest', () => {
   it('rejects distances outside the configured range', () => {
     const tooShort = validatePocGenerateRequest({ ...valid, targetDistanceMeters: 100 });
     expect(tooShort.ok).toBe(false);
+  });
+
+  it('rejects scoring toggles without matching enrichment', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      features: {
+        elevationScoring: true,
+        elevationEnrichment: false,
+      },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.details.some((detail) => detail.field === 'features.elevationScoring')).toBe(
+        true,
+      );
+    }
+  });
+
+  it('normalizes departure now and custom modes', () => {
+    const now = validatePocGenerateRequest(valid, {
+      now: () => new Date('2026-08-26T18:00:00.000Z'),
+    });
+    expect(now.ok).toBe(true);
+    if (now.ok) {
+      expect(now.request.departure.mode).toBe('now');
+      expect(now.request.features.distanceFitScoring).toBe(true);
+    }
+
+    const custom = validatePocGenerateRequest({
+      ...valid,
+      departure: {
+        mode: 'custom',
+        localDateTime: '2026-08-27T09:30:00.000Z',
+        timeZone: 'America/Los_Angeles',
+      },
+    });
+    expect(custom.ok).toBe(true);
+    if (custom.ok) {
+      expect(custom.request.departure.mode).toBe('custom');
+      expect(custom.request.departure.timeZone).toBe('America/Los_Angeles');
+    }
   });
 });

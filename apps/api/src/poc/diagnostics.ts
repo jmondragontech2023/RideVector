@@ -7,6 +7,7 @@ import type {
   PocDistanceClassification,
   PocLineString,
   PocRejectionReason,
+  PocRouteMode,
 } from './types';
 
 export type BuildDiagnosticInput = {
@@ -22,6 +23,7 @@ export type BuildDiagnosticInput = {
   distanceFlexibilityMeters: number;
   acceptedRouteName?: string;
   distanceClassification?: PocDistanceClassification;
+  routeMode?: PocRouteMode;
 };
 
 function formatDistanceMiles(meters: number, digits = 1): string {
@@ -40,6 +42,11 @@ function buildExplanation(input: BuildDiagnosticInput): string {
   const bandHigh = formatDistanceMiles(max, 1);
 
   if (input.outcome === 'accepted') {
+    if (input.routeMode === 'point_to_point') {
+      return input.acceptedRouteName
+        ? `Accepted as ${input.acceptedRouteName} for the requested Start and End.`
+        : 'Routed a start-to-end path for the requested Start and End.';
+    }
     if (input.distanceClassification === 'near_match') {
       return input.acceptedRouteName
         ? `Accepted as ${input.acceptedRouteName} near match outside the ${bandLow}–${bandHigh} mile requested range.`
@@ -52,24 +59,36 @@ function buildExplanation(input: BuildDiagnosticInput): string {
 
   switch (input.rejectionReason) {
     case 'upstream_failure':
-      return 'The routing service did not return a usable route for this bearing family.';
+      return input.routeMode === 'point_to_point'
+        ? 'The routing service did not return a usable start-to-end route for this candidate.'
+        : 'The routing service did not return a usable route for this bearing family.';
     case 'malformed_geometry':
       return 'The routing service returned geometry that could not be displayed.';
+    case 'endpoint_mismatch':
+      return 'The routed geometry did not stay on the requested Start and End within the snap tolerance.';
     case 'outside_tolerance':
       return miles
         ? `Routed ${miles} mi, outside the ${bandLow}–${bandHigh} mile requested range around the ${targetMiles} mi target.`
         : `Route distance was outside the ${bandLow}–${bandHigh} mile requested range around the ${targetMiles} mi target.`;
     case 'duplicate_candidate':
       return miles
-        ? `Routed ${miles} mi within range, but the loop shape was too similar to an already accepted candidate.`
-        : 'Loop shape was too similar to an already accepted candidate.';
+        ? input.routeMode === 'point_to_point'
+          ? `Routed ${miles} mi within range, but the path overlapped an already accepted alternative too closely.`
+          : `Routed ${miles} mi within range, but the loop shape was too similar to an already accepted candidate.`
+        : input.routeMode === 'point_to_point'
+          ? 'Path overlapped an already accepted alternative too closely.'
+          : 'Loop shape was too similar to an already accepted candidate.';
     case 'selection_limit':
       return miles
         ? `Routed ${miles} mi and was eligible, but the bounded alternative set was already full.`
-        : 'Eligible loop was not returned because the bounded alternative set was already full.';
+        : input.routeMode === 'point_to_point'
+          ? 'Eligible start-to-end route was not returned because the bounded alternative set was already full.'
+          : 'Eligible loop was not returned because the bounded alternative set was already full.';
     default:
       return input.geometry
-        ? 'Routable loop was not returned as an alternative.'
+        ? input.routeMode === 'point_to_point'
+          ? 'Routable start-to-end path was not returned as an alternative.'
+          : 'Routable loop was not returned as an alternative.'
         : 'This candidate was not returned as an alternative.';
   }
 }
@@ -81,7 +100,8 @@ export function buildCandidateDiagnostic(input: BuildDiagnosticInput): PocCandid
     (input.outcome === 'accepted' ||
       input.rejectionReason === 'outside_tolerance' ||
       input.rejectionReason === 'duplicate_candidate' ||
-      input.rejectionReason === 'selection_limit');
+      input.rejectionReason === 'selection_limit' ||
+      input.rejectionReason === 'endpoint_mismatch');
 
   return {
     attemptNumber: input.attemptNumber,
@@ -119,7 +139,8 @@ function closestRoutableRejected(
       item.distanceMeters !== undefined &&
       (item.rejectionReason === 'outside_tolerance' ||
         item.rejectionReason === 'duplicate_candidate' ||
-        item.rejectionReason === 'selection_limit'),
+        item.rejectionReason === 'selection_limit' ||
+        item.rejectionReason === 'endpoint_mismatch'),
   );
   if (routableRejected.length === 0) {
     return undefined;
@@ -161,7 +182,8 @@ function closestRoutableRejected(
     distanceFromTargetMeters:
       closest.distanceFromTargetMeters ?? distanceMeters - targetDistanceMeters,
     toleranceMissMeters,
-    toleranceMissPercent: (toleranceMissMeters / targetDistanceMeters) * 100,
+    toleranceMissPercent:
+      targetDistanceMeters > 0 ? (toleranceMissMeters / targetDistanceMeters) * 100 : 0,
     direction,
   };
 }

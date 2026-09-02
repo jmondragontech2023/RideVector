@@ -1,23 +1,51 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L, { type LatLngExpression } from 'leaflet';
-import { directionBadgeHtml, sampleDirectionMarkers } from './route-direction';
+import { DirectionMarkerControls } from './DirectionMarkerControls';
+import {
+  defaultDirectionMarkerSettings,
+  loadDirectionMarkerSettings,
+  saveDirectionMarkerSettings,
+  toSampleDirectionMarkerOptions,
+  type DirectionMarkerSettingsV1,
+} from './direction-marker-settings';
+import {
+  directionBadgeHtml,
+  directionMarkerAccessibleLabel,
+  sampleDirectionMarkers,
+} from './route-direction';
 import type { DirectionMarker } from './route-direction';
 import type { MapRecenterRequest } from './map-recenter';
+import { createEndMarkerIcon } from './end-marker';
 import { createStartMarkerIcon } from './start-marker';
 import type { RejectedPreview } from './candidate-diagnostics';
-import type { PocAlternative, PocCoordinate } from './types';
+import type { PocAlternative, PocCoordinate, PocRouteMode } from './types';
+import { readCssColor, type ColorScheme } from './use-prefers-color-scheme';
+import { routePresentationForName } from './layout/route-presentation';
 
 const DEFAULT_CENTER: LatLngExpression = [37.7749, -122.4194];
 const DEFAULT_ZOOM = 12;
-const SELECTED_ROUTE_COLOR = '#0b6e4f';
-const UNSELECTED_ROUTE_COLOR = '#7a8f84';
-const REJECTED_PREVIEW_COLOR = '#d97706';
+
+const MAP_TILES = {
+  light: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  dark: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+} as const;
 
 function numberedDirectionMarkerIcon(marker: DirectionMarker): L.DivIcon {
   return L.divIcon({
     className: 'route-direction-badge-marker',
-    html: directionBadgeHtml(marker.sequence, marker.bearing),
+    html: directionBadgeHtml(marker.sequence, marker.bearing, {
+      kind: marker.kind,
+      progress: marker.progress,
+    }),
     iconSize: [34, 42],
     iconAnchor: [17, 17],
   });
@@ -41,18 +69,22 @@ function StartSelector({ onSelect }: StartSelectorProps) {
 
 type FitRoutesProps = {
   start: PocCoordinate | null;
+  end: PocCoordinate | null;
   alternatives: PocAlternative[];
   selectedId: string | null;
   rejectedPreview: RejectedPreview | null;
 };
 
-function FitRoutes({ start, alternatives, selectedId, rejectedPreview }: FitRoutesProps) {
+function FitRoutes({ start, end, alternatives, selectedId, rejectedPreview }: FitRoutesProps) {
   const map = useMap();
 
   useEffect(() => {
     const points: Array<[number, number]> = [];
     if (start) {
       points.push([start.latitude, start.longitude]);
+    }
+    if (end) {
+      points.push([end.latitude, end.longitude]);
     }
     for (const alt of alternatives) {
       for (const [lon, lat] of alt.geometry.coordinates) {
@@ -72,7 +104,7 @@ function FitRoutes({ start, alternatives, selectedId, rejectedPreview }: FitRout
       return;
     }
     map.fitBounds(points, { padding: [36, 36] });
-  }, [map, start, alternatives, selectedId, rejectedPreview]);
+  }, [map, start, end, alternatives, selectedId, rejectedPreview]);
 
   return null;
 }
@@ -94,37 +126,106 @@ function RecenterMap({ request }: RecenterMapProps) {
   return null;
 }
 
+type InvalidateMapSizeProps = {
+  layoutKey: string;
+};
+
+function InvalidateMapSize({ layoutKey }: InvalidateMapSizeProps) {
+  const map = useMap();
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      map.invalidateSize({ animate: false });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [map, layoutKey]);
+
+  return null;
+}
+
 function toPositions(coordinates: Array<[number, number]>): LatLngExpression[] {
   return coordinates.map(([lon, lat]) => [lat, lon] as LatLngExpression);
 }
 
 export type RouteMapProps = {
   start: PocCoordinate | null;
+  end?: PocCoordinate | null;
+  routeMode?: PocRouteMode;
   alternatives: PocAlternative[];
   selectedId: string | null;
   recenterRequest: MapRecenterRequest | null;
   rejectedPreview: RejectedPreview | null;
   onSelectStart: (coordinate: PocCoordinate) => void;
+  onSelectCoordinate?: (coordinate: PocCoordinate) => void;
+  /** Changes when planner chrome layout shifts so Leaflet can recalculate size. */
+  layoutKey?: string;
+  mapTheme: ColorScheme;
 };
 
 export function RouteMap({
   start,
+  end = null,
+  routeMode = 'loop',
   alternatives,
   selectedId,
   recenterRequest,
   rejectedPreview,
   onSelectStart,
+  onSelectCoordinate,
+  layoutKey = 'default',
+  mapTheme,
 }: RouteMapProps) {
+  const tiles = MAP_TILES[mapTheme];
+  const [markerSettings, setMarkerSettings] = useState<DirectionMarkerSettingsV1>(() =>
+    defaultDirectionMarkerSettings(),
+  );
+  const [markerSettingsHydrated, setMarkerSettingsHydrated] = useState(false);
+
+  useEffect(() => {
+    setMarkerSettings(loadDirectionMarkerSettings());
+    setMarkerSettingsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!markerSettingsHydrated) {
+      return;
+    }
+    saveDirectionMarkerSettings(markerSettings);
+  }, [markerSettings, markerSettingsHydrated]);
+
+  const routeColors = {
+    selected: readCssColor('--rv-route-selected', '#2563eb'),
+    unselected: readCssColor('--rv-route-unselected', '#64748b'),
+    rejected: readCssColor('--rv-route-rejected', '#d97706'),
+    flow: readCssColor('--rv-route-flow', '#ffffff'),
+  };
+
+  function colorForAlternative(alt: PocAlternative, selected: boolean): string {
+    const identity = routePresentationForName(alt.name);
+    const identityColor = readCssColor(identity.cssVar, identity.fallback);
+    if (selected) {
+      // Selected routes keep blue emphasis while retaining identity for unselected peers.
+      return routeColors.selected;
+    }
+    return identityColor || routeColors.unselected;
+  }
+
   const center: LatLngExpression = start ? [start.latitude, start.longitude] : DEFAULT_CENTER;
   const selectedAlternative =
     alternatives.find((alternative) => alternative.id === selectedId) ?? null;
   const unselectedAlternatives = alternatives.filter(
     (alternative) => alternative.id !== selectedId,
   );
+  const directionMarkerOptions = useMemo(
+    () => toSampleDirectionMarkerOptions(markerSettings),
+    [markerSettings],
+  );
   const directionMarkers = useMemo(
     () =>
-      selectedAlternative ? sampleDirectionMarkers(selectedAlternative.geometry.coordinates) : [],
-    [selectedAlternative],
+      selectedAlternative
+        ? sampleDirectionMarkers(selectedAlternative.geometry.coordinates, directionMarkerOptions)
+        : [],
+    [selectedAlternative, directionMarkerOptions],
   );
   const selectedPositions = selectedAlternative
     ? toPositions(selectedAlternative.geometry.coordinates)
@@ -133,28 +234,29 @@ export function RouteMap({
     ? toPositions(rejectedPreview.geometry.coordinates)
     : [];
   const startMarkerIcon = useMemo(() => createStartMarkerIcon(), []);
+  const endMarkerIcon = useMemo(() => createEndMarkerIcon(), []);
+  const visibleEnd = routeMode === 'point_to_point' ? end : null;
 
   return (
     <div className="route-map-wrap">
       <MapContainer center={center} zoom={DEFAULT_ZOOM} className="route-map" scrollWheelZoom>
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <StartSelector onSelect={onSelectStart} />
+        <TileLayer key={mapTheme} attribution={tiles.attribution} url={tiles.url} />
+        <StartSelector onSelect={onSelectCoordinate ?? onSelectStart} />
         <FitRoutes
           start={start}
+          end={visibleEnd}
           alternatives={alternatives}
           selectedId={selectedId}
           rejectedPreview={rejectedPreview}
         />
         <RecenterMap request={recenterRequest} />
+        <InvalidateMapSize layoutKey={`${layoutKey}-${mapTheme}`} />
         {rejectedPreview ? (
           <Polyline
             key={`rejected-preview-${rejectedPreview.attemptNumber}`}
             positions={rejectedPreviewPositions}
             pathOptions={{
-              color: REJECTED_PREVIEW_COLOR,
+              color: routeColors.rejected,
               weight: 4,
               opacity: 0.85,
               dashArray: '8 10',
@@ -167,9 +269,9 @@ export function RouteMap({
             key={alt.id}
             positions={toPositions(alt.geometry.coordinates)}
             pathOptions={{
-              color: UNSELECTED_ROUTE_COLOR,
+              color: colorForAlternative(alt, false),
               weight: 3,
-              opacity: 0.45,
+              opacity: 0.55,
             }}
           />
         ))}
@@ -179,7 +281,7 @@ export function RouteMap({
               key={`${selectedAlternative.id}-solid`}
               positions={selectedPositions}
               pathOptions={{
-                color: SELECTED_ROUTE_COLOR,
+                color: colorForAlternative(selectedAlternative, true),
                 weight: 5,
                 opacity: 0.95,
                 className: 'route-selected-solid',
@@ -189,7 +291,7 @@ export function RouteMap({
               key={`${selectedAlternative.id}-flow`}
               positions={selectedPositions}
               pathOptions={{
-                color: '#ffffff',
+                color: routeColors.flow,
                 weight: 3,
                 opacity: 0.75,
                 dashArray: '10 14',
@@ -203,6 +305,7 @@ export function RouteMap({
             key={`${selectedAlternative?.id ?? 'selected'}-direction-${marker.sequence}`}
             position={[marker.lat, marker.lon]}
             icon={numberedDirectionMarkerIcon(marker)}
+            title={directionMarkerAccessibleLabel(marker)}
             interactive={false}
             keyboard={false}
             bubblingMouseEvents={false}
@@ -213,15 +316,49 @@ export function RouteMap({
           <Marker
             position={[start.latitude, start.longitude]}
             icon={startMarkerIcon}
-            title="Route start"
+            title="Start"
             zIndexOffset={1600}
           />
         ) : null}
+        {visibleEnd ? (
+          <Marker
+            position={[visibleEnd.latitude, visibleEnd.longitude]}
+            icon={endMarkerIcon}
+            title="End"
+            zIndexOffset={1650}
+          />
+        ) : null}
       </MapContainer>
+      <DirectionMarkerControls
+        settings={markerSettings}
+        markerCount={directionMarkers.length}
+        onChange={setMarkerSettings}
+        onReset={() => setMarkerSettings(defaultDirectionMarkerSettings())}
+      />
       <p className="route-map-legend" aria-label="Map legend">
-        {rejectedPreview
-          ? `${rejectedPreview.label} (dashed orange) · Start → follow 1 → 2 → 3… on accepted routes`
-          : 'Start → follow 1 → 2 → 3…'}
+        {rejectedPreview ? (
+          <>
+            <span className="route-map-legend__short">
+              {rejectedPreview.label} (dashed) · Start
+              {visibleEnd ? ' → End' : ''} → numbered arrows
+            </span>
+            <span className="route-map-legend__full">
+              {rejectedPreview.label} (dashed orange) · Start
+              {visibleEnd ? ' → End' : ''} → follow numbered arrows in order (green → yellow → red).
+              Markers tighten at turns; paired outlined arrows mark reversals or crossings.
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="route-map-legend__short">
+              Start{visibleEnd ? ' → End' : ''} → numbered arrows (green → yellow → red)
+            </span>
+            <span className="route-map-legend__full">
+              Start{visibleEnd ? ' → End' : ''} → follow numbered arrows in order (green → yellow →
+              red). Markers tighten at turns; paired outlined arrows mark reversals or crossings.
+            </span>
+          </>
+        )}
       </p>
     </div>
   );

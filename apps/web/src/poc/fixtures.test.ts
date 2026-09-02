@@ -3,8 +3,11 @@ import { POC_SCENARIO_FIXTURES } from './fixtures';
 import { milesToMeters } from './units';
 
 describe('POC scenario fixtures', () => {
-  it('provides five non-sensitive public scenarios', () => {
-    expect(POC_SCENARIO_FIXTURES).toHaveLength(5);
+  it('provides public loop and start-to-end scenarios', () => {
+    expect(POC_SCENARIO_FIXTURES.length).toBeGreaterThanOrEqual(5);
+    expect(
+      POC_SCENARIO_FIXTURES.filter((fixture) => fixture.routeMode === 'point_to_point'),
+    ).toHaveLength(2);
   });
 
   it('keeps coordinates in WGS84 bounds and uses canonical mile conversion', () => {
@@ -19,6 +22,13 @@ describe('POC scenario fixtures', () => {
       );
       expect(['road', 'gravel']).toContain(fixture.costing);
       expect(Number.isInteger(fixture.seed)).toBe(true);
+      if (fixture.routeMode === 'point_to_point') {
+        expect(fixture.end).toBeDefined();
+        expect(fixture.end?.latitude).toBeGreaterThanOrEqual(-90);
+        expect(fixture.end?.latitude).toBeLessThanOrEqual(90);
+        expect(fixture.end?.longitude).toBeGreaterThanOrEqual(-180);
+        expect(fixture.end?.longitude).toBeLessThanOrEqual(180);
+      }
     }
   });
 });

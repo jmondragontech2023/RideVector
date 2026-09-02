@@ -62,6 +62,35 @@ pnpm dev
 
 That starts the local Worker (`http://127.0.0.1:8787`) and web app (`http://localhost:5173`) in parallel.
 
+#### Phone / LAN testing (“Use my location”)
+
+Browsers only allow the Geolocation API on **HTTPS** or **localhost**. Opening the planner as plain `http://192.168.x.x:5173` on a phone will fail with a secure-origin error.
+
+For same-Wi‑Fi / Tailscale phone tests (HTTPS only):
+
+```bash
+pnpm run dev:mobile
+```
+
+1. On your computer, note the Vite **Network** URL that starts with `https://` (LAN IP + port).
+2. Open that URL on the phone (same Wi‑Fi / Tailscale as the computer).
+3. Accept the self-signed certificate warning once (Advanced → proceed / visit anyway).
+4. Tap **Use my location** and allow location permission when prompted.
+5. Generate routes as usual; `/api` still proxies to the local Worker.
+
+Desktop testing can stay on `pnpm dev` and `http://localhost:5173` — localhost already counts as a secure context for geolocation.
+
+To run **HTTP and HTTPS at the same time** (one Worker, two Vite processes):
+
+```bash
+pnpm run dev:both
+```
+
+- Desktop: `http://localhost:5173`
+- Phone / Tailscale: `https://<lan-or-tailscale-ip>:5174` (accept the self-signed cert once)
+
+A single Vite process cannot serve both protocols; `dev:both` starts HTTP on **5173** and HTTPS on **5174**, both proxying `/api` to the Worker on **8787**.
+
 Smoke the routing spike:
 
 ```bash
@@ -71,16 +100,31 @@ curl -s http://127.0.0.1:8787/api/poc/routes/route \
   -d '{"start":{"lat":33.0,"lon":-117.0},"destination":{"lat":33.1,"lon":-117.1}}'
 ```
 
-Loop generation (map UI) uses `POST /api/poc/routes/generate`. Both POC routes are available only when `ENVIRONMENT=local`.
+Loop and start-to-end generation (map UI) uses `POST /api/poc/routes/generate`. Both POC routes are available only when `ENVIRONMENT=local`. Start-and-end mode is the ADR-020 Phase 1 extension; ordered stops and return routing are not implemented yet.
 
 Optional overrides:
 
 ```bash
 cp apps/api/.dev.vars.example apps/api/.dev.vars
 # VALHALLA_BASE_URL=https://valhalla1.openstreetmap.de
+# Optional motor-traffic enrichment (TomTom Flow Segment Data):
+# TOMTOM_API_KEY=replace-with-local-tomtom-key
 ```
 
-POC docs: [`poc/README.md`](poc/README.md). Owner evaluation worksheet: [`poc/EVALUATION.md`](poc/EVALUATION.md) (results remain pending until the owner fills them).
+Experimental scoring/enrichment (distance fit, loop quality, diversity, elevation, traffic, weather) is documented in [`poc/SCORING_AND_ENRICHMENT.md`](poc/SCORING_AND_ENRICHMENT.md). Provider keys stay Worker-side; the browser never receives provider URLs, payloads, or credentials.
+
+#### Garmin GPX field-test export (POC-4)
+
+After generating (or reopening a locally saved) route:
+
+1. Open the **Details** tab for the selected accepted alternative.
+2. Click **Export to Garmin** (or **Download GPX**) — client-side only, no API endpoint and no direct Garmin sync.
+3. In Garmin Connect: **Training & Planning → Courses → Import**, then sync the course to a compatible Garmin device.
+4. Record results in [`poc/EVALUATION.md`](poc/EVALUATION.md).
+
+Current POC GPX limitations: no elevation, timestamps, course points, guaranteed turn prompts, or direct Garmin/Strava account publishing. The file is a planned track of the exact selected geometry. Filenames use start area + distance + seed (for example `RideVector-Encinitas-12.0mi-seed-42.gpx`); start area comes from reverse geocoding or the loaded fixture label, with `Local` as fallback.
+
+POC docs: [`poc/README.md`](poc/README.md). Owner evaluation worksheet: [`poc/EVALUATION.md`](poc/EVALUATION.md) (results remain pending until the owner fills them). Scoring experiment: [`poc/SCORING_AND_ENRICHMENT.md`](poc/SCORING_AND_ENRICHMENT.md).
 
 ### Other local commands
 
@@ -129,6 +173,8 @@ Use these permanent documents as shared memory. Prefer them over `RIDEVECTOR_HAN
 - [DECISIONS.md](DECISIONS.md): accepted, proposed, and deferred decisions
 - [AGENTS.md](AGENTS.md): repository-wide contributor instructions
 - [poc/README.md](poc/README.md): time-boxed route-generation POC scope, sequence, and guardrails
+- [poc/SCORING_AND_ENRICHMENT.md](poc/SCORING_AND_ENRICHMENT.md): provisional POC scoring and enrichment experiment
+- [poc/EVALUATION.md](poc/EVALUATION.md): owner field-test worksheet (results pending)
 - [supabase/README.md](supabase/README.md): declarative schema / local Supabase workflow
 
 `RIDEVECTOR_HANDOFF.md` is historical planning input only.

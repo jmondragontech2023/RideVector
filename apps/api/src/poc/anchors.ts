@@ -50,6 +50,27 @@ export function destinationPoint(
   };
 }
 
+export function bearingDegrees(a: PocCoordinate, b: PocCoordinate): number {
+  const lat1 = toRadians(a.latitude);
+  const lat2 = toRadians(b.latitude);
+  const dLon = toRadians(b.longitude - a.longitude);
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  return normalizeBearing(toDegrees(Math.atan2(y, x)));
+}
+
+/** Linear interpolation in WGS84 degrees. Fine for short bicycle corridors. */
+export function interpolateCoordinate(
+  start: PocCoordinate,
+  end: PocCoordinate,
+  fraction: number,
+): PocCoordinate {
+  return {
+    latitude: start.latitude + (end.latitude - start.latitude) * fraction,
+    longitude: start.longitude + (end.longitude - start.longitude) * fraction,
+  };
+}
+
 export function haversineMeters(a: PocCoordinate, b: PocCoordinate): number {
   const dLat = toRadians(b.latitude - a.latitude);
   const dLon = toRadians(b.longitude - a.longitude);

@@ -12,15 +12,60 @@ export type PocLineString = {
   coordinates: Array<[number, number]>;
 };
 
+export type PocExperimentalFeatures = {
+  distanceFitScoring: boolean;
+  loopQualityScoring: boolean;
+  routeDiversityScoring: boolean;
+  elevationEnrichment: boolean;
+  elevationScoring: boolean;
+  motorTrafficEnrichment: boolean;
+  motorTrafficScoring: boolean;
+  weatherForecast: boolean;
+  weatherScoring: boolean;
+};
+
+export type PocFeaturePreset = 'basic' | 'geometry' | 'traffic' | 'weather' | 'full';
+
+export type PocElevationPreference = 'none' | 'flatter' | 'rolling' | 'climbing';
+
+export type PocTrafficPreference = 'none' | 'prefer_lower' | 'strongly_avoid_heavy';
+
+export type PocDepartureRequest =
+  | { mode: 'now' }
+  | { mode: 'custom'; localDateTime: string; timeZone: string };
+
+export type PocNormalizedDeparture = {
+  mode: 'now' | 'custom';
+  departureInstantIso: string;
+  timeZone: string;
+};
+
+export type PocRouteMode = 'loop' | 'point_to_point';
+
+/** Phase 2 only — rejected when present and not the documented default. */
+export type PocReturnMode = 'none' | 'same_path' | 'shortest';
+
 export type PocGenerateRequest = {
   start: PocCoordinate;
-  /** Canonical target distance in meters. */
-  targetDistanceMeters: number;
-  /** ± flexibility around target in meters (user-controlled). */
-  distanceFlexibilityMeters: number;
+  /** Canonical target distance in meters. Required for loops; ignored for start/end. */
+  targetDistanceMeters?: number;
+  /** ± flexibility around target in meters (user-controlled). Required for loops; ignored for start/end. */
+  distanceFlexibilityMeters?: number;
   costing: PocCostingMode;
   /** Optional integer seed for deterministic anchors. */
   seed?: number;
+  features?: Partial<PocExperimentalFeatures>;
+  elevationPreference?: PocElevationPreference;
+  trafficPreference?: PocTrafficPreference;
+  departure?: PocDepartureRequest;
+  /** Omitted means legacy loop generation. */
+  routeMode?: PocRouteMode;
+  /** Required for point-to-point; rejected on loop requests. */
+  end?: PocCoordinate;
+  /** Phase 2 ordered intermediate stops — rejected when non-empty in Phase 1. */
+  waypoints?: PocCoordinate[];
+  /** Phase 2 return choice — rejected unless omitted or `none` in Phase 1. */
+  returnMode?: PocReturnMode;
 };
 
 export type PocDistanceClassification = 'within_range' | 'near_match';
@@ -30,7 +75,19 @@ export type PocRejectionReason =
   | 'malformed_geometry'
   | 'outside_tolerance'
   | 'duplicate_candidate'
-  | 'selection_limit';
+  | 'selection_limit'
+  | 'endpoint_mismatch';
+
+export function emptyRejectionCounts(): Record<PocRejectionReason, number> {
+  return {
+    upstream_failure: 0,
+    malformed_geometry: 0,
+    outside_tolerance: 0,
+    duplicate_candidate: 0,
+    selection_limit: 0,
+    endpoint_mismatch: 0,
+  };
+}
 
 export type PocCandidateOutcome = 'accepted' | 'rejected';
 
@@ -63,6 +120,131 @@ export type PocDiagnosticSummary = {
   };
 };
 
+export type PocCategoryBadge =
+  | 'closest_to_target'
+  | 'cleanest_loop'
+  | 'cleanest_path'
+  | 'most_distinct'
+  | 'shortest_estimated_time'
+  | 'near_match'
+  | 'flattest'
+  | 'rolling'
+  | 'most_climbing'
+  | 'best_weather_window'
+  | 'lowest_rain_exposure'
+  | 'lowest_wind_exposure'
+  | 'lowest_estimated_motor_traffic_exposure';
+
+export type PocComponentScore = {
+  score: number | null;
+  weight: number;
+  raw: Record<string, unknown>;
+  applicable: boolean;
+};
+
+export type PocRouteScoring = {
+  version: string;
+  overallScore: number | null;
+  components: Partial<
+    Record<
+      'distanceFit' | 'loopQuality' | 'diversity' | 'motorTraffic' | 'elevation' | 'weather',
+      PocComponentScore
+    >
+  >;
+  missingComponents: string[];
+  explanations: string[];
+  explanationCodes: string[];
+  fitSummary: string;
+};
+
+export type PocElevationSummary = {
+  status: 'ok' | 'unknown' | 'unavailable' | 'partial';
+  gainMeters: number | null;
+  lossMeters: number | null;
+  minMeters: number | null;
+  maxMeters: number | null;
+  gainPerMile: number | null;
+  coverage: number | null;
+  confidence: 'high' | 'medium' | 'low' | 'unknown';
+  provider: 'valhalla_height';
+};
+
+export type PocWeatherSummary = {
+  status: 'ok' | 'unknown' | 'unavailable' | 'partial' | 'stale';
+  temperatureMinC: number | null;
+  temperatureMaxC: number | null;
+  apparentTemperatureMinC: number | null;
+  apparentTemperatureMaxC: number | null;
+  precipitationProbabilityMax: number | null;
+  precipitationMm: number | null;
+  windSpeedMaxKmh: number | null;
+  windGustMaxKmh: number | null;
+  weatherCodes: number[];
+  warnings: string[];
+  coverage: number | null;
+  confidence: 'high' | 'medium' | 'low' | 'unknown';
+  provider: 'open_meteo';
+  forecastGeneratedAtIso: string | null;
+  intervalStartIso: string | null;
+  intervalEndIso: string | null;
+};
+
+export type PocTrafficSummary = {
+  status: 'ok' | 'unknown' | 'unavailable' | 'partial';
+  baselineExposure: number | null;
+  exposureLabel:
+    | 'lower_estimated_motor_traffic_exposure'
+    | 'moderate_estimated_motor_traffic_exposure'
+    | 'higher_estimated_motor_traffic_exposure'
+    | 'insufficient_traffic_coverage'
+    | null;
+  currentCongestionDetected: boolean;
+  coverage: number | null;
+  confidence: 'high' | 'medium' | 'low' | 'unknown';
+  sampleCount: number;
+  usableSampleCount: number;
+  closuresDetected: boolean;
+  provider: 'tomtom_flow';
+  warnings: string[];
+};
+
+/** Safe debug summary for traffic enrichment — no keys, URLs, payloads, or coordinates. */
+export type PocTrafficDiagnostics = {
+  enrichmentRequested: boolean;
+  scoringRequested: boolean;
+  apiKeyConfigured: boolean;
+  providerInvoked: boolean;
+  callsAttempted: number;
+  callOutcomes: {
+    ok: number;
+    timeout: number;
+    error: number;
+    unavailable: number;
+  };
+  /** Counts of non-secret upstream HTTP statuses, e.g. { "401": 15 }. */
+  httpStatusCounts: Record<string, number>;
+  routesConsidered: number;
+  routesEnriched: number;
+  routesWithComparableCoverage: number;
+  minComparableCoverage: number;
+  minComparableRoutes: number;
+  rankingEnabled: boolean;
+  rankingDisabledReason:
+    | null
+    | 'enrichment_disabled'
+    | 'scoring_disabled'
+    | 'api_key_missing'
+    | 'no_provider'
+    | 'no_calls_attempted'
+    | 'insufficient_comparable_coverage'
+    | 'preference_none';
+};
+
+export type PocDiversitySummary = {
+  sharedRoutePercentByPeer: Record<string, number>;
+  contributionScore: number;
+};
+
 export type PocAlternative = {
   /** Opaque POC-local identifier. */
   id: string;
@@ -79,6 +261,12 @@ export type PocAlternative = {
   requestedRangeMeters: { min: number; max: number };
   rangeDeviationMeters?: number;
   targetDifferencePercent?: number;
+  categories: PocCategoryBadge[];
+  scoring: PocRouteScoring;
+  diversity?: PocDiversitySummary;
+  elevation?: PocElevationSummary;
+  weather?: PocWeatherSummary;
+  traffic?: PocTrafficSummary;
 };
 
 export type PocGenerateResponse = {
@@ -86,6 +274,9 @@ export type PocGenerateResponse = {
   durationMs: number;
   attemptedCount: number;
   acceptedCount: number;
+  routeMode: PocRouteMode;
+  start: PocCoordinate;
+  end?: PocCoordinate;
   alternatives: PocAlternative[];
   rejections: Record<PocRejectionReason, number>;
   warnings: string[];
@@ -93,6 +284,14 @@ export type PocGenerateResponse = {
   diagnosticSummary: PocDiagnosticSummary;
   distanceFlexibilityMeters: number;
   requestedRangeMeters: { min: number; max: number };
+  features: PocExperimentalFeatures;
+  elevationPreference: PocElevationPreference;
+  trafficPreference: PocTrafficPreference;
+  departure: PocNormalizedDeparture;
+  scoringVersion: string;
+  enrichmentWarnings: string[];
+  attribution: string[];
+  trafficDiagnostics: PocTrafficDiagnostics;
 };
 
 export type PocValidationIssue = {

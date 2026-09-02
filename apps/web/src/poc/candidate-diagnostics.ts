@@ -19,7 +19,7 @@ const REJECTION_LABELS: Record<PocRejectionReason, RejectionReasonLabel> = {
   },
   duplicate_candidate: {
     short: 'Near duplicate',
-    description: 'Routed within range but too similar to an already accepted loop.',
+    description: 'Routed within range but too similar to an already accepted alternative.',
   },
   upstream_failure: {
     short: 'Routing failed',
@@ -32,6 +32,10 @@ const REJECTION_LABELS: Record<PocRejectionReason, RejectionReasonLabel> = {
   selection_limit: {
     short: 'Not selected',
     description: 'Eligible but excluded by the bounded alternative limit.',
+  },
+  endpoint_mismatch: {
+    short: 'Missed endpoint',
+    description: 'Routed geometry did not stay on the requested Start and End.',
   },
 };
 
@@ -139,6 +143,21 @@ export function buildGenerationSummary(response: PocGenerateResponse): string {
     (item) => item.distanceClassification === 'within_range',
   ).length;
 
+  if (response.routeMode === 'point_to_point') {
+    if (acceptedCount === 0) {
+      const breakdown = joinEnglishParts(
+        formatRejectionBreakdown(diagnosticSummary.rejectionCounts, requestedRangeMeters),
+      );
+      const base = breakdown
+        ? `Tried ${attempted} start-to-end path${attempted === 1 ? '' : 's'}. ${breakdown.charAt(0).toUpperCase()}${breakdown.slice(1)}.`
+        : `Tried ${attempted} start-to-end path${attempted === 1 ? '' : 's'}. None passed filtering.`;
+      return base;
+    }
+    return acceptedCount === 1
+      ? 'Routed from Start to End.'
+      : `Routed ${acceptedCount} start-to-end alternatives.`;
+  }
+
   if (acceptedCount > 0 && withinCount === 0) {
     return (
       warnings.find((warning) => warning.includes('exact range')) ??
@@ -227,6 +246,7 @@ export function emptyDiagnosticSummary(): PocGenerateResponse['diagnosticSummary
       outside_tolerance: 0,
       duplicate_candidate: 0,
       selection_limit: 0,
+      endpoint_mismatch: 0,
     },
   };
 }

@@ -84,7 +84,7 @@ Record request ID, status, aggregate timing, stage/provider class, candidate cou
 
 ## Future endpoints
 
-GPX export and Garmin/Strava authorization/publishing are later milestones. OAuth callbacks require state/PKCE as applicable, encrypted credential handling, least scopes, revocation, provider-policy review, and separate threat modeling before contracts are accepted.
+POC GPX download is **client-side only** in the web app and creates no API endpoint (ADR-019). Production GPX export contracts, Garmin Courses API / Strava authorization and direct publishing, and related OAuth callbacks remain later milestones. OAuth callbacks require state/PKCE as applicable, encrypted credential handling, least scopes, revocation, provider-policy review, and separate threat modeling before contracts are accepted.
 
 ## Contract workflow
 
