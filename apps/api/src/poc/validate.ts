@@ -1,11 +1,20 @@
 import { METERS_PER_MILE, POC_CONFIG, type PocCostingMode } from './config';
+import {
+  adjacentLocationsCollapse,
+  coordinatesAreCoincident,
+  isFiniteNumber,
+  parseCoordinate,
+} from './coordinates';
 import { defaultDistanceFlexibilityMeters } from './distance-range';
 import { isElevationPreference, isTrafficPreference, normalizePocFeatures } from './features';
-import type { PocGenerateRequest, PocNormalizedDeparture, PocValidationIssue } from './types';
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
+import type {
+  PocCoordinate,
+  PocElevationPreference,
+  PocNormalizedDeparture,
+  PocRouteMode,
+  PocTrafficPreference,
+  PocValidationIssue,
+} from './types';
 
 function isInteger(value: unknown): value is number {
   return isFiniteNumber(value) && Number.isInteger(value);
@@ -87,12 +96,34 @@ function normalizeDeparture(
   };
 }
 
-export type ValidatedPocGenerateRequest = Required<
-  Omit<PocGenerateRequest, 'features' | 'departure'>
-> & {
+export type ValidatedPocGenerateRequest = {
+  start: PocCoordinate;
+  end?: PocCoordinate;
+  routeMode: PocRouteMode;
+  targetDistanceMeters: number;
+  distanceFlexibilityMeters: number;
+  costing: PocCostingMode;
+  seed: number;
   features: ReturnType<typeof normalizePocFeatures>;
+  elevationPreference: PocElevationPreference;
+  trafficPreference: PocTrafficPreference;
   departure: PocNormalizedDeparture;
 };
+
+export function isPointToPointRequest(
+  request: ValidatedPocGenerateRequest,
+): request is ValidatedPocGenerateRequest & { routeMode: 'point_to_point'; end: PocCoordinate } {
+  return request.routeMode === 'point_to_point' && request.end !== undefined;
+}
+
+const FORBIDDEN_CLIENT_FIELDS = [
+  'score',
+  'scores',
+  'overallScore',
+  'scoring',
+  'providerOptions',
+  'costingOptions',
+] as const;
 
 /**
  * Validates and normalizes a POC generate request.
@@ -115,31 +146,80 @@ export function validatePocGenerateRequest(
   }
 
   const record = body as Record<string, unknown>;
-  const start = record.start;
 
-  if (start === null || typeof start !== 'object' || Array.isArray(start)) {
-    details.push({ field: 'start', reason: 'must be an object with latitude and longitude' });
-  } else {
-    const startRecord = start as Record<string, unknown>;
-    if (
-      !isFiniteNumber(startRecord.latitude) ||
-      startRecord.latitude < -90 ||
-      startRecord.latitude > 90
-    ) {
+  for (const field of FORBIDDEN_CLIENT_FIELDS) {
+    if (record[field] !== undefined) {
       details.push({
-        field: 'start.latitude',
-        reason: 'must be a finite number between -90 and 90',
+        field,
+        reason: 'client-computed scores and provider options are not accepted',
       });
     }
-    if (
-      !isFiniteNumber(startRecord.longitude) ||
-      startRecord.longitude < -180 ||
-      startRecord.longitude > 180
-    ) {
+  }
+
+  const startResult = parseCoordinate(record.start, 'start');
+  if (!startResult.ok) {
+    details.push(...startResult.details);
+  }
+
+  let routeMode: PocRouteMode = 'loop';
+  if (record.routeMode !== undefined) {
+    if (record.routeMode !== 'loop' && record.routeMode !== 'point_to_point') {
       details.push({
-        field: 'start.longitude',
-        reason: 'must be a finite number between -180 and 180',
+        field: 'routeMode',
+        reason: 'must be "loop" or "point_to_point" when provided',
       });
+    } else {
+      routeMode = record.routeMode;
+    }
+  }
+
+  if (record.waypoints !== undefined) {
+    if (!Array.isArray(record.waypoints)) {
+      details.push({ field: 'waypoints', reason: 'must be an array when provided' });
+    } else if (record.waypoints.length > 0) {
+      details.push({
+        field: 'waypoints',
+        reason: 'ordered stops are not supported in this POC phase',
+      });
+    }
+  }
+
+  if (record.returnMode !== undefined && record.returnMode !== 'none') {
+    details.push({
+      field: 'returnMode',
+      reason:
+        record.returnMode === 'same_path' || record.returnMode === 'shortest'
+          ? 'return routing is not supported in this POC phase'
+          : 'must be "none" when provided',
+    });
+  }
+
+  let end: PocCoordinate | undefined;
+  if (routeMode === 'loop') {
+    if (record.end !== undefined) {
+      details.push({
+        field: 'end',
+        reason: 'loop requests cannot include an end point; omit end or switch to point_to_point',
+      });
+    }
+  } else if (routeMode === 'point_to_point') {
+    const endResult = parseCoordinate(record.end, 'end');
+    if (!endResult.ok) {
+      details.push(...endResult.details);
+    } else {
+      end = endResult.coordinate;
+      if (startResult.ok && coordinatesAreCoincident(startResult.coordinate, end)) {
+        details.push({
+          field: 'end',
+          reason:
+            'Start and End are the same location. Use loop mode for a ride that returns to the start.',
+        });
+      } else if (startResult.ok && adjacentLocationsCollapse(startResult.coordinate, end)) {
+        details.push({
+          field: 'end',
+          reason: 'Start and End are too close and would collapse into a zero-length leg',
+        });
+      }
     }
   }
 
@@ -241,20 +321,18 @@ export function validatePocGenerateRequest(
     details.push(...departureResult.details);
   }
 
-  if (details.length > 0) {
+  if (details.length > 0 || !startResult.ok) {
     return { ok: false, details };
   }
 
-  const startRecord = record.start as { latitude: number; longitude: number };
   const seed = record.seed === undefined ? 0 : (record.seed as number);
 
   return {
     ok: true,
     request: {
-      start: {
-        latitude: startRecord.latitude,
-        longitude: startRecord.longitude,
-      },
+      start: startResult.coordinate,
+      routeMode,
+      ...(routeMode === 'point_to_point' && end ? { end } : {}),
       targetDistanceMeters: record.targetDistanceMeters as number,
       distanceFlexibilityMeters: flexMeters,
       costing: record.costing as PocCostingMode,

@@ -157,6 +157,22 @@ describe('poc local storage', () => {
     expect(parsed.routes[0]?.alternative.requestedRangeMeters.max).toBeCloseTo(
       12 * 1.2 * METERS_PER_MILE,
     );
+    expect(parsed.routes[0]?.routeMode).toBe('loop');
+  });
+
+  it('restores start-and-end saves and treats current-format loop saves as loops', () => {
+    const pointToPoint: SavedPocRoute = {
+      ...sampleRoute,
+      id: 'saved-ptp',
+      routeMode: 'point_to_point',
+      end: { latitude: 37.8, longitude: -122.4 },
+    };
+    const parsed = parsePocStore(
+      JSON.stringify({ version: 1, routes: [pointToPoint, sampleRoute] }),
+    );
+    expect(parsed.routes[0]?.routeMode).toBe('point_to_point');
+    expect(parsed.routes[0]?.end).toEqual({ latitude: 37.8, longitude: -122.4 });
+    expect(parsed.routes[1]?.routeMode).toBe('loop');
   });
 
   it('rewrites migrated legacy routes back to storage on load', () => {

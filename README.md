@@ -100,7 +100,7 @@ curl -s http://127.0.0.1:8787/api/poc/routes/route \
   -d '{"start":{"lat":33.0,"lon":-117.0},"destination":{"lat":33.1,"lon":-117.1}}'
 ```
 
-Loop generation (map UI) uses `POST /api/poc/routes/generate`. Both POC routes are available only when `ENVIRONMENT=local`.
+Loop and start-to-end generation (map UI) uses `POST /api/poc/routes/generate`. Both POC routes are available only when `ENVIRONMENT=local`. Start-and-end mode is the ADR-020 Phase 1 extension; ordered stops and return routing are not implemented yet.
 
 Optional overrides:
 

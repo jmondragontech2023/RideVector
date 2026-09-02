@@ -6,7 +6,7 @@ Owner field-test record for the local route-generation POC. **Do not invent resu
 
 1. Start Valhalla-compatible routing and both RideVector processes (see root `README.md`).
 2. Open the web app, load the matching public fixture (or click a non-personal start).
-3. Set the target distance and distance flexibility (± miles). Confirm the displayed accepted range before generating.
+3. Set the ride mode (loop or start/end), target distance (entire ride), and distance flexibility (± miles). Confirm the displayed accepted range before generating.
 4. Optionally set departure time and experimental feature presets (see matrix below).
 5. Generate, compare up to three alternatives (including any amber **Near match** routes), regenerate if needed, and optionally save with feedback in browser `localStorage` only.
 6. Optionally open **Details**, tap **Export to Garmin** (or **Download GPX**), and import the file into Garmin Connect for an on-device ride (see Garmin field-test checklist below).
@@ -21,6 +21,8 @@ Owner field-test record for the local route-generation POC. **Do not invent resu
 | 3 | Prospect Park gravel preference | 15 mi | 3 | pending | pending | pending | pending | pending |
 | 4 | Boulder foothills loop | 20 mi | 3 | pending | pending | pending | pending | pending |
 | 5 | Zilker Park loop | 18 mi | 4 | pending | pending | pending | pending | pending |
+| 6 | Golden Gate Park to Crissy Field (start/end) | 8 mi | 3 | pending | pending | pending | pending | pending |
+| 7 | Zilker Park to Texas Capitol (start/end) | 10 mi | 3 | pending | pending | pending | pending | pending |
 
 **Chosen route type:** `within_range` / `near_match`
 

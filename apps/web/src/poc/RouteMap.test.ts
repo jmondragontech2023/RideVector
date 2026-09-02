@@ -121,6 +121,25 @@ describe('RouteMap direction markers', () => {
   });
 });
 
+describe('RouteMap start and end markers', () => {
+  it('fits both endpoints and labels Start/End distinctly', () => {
+    expect(routeMapSource).toContain('createEndMarkerIcon');
+    expect(routeMapSource).toContain('visibleEnd');
+    expect(routeMapSource).toContain('title="Start"');
+    expect(routeMapSource).toContain('title="End"');
+    expect(routeMapSource).toContain('onSelectCoordinate');
+  });
+});
+
+describe('App plan invalidation', () => {
+  it('invalidates generation when ride mode or endpoints change', () => {
+    expect(appSource).toContain('onRouteModeChange');
+    expect(appSource).toContain('onSwapEndpoints');
+    expect(appSource).toContain('clearGenerationResults()');
+    expect(appSource).toContain("setRouteMode(value)");
+  });
+});
+
 describe('App save guardrails', () => {
   it('only saves selected accepted alternatives, not rejected diagnostics', () => {
     const saveBlock = appSource.slice(
@@ -128,6 +147,7 @@ describe('App save guardrails', () => {
       appSource.indexOf('function handleOpenSaved'),
     );
     expect(saveBlock).toContain('if (!start || !selected || !result)');
+    expect(saveBlock).toContain('routeMode');
     expect(saveBlock).toContain('alternative: selected');
     expect(saveBlock).not.toContain('candidateDiagnostics');
     expect(saveBlock).not.toContain('previewAttemptNumber');

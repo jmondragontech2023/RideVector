@@ -14,7 +14,88 @@ describe('validatePocGenerateRequest', () => {
     if (result.ok) {
       expect(result.request.seed).toBe(0);
       expect(result.request.targetDistanceMeters).toBe(20_000);
+      expect(result.request.routeMode).toBe('loop');
+      expect(result.request.end).toBeUndefined();
     }
+  });
+
+  it('accepts a point-to-point request with a distinct end', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      routeMode: 'point_to_point',
+      end: { latitude: 37.8044, longitude: -122.2712 },
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.request.routeMode).toBe('point_to_point');
+      expect(result.request.end?.latitude).toBeCloseTo(37.8044);
+    }
+  });
+
+  it('rejects coincident start and end in point-to-point mode', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      routeMode: 'point_to_point',
+      end: valid.start,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.details.some((detail) => detail.field === 'end')).toBe(true);
+      expect(result.details.some((detail) => detail.reason.includes('loop mode'))).toBe(true);
+    }
+  });
+
+  it('rejects loop requests that include an end point', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      end: { latitude: 37.8, longitude: -122.27 },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.details.some((detail) => detail.field === 'end')).toBe(true);
+    }
+  });
+
+  it('rejects Phase 2 waypoint and return inputs', () => {
+    const waypoints = validatePocGenerateRequest({
+      ...valid,
+      routeMode: 'point_to_point',
+      end: { latitude: 37.8, longitude: -122.27 },
+      waypoints: [{ latitude: 37.79, longitude: -122.3 }],
+    });
+    expect(waypoints.ok).toBe(false);
+
+    const returnMode = validatePocGenerateRequest({
+      ...valid,
+      routeMode: 'point_to_point',
+      end: { latitude: 37.8, longitude: -122.27 },
+      returnMode: 'shortest',
+    });
+    expect(returnMode.ok).toBe(false);
+  });
+
+  it('rejects client-computed scores and provider options', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      scoring: { overallScore: 99 },
+      providerOptions: { costing: 'auto' },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.details.map((detail) => detail.field).sort()).toEqual([
+        'providerOptions',
+        'scoring',
+      ]);
+    }
+  });
+
+  it('accepts omitted Phase 2 defaults', () => {
+    const result = validatePocGenerateRequest({
+      ...valid,
+      waypoints: [],
+      returnMode: 'none',
+    });
+    expect(result.ok).toBe(true);
   });
 
   it('defaults distance flexibility to three miles', () => {

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { geometryMidpoint } from '../src/poc/anchors';
 import { METERS_PER_MILE } from '../src/poc/config';
-import { selectRouteAlternatives, type RoutableCandidate } from '../src/poc/selection';
+import {
+  selectPointToPointAlternatives,
+  selectRouteAlternatives,
+  type RoutableCandidate,
+} from '../src/poc/selection';
 
 const miles = (value: number): number => value * METERS_PER_MILE;
 
@@ -98,5 +102,49 @@ describe('selectRouteAlternatives', () => {
     );
     expect(result.selected).toHaveLength(3);
     expect(result.notSelected.length + result.duplicates.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('selectPointToPointAlternatives', () => {
+  const targetMeters = miles(12);
+
+  function openPath(
+    attemptNumber: number,
+    distanceMiles: number,
+    lonOffset: number,
+  ): RoutableCandidate {
+    const base = candidate(attemptNumber, distanceMiles, 'within_range', `detour-${attemptNumber}`);
+    return {
+      ...base,
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [-122.42, 37.77],
+          [-122.42 + lonOffset, 37.78],
+          [-122.4, 37.8],
+        ],
+      },
+    };
+  }
+
+  it('keeps corridor-sharing routes that take different interiors', () => {
+    const result = selectPointToPointAlternatives(
+      [openPath(1, 12.0, 0.01), openPath(2, 12.2, 0.08), openPath(3, 12.4, -0.07)],
+      targetMeters,
+      0.88,
+    );
+    expect(result.selected.length).toBeGreaterThanOrEqual(2);
+    expect(result.selected.length).toBeLessThanOrEqual(3);
+  });
+
+  it('treats nearly identical open paths as duplicates', () => {
+    const first = openPath(1, 12.0, 0.01);
+    const twin = {
+      ...openPath(2, 12.1, 0.01),
+      geometry: first.geometry,
+    };
+    const result = selectPointToPointAlternatives([first, twin], targetMeters, 0.88);
+    expect(result.selected).toHaveLength(1);
+    expect(result.duplicates).toHaveLength(1);
   });
 });

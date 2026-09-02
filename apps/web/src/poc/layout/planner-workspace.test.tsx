@@ -75,6 +75,7 @@ function sampleResult(overrides: Partial<PocGenerateResponse> = {}): PocGenerate
       outside_tolerance: 0,
       duplicate_candidate: 0,
       selection_limit: 0,
+      endpoint_mismatch: 0,
     },
     warnings: [],
     candidateDiagnostics: [],
@@ -103,7 +104,16 @@ describe('planner workspace helpers', () => {
         costing: 'road',
         features: FEATURE_PRESETS.geometry,
       }),
-    ).toBe('10 mi ±2 mi · Road · Geometry');
+    ).toBe('Loop · 10 mi ±2 mi · Road · Geometry');
+    expect(
+      formatActivePlanSummary({
+        targetMiles: '8',
+        flexibilityMiles: '3',
+        costing: 'gravel',
+        features: FEATURE_PRESETS.basic,
+        routeMode: 'point_to_point',
+      }),
+    ).toBe('Start–end · 8 mi ±3 mi · Gravel · Basic');
     expect(matchingFeaturePresetLabel(FEATURE_PRESETS.basic)).toBe('Basic');
     expect(
       matchingFeaturePresetLabel({
@@ -189,6 +199,9 @@ describe('planner layout presentation', () => {
     const markup = renderToStaticMarkup(
       <PlanPanel
         start={null}
+        end={null}
+        routeMode="loop"
+        activeEndpoint="start"
         targetMiles="12"
         flexibilityMiles="3"
         previewRangeMeters={{ min: 14_484, max: 24_140 }}
@@ -204,6 +217,13 @@ describe('planner layout presentation', () => {
         trafficPreference="none"
         departureMode="now"
         customLocalDateTime=""
+        onRouteModeChange={() => undefined}
+        onActiveEndpointChange={() => undefined}
+        onStartChange={() => undefined}
+        onEndChange={() => undefined}
+        onClearStart={() => undefined}
+        onClearEnd={() => undefined}
+        onSwapEndpoints={() => undefined}
         onTargetMilesChange={() => undefined}
         onFlexibilityMilesChange={() => undefined}
         onCostingChange={() => undefined}
@@ -222,6 +242,9 @@ describe('planner layout presentation', () => {
     expect(markup).toContain('Advanced preferences / POC tools');
     expect(markup).toContain('data-testid="advanced-preferences"');
     expect(markup).toContain('Public scenario fixtures (POC)');
+    expect(markup).toContain('Generate a loop');
+    expect(markup).toContain('Start and end');
+    expect(markup).not.toContain('Map tap sets');
     expect(markup).toContain('Your start location is sent');
     expect(markup).toContain('segmented-control');
     expect(markup).toContain('active-preferences-summary');

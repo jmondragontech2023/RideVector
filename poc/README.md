@@ -4,6 +4,8 @@
 
 Get a real end-to-end bicycle-loop experience running locally as quickly as possible and use it to answer one question: **does RideVector generate routes the owner would consider riding?**
 
+A narrowly scoped Phase 1 extension (ADR-020) also lets the owner select distinct Start and End points and generate scored open bicycle routes. Ordered stops and return-routing options are not implemented until that start/end experience is confirmed.
+
 This directory documents the experiment. POC implementation belongs in the existing `apps/web` and `apps/api` packages; do not create a parallel app here.
 
 ## Cursor execution directive
@@ -27,7 +29,8 @@ Use these choices so the POC does not stall on design exploration:
 - Distance acceptance: user-controlled ± flexibility (default 3 miles) with near-match fallback; not disableable.
 - Upstream behavior: bounded concurrency of 3, per-call timeout of 8 seconds, no automatic retries inside a generation attempt.
 - Alternatives: return at most 3. Use factual names `Route A`, `Route B`, and `Route C`; do not use production personality names.
-- Scoring/enrichment: independently toggleable experimental features documented in `poc/SCORING_AND_ENRICHMENT.md` (`poc-scoring-v1`). Geometry scores are local; elevation uses Valhalla `/height`; weather uses Open-Meteo; traffic uses TomTom Flow Segment Data with optional `TOMTOM_API_KEY`.
+- Scoring/enrichment: independently toggleable experimental features documented in `poc/SCORING_AND_ENRICHMENT.md` (`poc-scoring-v2`; historical saves may still show `poc-scoring-v1`). Geometry scores are local and mode-aware; elevation uses Valhalla `/height`; weather uses Open-Meteo; traffic uses TomTom Flow Segment Data with optional `TOMTOM_API_KEY`.
+- Ride modes: **Generate a loop** (default / omitted `routeMode`) or **Start and end**. Point-to-point uses the direct Start → End baseline plus seeded interior detours; requested endpoints are hard constraints.
 - Saving and feedback: browser `localStorage` only, with versioned storage keys and graceful handling of corrupt entries. Feature preferences use a separate key from saved routes.
 - GPX field-test export: client-side GPX 1.1 download of the selected accepted alternative (`apps/web/src/poc/gpx.ts`); UI label **Export to Garmin** (with **Download GPX** available) — no Worker export endpoint and no direct Garmin API sync.
 - Testing: Vitest unit/component tests plus mocked Worker/provider integration tests. Live routing/weather/traffic checks are opt-in and never part of ordinary CI.
@@ -38,8 +41,8 @@ If a library version must be selected, use the current stable version compatible
 ## Experience
 
 1. Start the local web app and Worker (`pnpm dev`). For phone LAN/Tailscale testing of **Use my location**, use `pnpm run dev:mobile` (HTTPS) or `pnpm run dev:both` (HTTP :5173 + HTTPS :5174) and open the Vite `https://` Network URL (see root `README.md`).
-2. Select a start point on a map.
-3. Enter a target distance, flexibility, and Road/Gravel costing.
+2. Choose **Generate a loop** or **Start and end**. Select Start (and End, in start-and-end mode) on the map or by editing coordinates. **Map tap sets** chooses which endpoint the next tap writes.
+3. Enter a target distance for the entire ride, flexibility, and Road/Gravel costing.
 4. Optionally open **Advanced preferences / POC tools** to configure experimental scoring/enrichment presets, departure time, and public scenario fixtures.
 5. Generate bounded, seeded loop candidates (**Generate routes**).
 6. Compare up to three routes by map geometry, POC fit, category badges, and expandable enrichment details.
@@ -73,12 +76,16 @@ Add independent experimental toggles, deterministic geometry scoring, factual ca
 The request includes:
 
 - WGS84 start coordinate
-- target distance in meters
+- optional `routeMode` (`loop` | `point_to_point`; omitted means loop)
+- WGS84 end coordinate when `routeMode` is `point_to_point`
+- target distance in meters (entire ride)
 - distance flexibility in meters
 - `road` or `gravel` costing preference
 - optional integer seed
 - optional experimental feature flags and preferences
 - optional departure (`now` or custom local date/time + timezone)
+
+Phase 2 `waypoints` and `returnMode` fields are rejected unless omitted or set to the documented empty/`none` defaults. Loop requests that include `end` fail validation.
 
 Each alternative includes geometry, distance, duration, distance classification, POC fit scoring payload, optional enrichment summaries, and factual category badges. The response also reports the feature snapshot, scoring version, enrichment warnings, and attribution strings. Exact schemas are implemented and tested; they are not the final Milestone 1 contract.
 
@@ -109,7 +116,7 @@ After testing at least five non-sensitive scenarios across the scoring/enrichmen
 - whether POC fit / traffic / weather / elevation changed ride decisions;
 - whether to continue into the production milestones, revise candidate generation, or stop.
 
-Do not expand the POC until this decision is made.
+Do not expand the POC into production milestones until this decision is made. ADR-020 is a dated local exception for Phase 1 start/end only; Phase 2 ordered stops and return routing still require a separate owner confirmation.
 
 ## Complete definition of done
 

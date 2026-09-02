@@ -29,12 +29,14 @@ import {
 import {
   DEFAULT_DISTANCE_FLEXIBILITY_MILES,
   DEFAULT_POC_FEATURES,
+  emptyRejectionCounts,
   type PocAlternative,
   type PocCoordinate,
   type PocCostingMode,
   type PocElevationPreference,
   type PocExperimentalFeatures,
   type PocGenerateResponse,
+  type PocRouteMode,
   type PocTrafficPreference,
 } from './poc/types';
 import { formatMiles, formatDuration, METERS_PER_MILE, milesToMeters } from './poc/units';
@@ -62,6 +64,9 @@ type Status = 'idle' | 'loading' | 'error' | 'success';
 
 export function App() {
   const [start, setStart] = useState<PocCoordinate | null>(null);
+  const [end, setEnd] = useState<PocCoordinate | null>(null);
+  const [routeMode, setRouteMode] = useState<PocRouteMode>('loop');
+  const [activeEndpoint, setActiveEndpoint] = useState<'start' | 'end'>('start');
   const [targetMiles, setTargetMiles] = useState('12');
   const [flexibilityMiles, setFlexibilityMiles] = useState(
     String(DEFAULT_DISTANCE_FLEXIBILITY_MILES),
@@ -246,6 +251,7 @@ export function App() {
     flexibilityMiles,
     costing,
     features: result?.features ?? features,
+    routeMode: result?.routeMode ?? routeMode,
   });
   const selectedMapSummary = selected
     ? `${selected.name} · ${formatMiles(selected.distanceMeters)} · ${formatDuration(selected.durationSeconds)}`
@@ -256,6 +262,11 @@ export function App() {
     if (!effectiveStart) {
       setStatus('error');
       setErrorMessage('Click the map to choose a start point.');
+      return;
+    }
+    if (routeMode === 'point_to_point' && !end) {
+      setStatus('error');
+      setErrorMessage('Select a distinct End, or switch to loop mode.');
       return;
     }
 
@@ -289,6 +300,8 @@ export function App() {
       const response = await generatePocRoutes(
         {
           start: effectiveStart,
+          routeMode,
+          ...(routeMode === 'point_to_point' && end ? { end } : {}),
           targetDistanceMeters: milesToMeters(miles),
           distanceFlexibilityMeters: milesToMeters(flexMiles),
           costing,
@@ -343,6 +356,9 @@ export function App() {
     clearGenerationResults();
     invalidateInFlightLocation();
     updateStartPoint(fixture.start, { areaLabel: fixture.label });
+    setRouteMode(fixture.routeMode ?? 'loop');
+    setEnd(fixture.end ?? null);
+    setActiveEndpoint(fixture.routeMode === 'point_to_point' ? 'end' : 'start');
     setTargetMiles(String(fixture.targetDistanceMiles));
     setFlexibilityMiles(String(fixtureFlexibilityMiles(fixture)));
     setCosting(fixture.costing);
@@ -420,11 +436,19 @@ export function App() {
       setSaveMessage('Generate and select a route before saving.');
       return;
     }
+    if ((result.routeMode ?? routeMode) === 'point_to_point' && !(result.end ?? end)) {
+      setSaveMessage('A start-and-end save needs both endpoints.');
+      return;
+    }
     const saved: SavedPocRoute = {
       id: `saved-${selected.id}-${result.seed}`,
       savedAt: new Date().toISOString(),
       label: `${selected.name} · ${formatMiles(selected.distanceMeters)}`,
-      start,
+      routeMode: result.routeMode ?? routeMode,
+      start: result.start ?? start,
+      ...(result.routeMode === 'point_to_point' || routeMode === 'point_to_point'
+        ? { end: result.end ?? end ?? undefined }
+        : {}),
       targetDistanceMeters: milesToMeters(Number(targetMiles)),
       distanceFlexibilityMeters: milesToMeters(Number(flexibilityMiles)),
       costing,
@@ -453,6 +477,9 @@ export function App() {
     invalidateInFlightLocation();
     invalidateInFlightGpxExport();
     updateStartPoint(route.start);
+    setRouteMode(route.routeMode ?? 'loop');
+    setEnd(route.end ?? null);
+    setActiveEndpoint(route.routeMode === 'point_to_point' && route.end ? 'end' : 'start');
     setTargetMiles(String(route.targetDistanceMeters / METERS_PER_MILE));
     setFlexibilityMiles(String(route.distanceFlexibilityMeters / METERS_PER_MILE));
     setCosting(route.costing);
@@ -472,13 +499,10 @@ export function App() {
       attemptedCount: 0,
       acceptedCount: 1,
       alternatives: [route.alternative],
-      rejections: {
-        upstream_failure: 0,
-        malformed_geometry: 0,
-        outside_tolerance: 0,
-        duplicate_candidate: 0,
-        selection_limit: 0,
-      },
+      routeMode: route.routeMode ?? 'loop',
+      start: route.start,
+      ...(route.end ? { end: route.end } : {}),
+      rejections: emptyRejectionCounts(),
       warnings: ['Opened from local saved routes.'],
       candidateDiagnostics: [],
       diagnosticSummary: emptyDiagnosticSummary(),
@@ -596,6 +620,9 @@ export function App() {
         {workspaceMode === 'planning' ? (
           <PlanPanel
             start={start}
+            end={end}
+            routeMode={routeMode}
+            activeEndpoint={activeEndpoint}
             targetMiles={targetMiles}
             flexibilityMiles={flexibilityMiles}
             previewRangeMeters={previewRangeMeters}
@@ -612,6 +639,43 @@ export function App() {
             departureMode={departureMode}
             customLocalDateTime={customLocalDateTime}
             onApplyFixture={applyFixture}
+            onRouteModeChange={(value) => {
+              setRouteMode(value);
+              if (value === 'loop') {
+                setActiveEndpoint('start');
+              }
+              clearGenerationResults();
+            }}
+            onActiveEndpointChange={setActiveEndpoint}
+            onStartChange={(coordinate) => {
+              invalidateInFlightLocation();
+              updateStartPoint(coordinate);
+              clearGenerationResults();
+            }}
+            onEndChange={(coordinate) => {
+              setEnd(coordinate);
+              clearGenerationResults();
+            }}
+            onClearStart={() => {
+              invalidateInFlightLocation();
+              startAreaResolverRef.current.cancelPending();
+              setStart(null);
+              rememberStartAreaLabel(null);
+              clearGenerationResults();
+            }}
+            onClearEnd={() => {
+              setEnd(null);
+              clearGenerationResults();
+            }}
+            onSwapEndpoints={() => {
+              if (!start || !end) {
+                return;
+              }
+              const previousStart = start;
+              updateStartPoint(end);
+              setEnd(previousStart);
+              clearGenerationResults();
+            }}
             onTargetMilesChange={(value) => {
               setTargetMiles(value);
               clearGenerationResults();
@@ -641,6 +705,8 @@ export function App() {
         >
           <RouteMap
             start={start}
+            end={end}
+            routeMode={routeMode}
             alternatives={alternatives}
             selectedId={selected?.id ?? null}
             recenterRequest={recenterRequest}
@@ -653,6 +719,17 @@ export function App() {
               clearGenerationResults();
               setLocationMessage(null);
               setLocationWarning(null);
+            }}
+            onSelectCoordinate={(coordinate) => {
+              invalidateInFlightLocation();
+              if (routeMode === 'point_to_point' && activeEndpoint === 'end') {
+                setEnd(coordinate);
+              } else {
+                updateStartPoint(coordinate);
+                setLocationMessage(null);
+                setLocationWarning(null);
+              }
+              clearGenerationResults();
             }}
           />
         </ExpandableMapPanel>

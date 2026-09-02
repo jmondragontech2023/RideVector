@@ -1,4 +1,4 @@
-import type { PocExperimentalFeatures } from '../types';
+import type { PocExperimentalFeatures, PocRouteMode } from '../types';
 import { POC_SCORING_CONFIG, SCORING_CONFIG_VERSION, type ScoringComponentKey } from './config';
 
 export type ComponentScore = {
@@ -19,6 +19,7 @@ export type CombinedScoreResult = {
 
 export type ScoreInputs = {
   features: PocExperimentalFeatures;
+  routeMode?: PocRouteMode;
   distanceFit: { score: number; raw: Record<string, unknown> } | null;
   loopQuality: { score: number; raw: Record<string, unknown> } | null;
   diversity: { score: number; raw: Record<string, unknown> } | null;
@@ -141,8 +142,13 @@ export function combineComponentScores(input: ScoreInputs): CombinedScoreResult 
     }
   }
   if (input.loopQuality && input.features.loopQualityScoring && input.loopQuality.score >= 75) {
-    explanations.push('clean loop shape');
-    explanationCodes.push('loop_quality_clean');
+    if (input.routeMode === 'point_to_point') {
+      explanations.push('clean path shape');
+      explanationCodes.push('path_quality_clean');
+    } else {
+      explanations.push('clean loop shape');
+      explanationCodes.push('loop_quality_clean');
+    }
   }
   if (input.diversity && input.features.routeDiversityScoring && input.diversity.score >= 70) {
     explanations.push('distinct alternative');

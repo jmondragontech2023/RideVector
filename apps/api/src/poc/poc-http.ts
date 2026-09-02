@@ -1,3 +1,4 @@
+import { POC_CONFIG } from './config';
 import type { PocErrorBody } from './types';
 
 export function jsonResponse(body: unknown, status = 200, init?: ResponseInit): Response {
@@ -69,8 +70,23 @@ export function pocCorsHeaders(): HeadersInit {
 export async function parseJsonBody(
   request: Request,
 ): Promise<{ ok: true; body: unknown } | { ok: false; response: Response }> {
+  let text: string;
   try {
-    return { ok: true, body: await request.json() };
+    text = await request.text();
+  } catch {
+    return {
+      ok: false,
+      response: errorResponse(400, 'VALIDATION_FAILED', 'Request body must be valid JSON.'),
+    };
+  }
+  if (new TextEncoder().encode(text).length > POC_CONFIG.maxRequestBodyBytes) {
+    return {
+      ok: false,
+      response: errorResponse(400, 'VALIDATION_FAILED', 'Request body is too large.'),
+    };
+  }
+  try {
+    return { ok: true, body: JSON.parse(text) as unknown };
   } catch {
     return {
       ok: false,

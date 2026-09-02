@@ -32,6 +32,7 @@ function response(overrides: Partial<PocGenerateResponse>): PocGenerateResponse 
       outside_tolerance: 6,
       duplicate_candidate: 2,
       selection_limit: 0,
+      endpoint_mismatch: 0,
     },
     warnings: [],
     candidateDiagnostics: [],
@@ -44,6 +45,7 @@ function response(overrides: Partial<PocGenerateResponse>): PocGenerateResponse 
         outside_tolerance: 6,
         duplicate_candidate: 2,
         selection_limit: 0,
+      endpoint_mismatch: 0,
       },
       closestRoutableRejected: {
         attemptNumber: 3,
@@ -139,6 +141,7 @@ describe('candidate diagnostics helpers', () => {
             outside_tolerance: 5,
             duplicate_candidate: 2,
             selection_limit: 0,
+      endpoint_mismatch: 0,
           },
           acceptedDistanceRangeMeters: {
             min: 11.5 * 1609.344,

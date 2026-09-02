@@ -17,6 +17,7 @@ function validatedRequest(
 ): ValidatedPocGenerateRequest {
   return {
     start: { latitude: 37.7749, longitude: -122.4194 },
+    routeMode: 'loop',
     targetDistanceMeters: 20_000,
     distanceFlexibilityMeters: 3 * METERS_PER_MILE,
     costing: 'road',

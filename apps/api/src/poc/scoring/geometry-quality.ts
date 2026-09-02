@@ -1,5 +1,5 @@
-import { haversineMeters } from '../anchors';
-import type { PocCoordinate, PocLineString } from '../types';
+import { bearingDegrees, haversineMeters } from '../anchors';
+import type { PocCoordinate, PocLineString, PocRouteMode } from '../types';
 import { POC_SCORING_CONFIG } from './config';
 
 export type LoopQualityMetrics = {
@@ -26,16 +26,6 @@ function sampleCoordinates(geometry: PocLineString, count: number): Array<[numbe
     sampled.push(coords[index]!);
   }
   return sampled;
-}
-
-function bearingDegrees(a: PocCoordinate, b: PocCoordinate): number {
-  const lat1 = (a.latitude * Math.PI) / 180;
-  const lat2 = (b.latitude * Math.PI) / 180;
-  const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
-  const y = Math.sin(dLon) * Math.cos(lat2);
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-  const bearing = (Math.atan2(y, x) * 180) / Math.PI;
-  return (bearing + 360) % 360;
 }
 
 function angleDelta(a: number, b: number): number {
@@ -155,22 +145,35 @@ export function analyzeLoopQuality(geometry: PocLineString): LoopQualityMetrics 
   };
 }
 
-/** Maps loop-quality metrics to a 0–100 component score. */
-export function scoreLoopQuality(metrics: LoopQualityMetrics): number {
+/**
+ * Maps geometry-quality metrics to a 0–100 component score.
+ * Point-to-point routes skip the closure penalty; open endpoints are expected.
+ */
+export function scoreGeometryQuality(
+  metrics: LoopQualityMetrics,
+  routeMode: PocRouteMode = 'loop',
+): number {
   if (metrics.malformedGeometryWarning) {
     return 0;
   }
   let score = 100;
-  const { closureExcellentMeters, closurePoorMeters } = POC_SCORING_CONFIG.geometry;
-  if (metrics.closureDistanceMeters > closureExcellentMeters) {
-    const span = closurePoorMeters - closureExcellentMeters;
-    const excess =
-      Math.min(metrics.closureDistanceMeters, closurePoorMeters) - closureExcellentMeters;
-    score -= (excess / span) * 35;
+  if (routeMode === 'loop') {
+    const { closureExcellentMeters, closurePoorMeters } = POC_SCORING_CONFIG.geometry;
+    if (metrics.closureDistanceMeters > closureExcellentMeters) {
+      const span = closurePoorMeters - closureExcellentMeters;
+      const excess =
+        Math.min(metrics.closureDistanceMeters, closurePoorMeters) - closureExcellentMeters;
+      score -= (excess / span) * 35;
+    }
   }
   score -= Math.min(25, metrics.repeatedGeometryFraction * 40);
   score -= Math.min(20, metrics.backtrackFraction * 35);
   score -= Math.min(15, metrics.selfIntersectionCount * 3);
   score -= Math.min(10, metrics.spikeCount * 2);
   return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+/** Maps loop-quality metrics to a 0–100 component score. */
+export function scoreLoopQuality(metrics: LoopQualityMetrics): number {
+  return scoreGeometryQuality(metrics, 'loop');
 }

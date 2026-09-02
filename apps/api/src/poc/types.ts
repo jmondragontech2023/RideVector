@@ -40,6 +40,11 @@ export type PocNormalizedDeparture = {
   timeZone: string;
 };
 
+export type PocRouteMode = 'loop' | 'point_to_point';
+
+/** Phase 2 only — rejected when present and not the documented default. */
+export type PocReturnMode = 'none' | 'same_path' | 'shortest';
+
 export type PocGenerateRequest = {
   start: PocCoordinate;
   /** Canonical target distance in meters. */
@@ -53,6 +58,14 @@ export type PocGenerateRequest = {
   elevationPreference?: PocElevationPreference;
   trafficPreference?: PocTrafficPreference;
   departure?: PocDepartureRequest;
+  /** Omitted means legacy loop generation. */
+  routeMode?: PocRouteMode;
+  /** Required for point-to-point; rejected on loop requests. */
+  end?: PocCoordinate;
+  /** Phase 2 ordered intermediate stops — rejected when non-empty in Phase 1. */
+  waypoints?: PocCoordinate[];
+  /** Phase 2 return choice — rejected unless omitted or `none` in Phase 1. */
+  returnMode?: PocReturnMode;
 };
 
 export type PocDistanceClassification = 'within_range' | 'near_match';
@@ -62,7 +75,19 @@ export type PocRejectionReason =
   | 'malformed_geometry'
   | 'outside_tolerance'
   | 'duplicate_candidate'
-  | 'selection_limit';
+  | 'selection_limit'
+  | 'endpoint_mismatch';
+
+export function emptyRejectionCounts(): Record<PocRejectionReason, number> {
+  return {
+    upstream_failure: 0,
+    malformed_geometry: 0,
+    outside_tolerance: 0,
+    duplicate_candidate: 0,
+    selection_limit: 0,
+    endpoint_mismatch: 0,
+  };
+}
 
 export type PocCandidateOutcome = 'accepted' | 'rejected';
 
@@ -98,6 +123,7 @@ export type PocDiagnosticSummary = {
 export type PocCategoryBadge =
   | 'closest_to_target'
   | 'cleanest_loop'
+  | 'cleanest_path'
   | 'most_distinct'
   | 'shortest_estimated_time'
   | 'near_match'
@@ -248,6 +274,9 @@ export type PocGenerateResponse = {
   durationMs: number;
   attemptedCount: number;
   acceptedCount: number;
+  routeMode: PocRouteMode;
+  start: PocCoordinate;
+  end?: PocCoordinate;
   alternatives: PocAlternative[];
   rejections: Record<PocRejectionReason, number>;
   warnings: string[];

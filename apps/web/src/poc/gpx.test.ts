@@ -49,6 +49,32 @@ describe('gpx export', () => {
     expect(result.xml).not.toContain('<wpt');
   });
 
+  it('exports an open start-to-end track without closing it', () => {
+    const openGeometry: PocLineString = {
+      type: 'LineString',
+      coordinates: [
+        [-122.4862, 37.7694],
+        [-122.48, 37.78],
+        [-122.4662, 37.8039],
+      ],
+    };
+    const result = buildGpxDocument({
+      geometry: openGeometry,
+      routeName: 'Route A',
+      costing: 'road',
+      seed: 6,
+      distanceMeters: 12_000,
+      startAreaLabel: 'San Francisco',
+    });
+    const points = [...result.xml.matchAll(/<trkpt lat="([^"]+)" lon="([^"]+)"><\/trkpt>/g)];
+    expect(points).toHaveLength(3);
+    expect(points[0]?.[1]).toBe(formatGpxCoordinate(37.7694));
+    expect(points[0]?.[2]).toBe(formatGpxCoordinate(-122.4862));
+    expect(points[2]?.[1]).toBe(formatGpxCoordinate(37.8039));
+    expect(points[2]?.[2]).toBe(formatGpxCoordinate(-122.4662));
+    expect(points[0]?.[1]).not.toBe(points[2]?.[1]);
+  });
+
   it('maps GeoJSON [longitude, latitude] to GPX lat/lon without reordering points', () => {
     const result = buildGpxDocument({
       geometry: sampleGeometry,

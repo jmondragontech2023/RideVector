@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeLoopQuality, scoreLoopQuality } from '../src/poc/scoring/geometry-quality';
+import {
+  analyzeLoopQuality,
+  scoreGeometryQuality,
+  scoreLoopQuality,
+} from '../src/poc/scoring/geometry-quality';
 
 function loop(size = 0.02): Array<[number, number]> {
   return [
@@ -16,6 +20,17 @@ describe('loop quality scoring', () => {
     const metrics = analyzeLoopQuality({ type: 'LineString', coordinates: loop() });
     expect(metrics.closureDistanceMeters).toBeLessThan(5);
     expect(scoreLoopQuality(metrics)).toBeGreaterThan(70);
+  });
+
+  it('does not penalize open endpoints on point-to-point routes', () => {
+    const open = loop();
+    open[open.length - 1] = [-122.4, 37.8];
+    const metrics = analyzeLoopQuality({ type: 'LineString', coordinates: open });
+    const closedScore = scoreLoopQuality(analyzeLoopQuality({ type: 'LineString', coordinates: loop() }));
+    const openLoopScore = scoreLoopQuality(metrics);
+    const openPathScore = scoreGeometryQuality(metrics, 'point_to_point');
+    expect(openLoopScore).toBeLessThan(closedScore);
+    expect(openPathScore).toBeGreaterThan(openLoopScore);
   });
 
   it('penalizes open endpoints', () => {

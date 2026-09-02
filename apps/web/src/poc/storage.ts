@@ -4,7 +4,9 @@ export type SavedPocRoute = {
   id: string;
   savedAt: string;
   label: string;
+  routeMode?: import('./types').PocRouteMode;
   start: { latitude: number; longitude: number };
+  end?: { latitude: number; longitude: number };
   targetDistanceMeters: number;
   distanceFlexibilityMeters: number;
   costing: 'road' | 'gravel';
@@ -209,7 +211,12 @@ function isSavedRoute(value: unknown): value is SavedPocRoute {
     typeof record.id !== 'string' ||
     typeof record.savedAt !== 'string' ||
     typeof record.label !== 'string' ||
+    (record.routeMode !== undefined &&
+      record.routeMode !== 'loop' &&
+      record.routeMode !== 'point_to_point') ||
     !isCoordinate(record.start) ||
+    (record.end !== undefined && !isCoordinate(record.end)) ||
+    (record.routeMode === 'point_to_point' && !isCoordinate(record.end)) ||
     !isFiniteNumber(record.targetDistanceMeters) ||
     record.targetDistanceMeters <= 0 ||
     !isFiniteNumber(record.distanceFlexibilityMeters) ||
@@ -257,6 +264,9 @@ function isLegacySavedRoute(value: unknown): boolean {
 /** Upgrades earlier POC saves missing flexibility/classification fields. */
 export function migrateSavedRoute(value: unknown): SavedPocRoute | null {
   if (isSavedRoute(value)) {
+    if (value.routeMode === undefined) {
+      return { ...value, routeMode: 'loop' };
+    }
     return value;
   }
   if (!isLegacySavedRoute(value)) {
@@ -276,6 +286,7 @@ export function migrateSavedRoute(value: unknown): SavedPocRoute | null {
     id: record.id as string,
     savedAt: record.savedAt as string,
     label: record.label as string,
+    routeMode: 'loop',
     start: record.start as SavedPocRoute['start'],
     targetDistanceMeters,
     distanceFlexibilityMeters: flexibilityMeters,
@@ -315,7 +326,11 @@ export function loadPocStore(
       const parsed = JSON.parse(raw) as { routes?: unknown[] };
       const needsRewrite =
         Array.isArray(parsed.routes) &&
-        parsed.routes.some((route) => isLegacySavedRoute(route) && !isSavedRoute(route));
+        parsed.routes.some(
+          (route) =>
+            (isLegacySavedRoute(route) && !isSavedRoute(route)) ||
+            (isSavedRoute(route) && route.routeMode === undefined),
+        );
       if (needsRewrite) {
         storage.setItem(POC_STORAGE_KEY, JSON.stringify(store));
       }

@@ -44,9 +44,14 @@ export type PocNormalizedDeparture = {
 
 export type PocDistanceClassification = 'within_range' | 'near_match';
 
+export type PocRouteMode = 'loop' | 'point_to_point';
+
+export type PocReturnMode = 'none' | 'same_path' | 'shortest';
+
 export type PocCategoryBadge =
   | 'closest_to_target'
   | 'cleanest_loop'
+  | 'cleanest_path'
   | 'most_distinct'
   | 'shortest_estimated_time'
   | 'near_match'
@@ -193,7 +198,19 @@ export type PocRejectionReason =
   | 'malformed_geometry'
   | 'outside_tolerance'
   | 'duplicate_candidate'
-  | 'selection_limit';
+  | 'selection_limit'
+  | 'endpoint_mismatch';
+
+export function emptyRejectionCounts(): Record<PocRejectionReason, number> {
+  return {
+    upstream_failure: 0,
+    malformed_geometry: 0,
+    outside_tolerance: 0,
+    duplicate_candidate: 0,
+    selection_limit: 0,
+    endpoint_mismatch: 0,
+  };
+}
 
 export type PocCandidateOutcome = 'accepted' | 'rejected';
 
@@ -229,6 +246,9 @@ export type PocGenerateResponse = {
   durationMs: number;
   attemptedCount: number;
   acceptedCount: number;
+  routeMode?: PocRouteMode;
+  start?: PocCoordinate;
+  end?: PocCoordinate;
   alternatives: PocAlternative[];
   rejections: Record<PocRejectionReason, number>;
   warnings: string[];
@@ -256,6 +276,8 @@ export type PocGenerateRequestBody = {
   elevationPreference?: PocElevationPreference;
   trafficPreference?: PocTrafficPreference;
   departure?: PocDepartureRequest;
+  routeMode?: PocRouteMode;
+  end?: PocCoordinate;
 };
 
 export type ApiErrorBody = {
@@ -327,6 +349,8 @@ export function categoryBadgeLabel(badge: PocCategoryBadge): string {
       return 'Closest to target';
     case 'cleanest_loop':
       return 'Cleanest loop';
+    case 'cleanest_path':
+      return 'Cleanest path';
     case 'most_distinct':
       return 'Most distinct';
     case 'shortest_estimated_time':

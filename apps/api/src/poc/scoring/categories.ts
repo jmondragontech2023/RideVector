@@ -1,4 +1,4 @@
-import type { PocCategoryBadge, PocDistanceClassification } from '../types';
+import type { PocCategoryBadge, PocDistanceClassification, PocRouteMode } from '../types';
 
 export type CategoryCandidate = {
   id: string;
@@ -22,6 +22,7 @@ export type CategoryCandidate = {
  */
 export function assignCategoryBadges(
   candidates: CategoryCandidate[],
+  routeMode: PocRouteMode = 'loop',
 ): Map<string, PocCategoryBadge[]> {
   const byId = new Map<string, PocCategoryBadge[]>();
   for (const candidate of candidates) {
@@ -58,7 +59,7 @@ export function assignCategoryBadges(
     )[0]!;
   });
 
-  addBest('cleanest_loop', (items) => {
+  addBest(routeMode === 'point_to_point' ? 'cleanest_path' : 'cleanest_loop', (items) => {
     const scored = items.filter((item) => item.loopQualityScore !== null);
     if (scored.length === 0) {
       return null;
@@ -167,6 +168,8 @@ export function categoryLabel(badge: PocCategoryBadge): string {
       return 'Closest to target';
     case 'cleanest_loop':
       return 'Cleanest loop';
+    case 'cleanest_path':
+      return 'Cleanest path';
     case 'most_distinct':
       return 'Most distinct';
     case 'shortest_estimated_time':

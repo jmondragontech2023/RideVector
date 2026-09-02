@@ -151,6 +151,20 @@ Accepted decisions are binding until superseded by a dated entry. Proposed decis
   - Keep Milestone 10 responsible for production-grade saved-route/export contracts, security, persistence, hardening, and supported-client behavior. Direct Garmin Courses API and Strava publishing remain later, separately reviewed work.
 - Consequence: Owners can field-test generated courses on compatible Garmin devices without expanding the local POC into an integration platform. Garmin Connect / device import success remains an owner-verified checklist item, not an automated claim.
 
+### ADR-020 — POC Phase 1 start/end selection (narrow local extension)
+
+- Status: Accepted — 2026-09-02
+- Context: ADR-017 authorized generated loops only. The owner requested a plan for start/end, ordered stops, and return routing, then authorized Phase 1 only (`poc/START_END_WAYPOINTS_PLAN.md`). Owner field tests in `poc/EVALUATION.md` remain pending; this does not complete the ADR-017 exit decision.
+- Decision:
+  - Extend the local POC with an explicit **Start and end** mode that generates scored open bicycle routes between two map-selected or coordinate-edited locations.
+  - Keep **Generate a loop** as the default/legacy mode. Omitted `routeMode` continues to mean loop.
+  - Reject Phase 2 `waypoints` / non-`none` `returnMode` inputs and loop requests that include an end, rather than ignoring ambiguous fields.
+  - Point-to-point generation routes the direct Start → End baseline, then deterministic seeded interior detours, preserving requested endpoints. Distance flexibility and near-match fallback apply to the entire open ride.
+  - Geometry scoring is mode-aware (`poc-scoring-v2`): open routes are not penalized for lack of closure. Endpoint compliance is a hard validation, not a soft score.
+  - Browser-local saves store the normalized request (mode + endpoints). Legacy saves migrate as loop requests. GPX continues to export exact selected geometry and must not close an open path.
+  - Do not implement ordered intermediate stops or return-routing options until the owner confirms Phase 1.
+- Consequence: ADR-017 remains the loop-POC decision. This is a dated, narrowly scoped local-POC extension, not a production contract and not permission to resume Milestones 1–11 or deploy.
+
 ## Proposed; validate during later milestones
 
 ### ADR-P01 — Initial platform stack

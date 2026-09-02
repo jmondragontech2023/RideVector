@@ -1,7 +1,7 @@
 import { METERS_PER_MILE } from '../config';
 
 /** Versioned scoring configuration for POC explanations and saved routes. */
-export const SCORING_CONFIG_VERSION = 'poc-scoring-v1';
+export const SCORING_CONFIG_VERSION = 'poc-scoring-v2';
 
 export const POC_SCORING_CONFIG = {
   version: SCORING_CONFIG_VERSION,

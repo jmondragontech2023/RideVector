@@ -4,6 +4,7 @@ import {
   type PocExperimentalFeatures,
   type PocFeaturePreset,
   type PocGenerateResponse,
+  type PocRouteMode,
 } from '../types';
 
 export type PlannerWorkspaceMode = 'planning' | 'results';
@@ -46,6 +47,7 @@ export function formatActivePlanSummary(input: {
   flexibilityMiles: string;
   costing: PocCostingMode;
   features: PocExperimentalFeatures;
+  routeMode?: PocRouteMode;
 }): string {
   const target = Number(input.targetMiles);
   const flex = Number(input.flexibilityMiles);
@@ -53,7 +55,8 @@ export function formatActivePlanSummary(input: {
   const flexLabel = Number.isFinite(flex) && flex > 0 ? `±${flex} mi` : '±— mi';
   const costingLabel = input.costing === 'gravel' ? 'Gravel' : 'Road';
   const presetLabel = matchingFeaturePresetLabel(input.features);
-  return `${targetLabel} ${flexLabel} · ${costingLabel} · ${presetLabel}`;
+  const modeLabel = input.routeMode === 'point_to_point' ? 'Start–end' : 'Loop';
+  return `${modeLabel} · ${targetLabel} ${flexLabel} · ${costingLabel} · ${presetLabel}`;
 }
 
 export function defaultResultsTab(result: PocGenerateResponse): ResultsWorkspaceTab {

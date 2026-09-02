@@ -16,9 +16,10 @@ import {
 } from './route-direction';
 import type { DirectionMarker } from './route-direction';
 import type { MapRecenterRequest } from './map-recenter';
+import { createEndMarkerIcon } from './end-marker';
 import { createStartMarkerIcon } from './start-marker';
 import type { RejectedPreview } from './candidate-diagnostics';
-import type { PocAlternative, PocCoordinate } from './types';
+import type { PocAlternative, PocCoordinate, PocRouteMode } from './types';
 import { readCssColor, type ColorScheme } from './use-prefers-color-scheme';
 import { routePresentationForName } from './layout/route-presentation';
 
@@ -68,18 +69,22 @@ function StartSelector({ onSelect }: StartSelectorProps) {
 
 type FitRoutesProps = {
   start: PocCoordinate | null;
+  end: PocCoordinate | null;
   alternatives: PocAlternative[];
   selectedId: string | null;
   rejectedPreview: RejectedPreview | null;
 };
 
-function FitRoutes({ start, alternatives, selectedId, rejectedPreview }: FitRoutesProps) {
+function FitRoutes({ start, end, alternatives, selectedId, rejectedPreview }: FitRoutesProps) {
   const map = useMap();
 
   useEffect(() => {
     const points: Array<[number, number]> = [];
     if (start) {
       points.push([start.latitude, start.longitude]);
+    }
+    if (end) {
+      points.push([end.latitude, end.longitude]);
     }
     for (const alt of alternatives) {
       for (const [lon, lat] of alt.geometry.coordinates) {
@@ -99,7 +104,7 @@ function FitRoutes({ start, alternatives, selectedId, rejectedPreview }: FitRout
       return;
     }
     map.fitBounds(points, { padding: [36, 36] });
-  }, [map, start, alternatives, selectedId, rejectedPreview]);
+  }, [map, start, end, alternatives, selectedId, rejectedPreview]);
 
   return null;
 }
@@ -144,11 +149,14 @@ function toPositions(coordinates: Array<[number, number]>): LatLngExpression[] {
 
 export type RouteMapProps = {
   start: PocCoordinate | null;
+  end?: PocCoordinate | null;
+  routeMode?: PocRouteMode;
   alternatives: PocAlternative[];
   selectedId: string | null;
   recenterRequest: MapRecenterRequest | null;
   rejectedPreview: RejectedPreview | null;
   onSelectStart: (coordinate: PocCoordinate) => void;
+  onSelectCoordinate?: (coordinate: PocCoordinate) => void;
   /** Changes when planner chrome layout shifts so Leaflet can recalculate size. */
   layoutKey?: string;
   mapTheme: ColorScheme;
@@ -156,11 +164,14 @@ export type RouteMapProps = {
 
 export function RouteMap({
   start,
+  end = null,
+  routeMode = 'loop',
   alternatives,
   selectedId,
   recenterRequest,
   rejectedPreview,
   onSelectStart,
+  onSelectCoordinate,
   layoutKey = 'default',
   mapTheme,
 }: RouteMapProps) {
@@ -223,14 +234,17 @@ export function RouteMap({
     ? toPositions(rejectedPreview.geometry.coordinates)
     : [];
   const startMarkerIcon = useMemo(() => createStartMarkerIcon(), []);
+  const endMarkerIcon = useMemo(() => createEndMarkerIcon(), []);
+  const visibleEnd = routeMode === 'point_to_point' ? end : null;
 
   return (
     <div className="route-map-wrap">
       <MapContainer center={center} zoom={DEFAULT_ZOOM} className="route-map" scrollWheelZoom>
         <TileLayer key={mapTheme} attribution={tiles.attribution} url={tiles.url} />
-        <StartSelector onSelect={onSelectStart} />
+        <StartSelector onSelect={onSelectCoordinate ?? onSelectStart} />
         <FitRoutes
           start={start}
+          end={visibleEnd}
           alternatives={alternatives}
           selectedId={selectedId}
           rejectedPreview={rejectedPreview}
@@ -302,8 +316,16 @@ export function RouteMap({
           <Marker
             position={[start.latitude, start.longitude]}
             icon={startMarkerIcon}
-            title="Route start"
+            title="Start"
             zIndexOffset={1600}
+          />
+        ) : null}
+        {visibleEnd ? (
+          <Marker
+            position={[visibleEnd.latitude, visibleEnd.longitude]}
+            icon={endMarkerIcon}
+            title="End"
+            zIndexOffset={1650}
           />
         ) : null}
       </MapContainer>
@@ -317,10 +339,12 @@ export function RouteMap({
         {rejectedPreview ? (
           <>
             <span className="route-map-legend__short">
-              {rejectedPreview.label} (dashed) · Start → numbered arrows
+              {rejectedPreview.label} (dashed) · Start
+              {visibleEnd ? ' → End' : ''} → numbered arrows
             </span>
             <span className="route-map-legend__full">
-              {rejectedPreview.label} (dashed orange) · Start → follow numbered arrows in order
+              {rejectedPreview.label} (dashed orange) · Start
+              {visibleEnd ? ' → End' : ''} → follow numbered arrows in order
               (green → yellow → red). Markers tighten at turns; paired outlined arrows mark
               reversals or crossings.
             </span>
@@ -328,11 +352,11 @@ export function RouteMap({
         ) : (
           <>
             <span className="route-map-legend__short">
-              Start → numbered arrows (green → yellow → red)
+              Start{visibleEnd ? ' → End' : ''} → numbered arrows (green → yellow → red)
             </span>
             <span className="route-map-legend__full">
-              Start → follow numbered arrows in order (green → yellow → red). Markers tighten at
-              turns; paired outlined arrows mark reversals or crossings.
+              Start{visibleEnd ? ' → End' : ''} → follow numbered arrows in order (green → yellow →
+              red). Markers tighten at turns; paired outlined arrows mark reversals or crossings.
             </span>
           </>
         )}

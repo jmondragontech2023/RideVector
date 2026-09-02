@@ -227,6 +227,7 @@ export function emptyDiagnosticSummary(): PocGenerateResponse['diagnosticSummary
       outside_tolerance: 0,
       duplicate_candidate: 0,
       selection_limit: 0,
+      endpoint_mismatch: 0,
     },
   };
 }

@@ -106,6 +106,7 @@ describe('buildDiagnosticSummary', () => {
     outside_tolerance: 0,
     duplicate_candidate: 0,
     selection_limit: 0,
+    endpoint_mismatch: 0,
   };
 
   it('calculates closest routable rejected candidate below tolerance', () => {

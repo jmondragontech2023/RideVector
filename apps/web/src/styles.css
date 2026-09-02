@@ -20,6 +20,9 @@
   --rv-border-input: #94a3b8;
   --rv-accent: #2563eb;
   --rv-accent-strong: #1d4ed8;
+  --rv-end: #0f766e;
+  --rv-end-strong: #0d9488;
+  --rv-end-contrast: #f8fafc;
   --rv-accent-soft: #dbeafe;
   --rv-accent-contrast: #f8fafc;
   --rv-card-bg: #f8fafc;
@@ -77,6 +80,9 @@
     --rv-border-input: #475569;
     --rv-accent: #3b82f6;
     --rv-accent-strong: #60a5fa;
+    --rv-end: #2dd4bf;
+    --rv-end-strong: #5eead4;
+    --rv-end-contrast: #042f2e;
     --rv-accent-soft: rgba(37, 99, 235, 0.22);
     --rv-accent-contrast: #0b1220;
     --rv-card-bg: rgba(255, 255, 255, 0.04);
@@ -127,6 +133,9 @@
   --rv-border-input: #475569;
   --rv-accent: #3b82f6;
   --rv-accent-strong: #60a5fa;
+  --rv-end: #2dd4bf;
+  --rv-end-strong: #5eead4;
+  --rv-end-contrast: #042f2e;
   --rv-accent-soft: rgba(37, 99, 235, 0.22);
   --rv-accent-contrast: #0b1220;
   --rv-card-bg: rgba(255, 255, 255, 0.04);
@@ -987,6 +996,72 @@ button:focus-visible,
   letter-spacing: 0.08em;
   line-height: 1.1;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+}
+
+.route-end-marker-wrap {
+  background: transparent;
+  border: none;
+}
+
+.route-end-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12rem;
+  pointer-events: none;
+}
+
+.route-end-marker__pin {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--rv-end);
+  border: 2px solid var(--rv-marker-ring);
+  box-shadow:
+    0 0 0 1px var(--rv-shadow-marker),
+    0 2px 6px var(--rv-shadow-soft);
+}
+
+.route-end-marker__letter {
+  transform: rotate(45deg);
+  color: var(--rv-end-contrast);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+}
+
+.route-end-marker__label {
+  padding: 0.08rem 0.35rem;
+  border-radius: 0.25rem;
+  background: var(--rv-surface-elevated);
+  border: 1px solid var(--rv-shadow-marker);
+  color: var(--rv-end-strong);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+}
+
+.endpoint-editor {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.endpoint-editor__coords {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.endpoint-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .route-selected-solid {

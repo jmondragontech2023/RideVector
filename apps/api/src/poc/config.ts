@@ -50,6 +50,27 @@ export const POC_CONFIG = {
   minTargetDistanceMeters: 1_000,
   /** Maximum allowed target distance (100 miles). */
   maxTargetDistanceMeters: 100 * METERS_PER_MILE,
+  /** Maximum generate-request JSON body size (bytes). */
+  maxRequestBodyBytes: 16_384,
+  /**
+   * Start and End closer than this are treated as the same place.
+   * Point-to-point requests must use loop mode instead.
+   */
+  coincidentEndpointMeters: 25,
+  /** Adjacent required locations closer than this collapse into a zero-length leg. */
+  zeroLengthLegMeters: 10,
+  /**
+   * Provider-snapped first/last geometry points must stay within this
+   * distance of the requested Start/End. Requested coordinates are retained
+   * separately from snapped geometry.
+   */
+  endpointSnapToleranceMeters: 150,
+  /**
+   * Point-to-point candidates whose pairwise geometry overlap meets or exceeds
+   * this fraction are treated as duplicates. Higher than a generic loop
+   * midpoint check because open routes share endpoints by definition.
+   */
+  pointToPointDuplicateOverlapFraction: 0.88,
   /**
    * Base bearings (degrees) for candidate families, rotated by seed.
    * Six families cover the initial attempt set.

@@ -2,7 +2,7 @@
 
 ## Active status
 
-**POC scoring/enrichment + POC-4 GPX field-test export implemented on branch `poc/garmin-gpx-export`**, except owner field-test answers in `poc/EVALUATION.md` (must remain pending). Milestone 0 remains merged. ADR-017 / ADR-019 and `poc/README.md` govern the temporary POC exceptions; all prior production decisions and the Milestones 1–11 roadmap remain preserved.
+**POC scoring/enrichment + POC-4 GPX + Phase 1 start/end selection implemented**, except owner field-test answers in `poc/EVALUATION.md` (must remain pending). Phase 2 ordered stops and return routing are **not** started. Milestone 0 remains merged. ADR-017 / ADR-019 / ADR-020 and `poc/README.md` govern the temporary POC exceptions; all prior production decisions and the Milestones 1–11 roadmap remain preserved.
 
 ## POC-0 — Pivot and baseline
 
@@ -66,6 +66,14 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 - [x] Expand `poc/EVALUATION.md` mode matrix; keep owner results pending.
 - [ ] Owner completes evaluation matrix in `poc/EVALUATION.md`.
 
+## POC Phase 1 — Start/end selection (ADR-020)
+
+- [x] Extend `/api/poc/routes/generate` with `routeMode` / `end`; reject Phase 2 waypoints/return and loop+end combinations.
+- [x] Generate scored open Start → End alternatives with seeded interior detours; keep loop generation unchanged.
+- [x] Mode-aware geometry scoring (`poc-scoring-v2`); no loop-closure penalty on open routes; endpoint snap is hard validation.
+- [x] Desktop/mobile Start/End selection, active map-tap control, editable coordinates, clear/swap, local save restore, GPX open-path compatibility.
+- [ ] Owner confirms the start/end experience before Phase 2.
+
 ## POC guardrails
 
 - No Supabase product schema, authentication, RLS, remote deployment, iOS, production export infrastructure, direct Garmin/Strava publishing, or production analytics.
@@ -75,6 +83,16 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 - Maximum 10 routing-provider calls per generation attempt; traffic enrichment ≤15 TomTom calls.
 - Do not send precise personal locations to logs, fixtures, or committed files.
 - Do not deploy POC feature behavior through staging or production workflows.
+
+## Verification log (POC Phase 1 start/end)
+
+| Check | Command / action | Outcome |
+| --- | --- | --- |
+| Branch | `cursor/start-end-phase-1-44a8` from `cursor/mobile-expandable-map-2070` | Pass |
+| Unit / mocked tests | `pnpm --filter @ridevector/api exec vitest run` (99) and `pnpm --filter @ridevector/web exec vitest run` (170) | Pass |
+| Full gate | `pnpm run check` | Pending this handoff |
+| Live Valhalla start/end generate | owner / optional smoke | Not run in this implementation pass |
+| Merge / deploy | — | Not done (owner review; Phase 1 checkpoint) |
 
 ## Verification log (POC-4 GPX field-test export)
 

@@ -33,9 +33,9 @@ This is an evidence-gathering detour, not a replacement for Milestones 1–11. I
 
 Scope:
 
-- Select a start point on a web map.
-- Enter a target distance and choose a broad road or gravel bicycle profile.
-- Generate bounded, seeded, directionally varied loop candidates through a provider-neutral routing adapter backed initially by a configurable Valhalla-compatible endpoint.
+- Select a start point on a web map, or choose **Start and end** and select both endpoints (ADR-020 Phase 1).
+- Enter a target distance for the entire ride and choose a broad road or gravel bicycle profile.
+- Generate bounded, seeded, directionally varied loop candidates, or open Start → End alternatives with seeded interior detours, through a provider-neutral routing adapter backed initially by a configurable Valhalla-compatible endpoint.
 - Return and display up to three alternatives with geometry, distance, estimated duration, target-distance difference, and factual warnings.
 - Select, regenerate, and save candidates in browser-local storage for personal evaluation.
 - Download the selected accepted alternative as a client-side GPX 1.1 track for manual Garmin Connect course import (field-test export only).
@@ -53,7 +53,8 @@ Explicit POC limits:
 Acceptance:
 
 - From a clean local checkout, a rider can select a start, request a distance-based loop, and see at least one real routed bicycle loop on the map.
-- Common test locations normally yield at least two visibly different alternatives within a provisional ±20% target tolerance, or return an honest structured explanation.
+- A rider can also select distinct Start and End points and receive scored open bicycle alternatives, or an honest no-route explanation, without a loop-closure penalty.
+- Common test locations normally yield at least two visibly different alternatives within the user-controlled distance flexibility (historical docs mentioned ±20%; current code uses user-controlled flexibility with near-match fallback), or return an honest structured explanation.
 - A generation attempt is bounded to 10 provider calls and records its seed and aggregate timing.
 - Routes can be selected, regenerated, and saved locally without Supabase.
 - A selected or reopened accepted route can be downloaded as standards-valid GPX 1.1 for manual Garmin Connect import.
