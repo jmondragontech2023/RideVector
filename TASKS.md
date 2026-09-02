@@ -90,7 +90,7 @@ Acceptance: ordinary fixtures normally return at least two visibly distinct rout
 | --- | --- | --- |
 | Branch | `cursor/start-end-phase-1-44a8` from `cursor/mobile-expandable-map-2070` | Pass |
 | Unit / mocked tests | `pnpm --filter @ridevector/api exec vitest run` (99) and `pnpm --filter @ridevector/web exec vitest run` (170) | Pass |
-| Full gate | `pnpm run check` | Pending this handoff |
+| Full gate | `pnpm run check` | Pass (api 99, web 170; format/lint/types/build/env-isolation/secrets/wrangler types) |
 | Live Valhalla start/end generate | owner / optional smoke | Not run in this implementation pass |
 | Merge / deploy | — | Not done (owner review; Phase 1 checkpoint) |
 
