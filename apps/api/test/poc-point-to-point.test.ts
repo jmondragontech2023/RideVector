@@ -54,9 +54,7 @@ function openLine(
 }
 
 class OpenRouteProvider implements RoutingProvider {
-  constructor(
-    private readonly impl: (request: RouteRequest) => RouteLoopResult,
-  ) {}
+  constructor(private readonly impl: (request: RouteRequest) => RouteLoopResult) {}
 
   route(request: RouteRequest): Promise<RouteLoopResult> {
     return Promise.resolve(this.impl(request));
@@ -100,7 +98,13 @@ describe('generatePocRoutes point-to-point', () => {
         ok: true,
         geometry: {
           type: 'LineString',
-          coordinates: openLine(start.latitude, start.longitude, end.latitude, end.longitude, offset),
+          coordinates: openLine(
+            start.latitude,
+            start.longitude,
+            end.latitude,
+            end.longitude,
+            offset,
+          ),
         },
         distanceMeters: 12 * METERS_PER_MILE + calls * 80,
         durationSeconds: 3200,
@@ -114,9 +118,7 @@ describe('generatePocRoutes point-to-point', () => {
     expect(result.alternatives.length).toBeLessThanOrEqual(3);
     expect(result.warnings.some((warning) => warning.includes('loop'))).toBe(false);
     for (const alternative of result.alternatives) {
-      expect(
-        geometryMeetsRequestedEndpoints(alternative.geometry, START, END),
-      ).toBe(true);
+      expect(geometryMeetsRequestedEndpoints(alternative.geometry, START, END)).toBe(true);
       expect(alternative.id).toMatch(/^poc-4-\d+-(direct|detour-\d+)$/);
       const first = alternative.geometry.coordinates[0]!;
       const last = alternative.geometry.coordinates.at(-1)!;
@@ -145,9 +147,9 @@ describe('generatePocRoutes point-to-point', () => {
     expect(result.acceptedCount).toBe(0);
     expect(result.rejections.endpoint_mismatch).toBeGreaterThanOrEqual(1);
     expect(result.warnings[0]).toMatch(/start-to-end/);
-    expect(result.candidateDiagnostics.some((item) => item.rejectionReason === 'endpoint_mismatch')).toBe(
-      true,
-    );
+    expect(
+      result.candidateDiagnostics.some((item) => item.rejectionReason === 'endpoint_mismatch'),
+    ).toBe(true);
   });
 
   it('does not invent a third alternative from a duplicate corridor', async () => {

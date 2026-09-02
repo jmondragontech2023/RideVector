@@ -319,9 +319,7 @@ export function PlanPanel({
           </button>
           <p className="subtle location-disclosure">
             Your start location is sent to the configured routing service when you generate routes.
-            {routeMode === 'point_to_point'
-              ? ' End is sent only for start-and-end rides.'
-              : ''}
+            {routeMode === 'point_to_point' ? ' End is sent only for start-and-end rides.' : ''}
           </p>
           {locationMessage ? (
             <p className="status" role="status">

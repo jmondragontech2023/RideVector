@@ -344,9 +344,8 @@ export function RouteMap({
             </span>
             <span className="route-map-legend__full">
               {rejectedPreview.label} (dashed orange) · Start
-              {visibleEnd ? ' → End' : ''} → follow numbered arrows in order
-              (green → yellow → red). Markers tighten at turns; paired outlined arrows mark
-              reversals or crossings.
+              {visibleEnd ? ' → End' : ''} → follow numbered arrows in order (green → yellow → red).
+              Markers tighten at turns; paired outlined arrows mark reversals or crossings.
             </span>
           </>
         ) : (

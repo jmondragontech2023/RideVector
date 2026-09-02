@@ -47,7 +47,11 @@ export function buildPointToPointPatterns(
     const scale = DETOUR_SCALE_FACTORS[index % DETOUR_SCALE_FACTORS.length]!;
     const offsetDistance = Math.min(varietyBase * scale * 0.55, corridorMeters * 1.8);
     const alongPoint = interpolateCoordinate(start, end, along);
-    const via = destinationPoint(alongPoint, corridorBearing + 90 * side + seedJitter, offsetDistance);
+    const via = destinationPoint(
+      alongPoint,
+      corridorBearing + 90 * side + seedJitter,
+      offsetDistance,
+    );
     patterns.push({
       id: `detour-${index + 1}`,
       locations: [start, via, end],

@@ -26,7 +26,9 @@ describe('loop quality scoring', () => {
     const open = loop();
     open[open.length - 1] = [-122.4, 37.8];
     const metrics = analyzeLoopQuality({ type: 'LineString', coordinates: open });
-    const closedScore = scoreLoopQuality(analyzeLoopQuality({ type: 'LineString', coordinates: loop() }));
+    const closedScore = scoreLoopQuality(
+      analyzeLoopQuality({ type: 'LineString', coordinates: loop() }),
+    );
     const openLoopScore = scoreLoopQuality(metrics);
     const openPathScore = scoreGeometryQuality(metrics, 'point_to_point');
     expect(openLoopScore).toBeLessThan(closedScore);

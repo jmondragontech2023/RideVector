@@ -54,10 +54,7 @@ export function coordinatesAreCoincident(left: PocCoordinate, right: PocCoordina
   return coordinatesAreWithinMeters(left, right, POC_CONFIG.coincidentEndpointMeters);
 }
 
-export function adjacentLocationsCollapse(
-  left: PocCoordinate,
-  right: PocCoordinate,
-): boolean {
+export function adjacentLocationsCollapse(left: PocCoordinate, right: PocCoordinate): boolean {
   return coordinatesAreWithinMeters(left, right, POC_CONFIG.zeroLengthLegMeters);
 }
 

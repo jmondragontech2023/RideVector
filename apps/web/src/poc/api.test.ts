@@ -34,7 +34,7 @@ describe('generatePocRoutes client', () => {
               outside_tolerance: 0,
               duplicate_candidate: 0,
               selection_limit: 0,
-            endpoint_mismatch: 0,
+              endpoint_mismatch: 0,
             },
           },
           distanceFlexibilityMeters: 4828.032,

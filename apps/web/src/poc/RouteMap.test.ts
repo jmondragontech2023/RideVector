@@ -136,7 +136,7 @@ describe('App plan invalidation', () => {
     expect(appSource).toContain('onRouteModeChange');
     expect(appSource).toContain('onSwapEndpoints');
     expect(appSource).toContain('clearGenerationResults()');
-    expect(appSource).toContain("setRouteMode(value)");
+    expect(appSource).toContain('setRouteMode(value)');
   });
 });
 

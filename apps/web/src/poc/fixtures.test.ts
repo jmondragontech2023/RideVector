@@ -5,7 +5,9 @@ import { milesToMeters } from './units';
 describe('POC scenario fixtures', () => {
   it('provides public loop and start-to-end scenarios', () => {
     expect(POC_SCENARIO_FIXTURES.length).toBeGreaterThanOrEqual(5);
-    expect(POC_SCENARIO_FIXTURES.filter((fixture) => fixture.routeMode === 'point_to_point')).toHaveLength(2);
+    expect(
+      POC_SCENARIO_FIXTURES.filter((fixture) => fixture.routeMode === 'point_to_point'),
+    ).toHaveLength(2);
   });
 
   it('keeps coordinates in WGS84 bounds and uses canonical mile conversion', () => {
